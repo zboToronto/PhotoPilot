@@ -1,0 +1,3716 @@
+<?xml version='1.0' encoding='utf-8'?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>80</x>
+      <y>330</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>presentation / application facade
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>130</x>
+      <y>385</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>GUI and CLI share the same workflows. Facade contains delegation only.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>480</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotGUI
+{Facade client}
+--
+- app: PhotoPilotFacade
+- draftInput: String
+- privacy: ImagePrivacyBoundary
+--
++ showSession(id: UUID)
++ submitBrief(id: UUID, text: String)
++ showFailure(message: String)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>480</y>
+      <w>660</w>
+      <h>510</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotFacade
+{Facade}
+--
+- sessions: SessionService
+- inventory: InventoryService
+- discovery: DiscoveryService
+- planning: PlanningService
+- review: ReviewService
+- calculations: TechnicalCalculator
+--
++ createSession(title: String, date: LocalDate): Result&lt;PhotographySession&gt;
++ suggest(context: DiscoveryContext): Result&lt;List&lt;ActivitySuggestion&gt;&gt;
++ parse(id: UUID, text: String): Result&lt;ShootRequirement&gt;
++ recognize(image: SanitizedImage): Result&lt;GearImportDraft&gt;
++ saveGear(item: Equipment): Result&lt;Equipment&gt;
++ analyzeNeeds(id: UUID): Result&lt;EquipmentRequirementProfile&gt;
++ matchGear(id: UUID): Result&lt;List&lt;Loadout&gt;&gt;
++ calculate(input: CalculationInput): Result&lt;CalculationResult&gt;
++ assessEnvironment(id: UUID): Result&lt;EnvironmentAssessment&gt;
++ generatePlan(id: UUID): Result&lt;ShootPlan&gt;
++ proposeChange(id: UUID, text: String): Result&lt;PlanCommand&gt;
++ analyze(id: UUID, files: List&lt;Path&gt;): Result&lt;ExifStatistics&gt;
++ review(id: UUID): Result&lt;PostShootReview&gt;
++ sessions(): SessionService
++ inventory(): InventoryService
++ planning(): PlanningService
++ reviews(): ReviewService
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>480</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotCLI
+{Facade client}
+--
+- app: PhotoPilotFacade
+- privacy: ImagePrivacyBoundary
+--
++ run(args: String[])
++ execute(line: String): int
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>SessionService
+{F01; deterministic}
+--
+- repository: SessionRepository
+--
++ create(title: String, date: LocalDate): Result&lt;PhotographySession&gt;
++ save(session: PhotographySession): Result&lt;PhotographySession&gt;
++ open(id: UUID): Result&lt;PhotographySession&gt;
++ search(query: String): Result&lt;List&lt;PhotographySession&gt;&gt;
++ transition(id: UUID, event: SessionEvent): Result&lt;PhotographySession&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>390</h>
+    </coordinates>
+    <panel_attributes>PlanningService
+{F03, F06-F10; workflow coordination}
+--
+- requirements: RequirementService
+- matching: GearMatchingService
+- environment: EnvironmentService
+- agent: PhotoPilotAgent
+- editor: PlanEditor
+- sessions: SessionRepository
+- inventory: InventoryRepository
+- calculator: TechnicalCalculator
+--
++ parse(id: UUID, text: String): Result&lt;ShootRequirement&gt;
++ confirm(id: UUID, edited: ShootRequirement): Result&lt;ShootRequirement&gt;
++ analyzeNeeds(id: UUID): Result&lt;EquipmentRequirementProfile&gt;
++ matchGear(id: UUID): Result&lt;List&lt;Loadout&gt;&gt;
++ assessEnvironment(id: UUID): Result&lt;EnvironmentAssessment&gt;
++ generate(id: UUID): Result&lt;ShootPlan&gt;
++ proposeChange(id: UUID, text: String): Result&lt;PlanCommand&gt;
++ approve(id: UUID, plan: ShootPlan): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>InventoryService
+{F04-F05; confirmation and validation}
+--
+- repository: InventoryRepository
+- sessions: SessionRepository
+- recognition: GearRecognitionService
+--
++ list(query: String): Result&lt;GearInventory&gt;
++ save(item: Equipment): Result&lt;Equipment&gt;
++ duplicates(item: Equipment): List&lt;Equipment&gt;
++ affectedSessions(id: UUID): Result&lt;List&lt;UUID&gt;&gt;
++ remove(id: UUID, warningAccepted: boolean): Result&lt;Boolean&gt;
++ recognize(image: SanitizedImage): Result&lt;GearImportDraft&gt;
++ confirm(draft: GearImportDraft): Result&lt;Equipment&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>DiscoveryService
+{F02; ideas before detailed planning}
+--
+- agent: PhotoPilotAgent
+- environment: EnvironmentService
+- validator: FeasibilityValidator
+- sessions: SessionRepository
+--
++ suggest(context: DiscoveryContext): Result&lt;List&lt;ActivitySuggestion&gt;&gt;
++ save(id: UUID, idea: ActivitySuggestion): Result&lt;ActivitySuggestion&gt;
++ select(id: UUID, idea: ActivitySuggestion): Result&lt;ShootRequirement&gt;
++ dismiss(idea: ActivitySuggestion)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>ReviewService
+{F11; statistics independent of AI}
+--
+- metadata: MetadataExtractor
+- statistics: StatisticsCalculator
+- agent: PhotoPilotAgent
+- sessions: SessionRepository
+--
++ analyze(id: UUID, files: List&lt;Path&gt;): Result&lt;ExifStatistics&gt;
++ review(id: UUID): Result&lt;PostShootReview&gt;
++ save(id: UUID, review: PostShootReview): Result&lt;PostShootReview&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>Result&lt;T&gt;
+{shared return type; preserves failures}
+--
+- value: Optional&lt;T&gt;
+- errors: List&lt;String&gt;
+- warnings: List&lt;String&gt;
+--
++ isSuccess(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>2640</x>
+      <y>330</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>agent / orchestration
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>2690</x>
+      <y>385</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>AI proposes; deterministic tools return evidence. No runtime GPT-6 or Fable.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>480</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotAgent
+{AI; generic method &lt;T&gt; run}
+--
+- model: LLMClient
+- tools: ToolRegistry
+- history: HistoryRetriever
+- maxSteps: int
+--
++ run(task: String, context: AgentContext, type: Class&lt;T&gt;): Result&lt;T&gt;
+- selectTool(reply: ModelReply): Result&lt;ToolCall&gt;
+- validateOutput(json: String, type: Class&lt;T&gt;): Result&lt;T&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>480</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/LLMClient/
+{Adapter target; runtime model port}
+--
+--
+/+ complete(context: AgentContext): Result&lt;ModelReply&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>480</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>GeminiAdapter
+{Adapter; configurable Gemini runtime}
+--
+- endpoint: URI
+- modelName: String
+- http: HttpClient
+- timeout: Duration
+--
++ complete(context: AgentContext): Result&lt;ModelReply&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>ToolRegistry
+{validated allowlist; no arbitrary execution}
+--
+- allowedTools: Map&lt;String, AgentTool&gt;
+--
++ execute(call: ToolCall): Result&lt;String&gt;
++ schemas(): Map&lt;String, String&gt;
++ register(tool: AgentTool)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/AgentTool/
+{tool contract; all inputs validated}
+--
+--
+/+ name(): String/
+/+ inputSchema(): String/
+/+ execute(argumentsJson: String): Result&lt;String&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>HistoryRetriever
+{F01, F02, F10, F11; application memory}
+--
+- repository: SessionRepository
+--
++ retrieve(query: String): Result&lt;List&lt;PhotographySession&gt;&gt;
++ contextFor(id: UUID): Result&lt;AgentContext&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>AgentContext
+{retrieved context and verified evidence}
+--
+- sessionId: UUID
+- messages: List&lt;String&gt;
+- evidenceJson: String
+- history: List&lt;PhotographySession&gt;
+- approvedImage: Optional&lt;SanitizedImage&gt;
+--
++ appendToolResult(call: ToolCall, result: String)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>ModelReply
+{untrusted AI response}
+--
+- structuredOutput: Optional&lt;String&gt;
+- toolCalls: List&lt;ToolCall&gt;
+- clarificationQuestions: List&lt;String&gt;
+--
++ requiresTool(): boolean
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>ToolCall
+{untrusted until schema and permission checks}
+--
+- toolName: String
+- argumentsJson: String
+--
++ validateAgainst(schema: String): Result&lt;ToolCall&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>5200</x>
+      <y>330</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain / sessions and lifecycle
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>5250</x>
+      <y>385</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>State: transition guards control planning, completion and review; lifecycle is a design choice.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>480</y>
+      <w>660</w>
+      <h>420</h>
+    </coordinates>
+    <panel_attributes>PhotographySession
+{F01; State context}
+--
+- id: UUID
+- title: String
+- date: LocalDate
+- location: Optional&lt;GeoLocation&gt;
+- notes: String
+- createdAt: Instant
+- updatedAt: Instant
+- state: SessionState
+- requirements: Optional&lt;ShootRequirement&gt;
+- plans: List&lt;ShootPlan&gt;
+- reviews: List&lt;PostShootReview&gt;
+- profile: Optional&lt;EquipmentRequirementProfile&gt;
+- statistics: Optional&lt;ExifStatistics&gt;
+- savedIdeas: List&lt;ActivitySuggestion&gt;
+--
++ apply(event: SessionEvent): Result&lt;PhotographySession&gt;
++ attachRequirement(requirement: ShootRequirement)
++ appendApprovedPlan(plan: ShootPlan)
++ appendReview(review: PostShootReview)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>480</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/SessionState/
+{State contract}
+--
+--
+/+ next(session: PhotographySession, event: SessionEvent): Result&lt;SessionState&gt;/
+/+ canEditPlan(): boolean/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>480</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>DraftState
+{Concrete State; approve valid plan -&gt; Planned}
+--
+--
++ next(session: PhotographySession, event: SessionEvent): Result&lt;SessionState&gt;
++ canEditPlan(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>PlannedState
+{Concrete State; completion -&gt; Completed}
+--
+--
++ next(session: PhotographySession, event: SessionEvent): Result&lt;SessionState&gt;
++ canEditPlan(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>CompletedState
+{Concrete State; saved review -&gt; Reviewed}
+--
+--
++ next(session: PhotographySession, event: SessionEvent): Result&lt;SessionState&gt;
++ canEditPlan(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>1060</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>ReviewedState
+{Concrete State; historical plan read-only}
+--
+--
++ next(session: PhotographySession, event: SessionEvent): Result&lt;SessionState&gt;
++ canEditPlan(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;enumeration&gt;&gt;
+SessionEvent
+--
+--
+PLAN_APPROVED
+SHOOT_COMPLETED
+REVIEW_SAVED
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/SessionRepository/
+{persistence port; atomic aggregate save}
+--
+--
+/+ save(session: PhotographySession): Result&lt;PhotographySession&gt;/
+/+ find(id: UUID): Result&lt;PhotographySession&gt;/
+/+ search(query: String): Result&lt;List&lt;PhotographySession&gt;&gt;/
+/+ referencingGear(id: UUID): Result&lt;List&lt;UUID&gt;&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>1640</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>JsonSessionRepository
+{data implementation; storage choice provisional}
+--
+- directory: Path
+--
++ save(session: PhotographySession): Result&lt;PhotographySession&gt;
++ find(id: UUID): Result&lt;PhotographySession&gt;
++ search(query: String): Result&lt;List&lt;PhotographySession&gt;&gt;
++ referencingGear(id: UUID): Result&lt;List&lt;UUID&gt;&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>80</x>
+      <y>2540</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>application / requirements and gear import
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>130</x>
+      <y>2595</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>F03 and F04 remain distinct. User edits and confirms drafts before persistence.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>RequirementService
+{F03, F06; AI interpretation, deterministic gates}
+--
+- agent: PhotoPilotAgent
+--
++ parse(text: String, context: AgentContext): Result&lt;ShootRequirement&gt;
++ clarify(draft: ShootRequirement, answers: String): Result&lt;ShootRequirement&gt;
++ confirm(edited: ShootRequirement): Result&lt;ShootRequirement&gt;
++ deriveProfile(req: ShootRequirement): Result&lt;EquipmentRequirementProfile&gt;
++ validateProfile(profile: EquipmentRequirementProfile): Result&lt;EquipmentRequirementProfile&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>390</h>
+    </coordinates>
+    <panel_attributes>ShootRequirement
+{F03; confirmed before capability analysis}
+--
+- originalText: String
+- subject: String
+- goals: List&lt;String&gt;
+- time: Optional&lt;ZonedDateTime&gt;
+- location: Optional&lt;GeoLocation&gt;
+- duration: Duration
+- cameraCount: int
+- lensChangesAllowed: boolean
+- maxWeightGrams: Optional&lt;Double&gt;
+- gearConstraints: List&lt;String&gt;
+- priorities: Map&lt;String, Integer&gt;
+- fixedConstraints: Map&lt;String, String&gt;
+- clarificationQuestions: List&lt;String&gt;
+- confirmed: boolean
+--
++ validate(): Result&lt;ShootRequirement&gt;
++ confirm(): Result&lt;ShootRequirement&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>EquipmentRequirementProfile
+{F06; capabilities only, no product identities}
+--
+- needs: List&lt;CapabilityNeed&gt;
+- reviewed: boolean
+--
++ validate(req: ShootRequirement): Result&lt;EquipmentRequirementProfile&gt;
++ confirm(): Result&lt;EquipmentRequirementProfile&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>GearRecognitionService
+{F04; no save before confirmation}
+--
+- agent: PhotoPilotAgent
+- specifications: EquipmentSpecificationProvider
+--
++ recognize(image: SanitizedImage): Result&lt;GearImportDraft&gt;
++ verify(draft: GearImportDraft): Result&lt;GearImportDraft&gt;
++ confirm(edited: GearImportDraft): Result&lt;Equipment&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>GearImportDraft
+{F04; specification provenance retained}
+--
+- candidates: List&lt;Equipment&gt;
+- selected: Optional&lt;Equipment&gt;
+- conflicts: List&lt;String&gt;
+- confirmed: boolean
+--
++ correct(item: Equipment)
++ confirm(): Result&lt;Equipment&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>CapabilityNeed
+{F06; e.g. aperture, AF, burst, stabilization}
+--
+- capability: String
+- minimum: Optional&lt;Double&gt;
+- maximum: Optional&lt;Double&gt;
+- unit: String
+- priority: int
+- hardConstraint: boolean
+- rationale: String
+--
++ validate(): Result&lt;CapabilityNeed&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>ImagePrivacyBoundary
+{presentation helper; user crops/redacts first}
+--
+--
++ approveRedacted(copy: Path, confirmed: boolean): Result&lt;SanitizedImage&gt;
++ discard(image: SanitizedImage)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>SanitizedImage
+{only boundary constructs; transient; never persisted}
+--
+- bytes: byte[]
+- mediaType: String
+- userApproved: boolean
+--
+~ SanitizedImage(bytes: byte[], mediaType: String)
++ clear()
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/EquipmentSpecificationProvider/
+{integration port; sourced or unverified fields}
+--
+--
+/+ lookup(model: String): Result&lt;List&lt;Equipment&gt;&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>2640</x>
+      <y>2540</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain / equipment and inventory
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>2690</x>
+      <y>2595</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Deterministic F05. Gear subtypes carry compatibility data; unknown fields stay unknown.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>GearInventory
+{F05; aggregate of independently identified gear}
+--
+- items: List&lt;Equipment&gt;
+--
++ add(item: Equipment): Result&lt;Equipment&gt;
++ update(item: Equipment): Result&lt;Equipment&gt;
++ search(query: String): List&lt;Equipment&gt;
++ remove(id: UUID): Result&lt;Boolean&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>/Equipment/
+{shared gear identity; missing data explicit}
+--
+- id: UUID
+- brand: String
+- model: String
+- quantity: int
+- weightGrams: Optional&lt;Double&gt;
+- verifiedFields: Set&lt;String&gt;
+- sources: Map&lt;String, URI&gt;
+- verifiedAt: Optional&lt;Instant&gt;
+--
++ validate(): Result&lt;Equipment&gt;
++ snapshot(): GearSnapshot
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>260</h>
+    </coordinates>
+    <panel_attributes>Camera
+{F05}
+--
+- mount: String
+- sensorWidthMm: Optional&lt;Double&gt;
+- sensorHeightMm: Optional&lt;Double&gt;
+- batteryTypes: Set&lt;String&gt;
+- storageFormats: Set&lt;String&gt;
+- resolutionMP: Optional&lt;Double&gt;
+- burstFps: Optional&lt;Double&gt;
+- stabilization: Optional&lt;Boolean&gt;
+- autofocusModes: Set&lt;String&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>Lens
+{F05}
+--
+- mount: String
+- minFocalMm: double
+- maxFocalMm: double
+- maxAperture: double
+- filterDiameterMm: Optional&lt;Double&gt;
+- autofocus: Optional&lt;Boolean&gt;
+- stabilization: Optional&lt;Boolean&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>Filter
+{F05}
+--
+- diameterMm: double
+- ndStops: Optional&lt;Double&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>Battery
+{F05}
+--
+- batteryType: String
+- capacityMah: double
+- ratedShots: Optional&lt;Integer&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>StorageMedia
+{F05}
+--
+- format: String
+- capacityGB: double
+- writeSpeedMBps: Optional&lt;Double&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/InventoryRepository/
+{persistence port}
+--
+--
+/+ load(): Result&lt;GearInventory&gt;/
+/+ save(inventory: GearInventory): Result&lt;GearInventory&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>JsonInventoryRepository
+{data implementation; atomic write}
+--
+- file: Path
+--
++ load(): Result&lt;GearInventory&gt;
++ save(inventory: GearInventory): Result&lt;GearInventory&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>5200</x>
+      <y>2540</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain services / matching and Strategy
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>5250</x>
+      <y>2595</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Hard compatibility is checked before AI ranking; rankings cannot add gear or candidates.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>GearMatchingService
+{F07; Strategy context; postvalidates ranked IDs}
+--
+- validator: CompatibilityValidator
+- ranking: LoadoutRankingStrategy
+--
++ match(profile: EquipmentRequirementProfile, gear: GearInventory): Result&lt;List&lt;Loadout&gt;&gt;
++ setRanking(strategy: LoadoutRankingStrategy)
++ compatibleCandidates(gear: GearInventory): Result&lt;List&lt;Loadout&gt;&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>CompatibilityValidator
+{F07; deterministic mount/filter/battery/storage rules}
+--
+--
++ validate(loadout: Loadout): CompatibilityReport
++ matchNeeds(loadout: Loadout, profile: EquipmentRequirementProfile): List&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>2690</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>CompatibilityReport
+{unknown is not compatible; partial needs explicit}
+--
+- compatible: boolean
+- unverified: List&lt;String&gt;
+- violations: List&lt;String&gt;
+- unmetNeeds: List&lt;String&gt;
+--
++ isUsable(): boolean
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/LoadoutRankingStrategy/
+{Strategy; only verified-compatible candidates}
+--
+--
+/+ rank(candidates: List&lt;Loadout&gt;, profile: EquipmentRequirementProfile): Result&lt;List&lt;Loadout&gt;&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>PortabilityRanking
+{AI Concrete Strategy; prioritize carrying weight}
+--
+- agent: PhotoPilotAgent
+--
++ rank(candidates: List&lt;Loadout&gt;, profile: EquipmentRequirementProfile): Result&lt;List&lt;Loadout&gt;&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>3270</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>CoverageRanking
+{AI Concrete Strategy; prioritize focal coverage}
+--
+- agent: PhotoPilotAgent
+--
++ rank(candidates: List&lt;Loadout&gt;, profile: EquipmentRequirementProfile): Result&lt;List&lt;Loadout&gt;&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>Loadout
+{F07; immutable selected quantities and evidence}
+--
+- id: UUID
+- gear: List&lt;GearSnapshot&gt;
+- cameraLensAssignments: Map&lt;UUID, UUID&gt;
+- compatibility: CompatibilityReport
+- tradeOffs: List&lt;String&gt;
+- unmetNeeds: List&lt;String&gt;
+--
++ totalWeightGrams(): Optional&lt;Double&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>260</h>
+    </coordinates>
+    <panel_attributes>GearSnapshot
+{immutable historical value; no live inventory dependency}
+--
+- sourceGearId: UUID
+- type: String
+- brand: String
+- model: String
+- selectedQuantity: int
+- capturedAt: Instant
+- specs: Map&lt;String, String&gt;
+- verifiedFields: Set&lt;String&gt;
+- sources: Map&lt;String, URI&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>3850</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>FeasibilityValidator
+{F02/F09; time, distance, gear and consent gates}
+--
+--
++ validate(idea: ActivitySuggestion, context: DiscoveryContext): Result&lt;ActivitySuggestion&gt;
++ checkTiming(assessment: EnvironmentAssessment): Result&lt;EnvironmentAssessment&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>80</x>
+      <y>4750</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain / plans and Command
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>130</x>
+      <y>4805</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Approved revisions are copied and appended atomically. Fixed constraints survive every command.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>PlanEditor
+{F10; Command invoker; no mutation of saved base}
+--
+- validator: PlanValidator
+--
++ preview(base: ShootPlan, change: PlanCommand): Result&lt;ShootPlan&gt;
++ applyApproved(base: ShootPlan, change: PlanCommand): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/PlanCommand/
+{Command contract; validated by invoker}
+--
+--
+/+ applyTo(draft: ShootPlan): Result&lt;ShootPlan&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>ReplaceLoadoutCommand
+{Concrete Command; lighter or different gear}
+--
+- replacement: Loadout
+--
++ applyTo(draft: ShootPlan): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>ReviseScheduleCommand
+{Concrete Command; timing change}
+--
+- windows: List&lt;ShootingWindow&gt;
+--
++ applyTo(draft: ShootPlan): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>ReviseStrategyCommand
+{Concrete Command; settings and shot goals}
+--
+- settings: Map&lt;String, String&gt;
+- shotPriorities: List&lt;String&gt;
+- preparation: List&lt;String&gt;
+- checklist: List&lt;String&gt;
+--
++ applyTo(draft: ShootPlan): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>390</h>
+    </coordinates>
+    <panel_attributes>ShootPlan
+{F10; Command receiver; immutable after approval}
+--
+- id: UUID
+- revision: int
+- approved: boolean
+- provisionalReasons: List&lt;String&gt;
+- loadout: Optional&lt;Loadout&gt;
+- settings: Map&lt;String, String&gt;
+- windows: List&lt;ShootingWindow&gt;
+- checklist: List&lt;String&gt;
+- preparation: List&lt;String&gt;
+- shotPriorities: List&lt;String&gt;
+- fixedConstraints: Map&lt;String, String&gt;
+- calculations: List&lt;CalculationResult&gt;
+--
++ copyForRevision(): ShootPlan
+~ replaceLoadout(loadout: Loadout)
+~ reviseSchedule(windows: List&lt;ShootingWindow&gt;)
+~ reviseStrategy(change: ReviseStrategyCommand)
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>PlanValidator
+{deterministic; recompute numbers, reject fixed-constraint changes}
+--
+- compatibility: CompatibilityValidator
+- calculator: TechnicalCalculator
+--
++ validate(plan: ShootPlan, req: ShootRequirement): Result&lt;ShootPlan&gt;
++ validateChange(base: ShootPlan, next: ShootPlan): Result&lt;ShootPlan&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>ShootingWindow
+{F09/F10; copied into approved revisions}
+--
+- start: ZonedDateTime
+- end: ZonedDateTime
+- arrival: ZonedDateTime
+- conditions: String
+- estimated: boolean
+--
++ validate(): Result&lt;ShootingWindow&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>EnvironmentAssessment
+{F09; guidance grounded in timestamped source data}
+--
+- context: EnvironmentContext
+- windows: List&lt;ShootingWindow&gt;
+- limitations: List&lt;String&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>2640</x>
+      <y>4750</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain services / environment and discovery
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>2690</x>
+      <y>4805</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Manual/approximate location works without device consent. Stale data is labeled, never invented.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>EnvironmentService
+{F09; factual retrieval independent of AI interpretation}
+--
+- provider: EnvironmentProvider
+- location: LocationService
+- agent: PhotoPilotAgent
+- validator: FeasibilityValidator
+--
++ retrieve(place: GeoLocation, date: LocalDate): Result&lt;EnvironmentContext&gt;
++ assess(req: ShootRequirement): Result&lt;EnvironmentAssessment&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/EnvironmentProvider/
+{weather and sunlight integration port}
+--
+--
+/+ fetch(place: GeoLocation, date: LocalDate): Result&lt;EnvironmentContext&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>EnvironmentApiAdapter
+{Adapter; providers not yet selected}
+--
+- weatherEndpoint: URI
+- sunEndpoint: URI
+- http: HttpClient
+--
++ fetch(place: GeoLocation, date: LocalDate): Result&lt;EnvironmentContext&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>LocationService
+{F01/F02/F09; no call without consent}
+--
+- provider: Optional&lt;DeviceLocationProvider&gt;
+--
++ manual(label: String, lat: double, lon: double): Result&lt;GeoLocation&gt;
++ current(explicitConsent: boolean): Result&lt;GeoLocation&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>EnvironmentContext
+{weather values carry documented units; partial data allowed}
+--
+- weather: Map&lt;String, Double&gt;
+- sunrise: Optional&lt;ZonedDateTime&gt;
+- sunset: Optional&lt;ZonedDateTime&gt;
+- sources: Map&lt;String, URI&gt;
+- sourceTimestamps: Map&lt;String, Instant&gt;
+- unavailableFields: Set&lt;String&gt;
+- retrievedAt: Instant
+--
++ staleFields(now: Instant, maxAge: Duration): Set&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>GeoLocation
+{value; no operating-system assumption}
+--
+- label: String
+- latitude: double
+- longitude: double
+- approximate: boolean
+- fromDevice: boolean
+- consentGrantedAt: Optional&lt;Instant&gt;
+--
++ validate(): Result&lt;GeoLocation&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>DiscoveryContext
+{F02; permitted user context}
+--
+- location: Optional&lt;GeoLocation&gt;
+- start: ZonedDateTime
+- availableTime: Duration
+- maxDistanceKm: double
+- preferences: List&lt;String&gt;
+- gear: GearInventory
+- history: List&lt;PhotographySession&gt;
+- environment: Optional&lt;EnvironmentContext&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>ActivitySuggestion
+{F02; conversion produces unconfirmed draft}
+--
+- subject: String
+- setting: String
+- estimatedDuration: Duration
+- estimatedTravelKm: Optional&lt;Double&gt;
+- rationale: String
+- limitations: List&lt;String&gt;
+--
++ toRequirement(): ShootRequirement
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/DeviceLocationProvider/
+{optional platform integration; implementation deferred}
+--
+--
+/+ current(): Result&lt;GeoLocation&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>5200</x>
+      <y>4750</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain services / deterministic calculation
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>5250</x>
+      <y>4805</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>F08 validates units and ranges; returns assumptions and estimates. Available without Gemini.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>220</h>
+    </coordinates>
+    <panel_attributes>TechnicalCalculator
+{F08; deterministic suite; operation-specific required keys}
+--
+--
++ calculate(input: CalculationInput): Result&lt;CalculationResult&gt;
++ depthOfField(input: CalculationInput): Result&lt;CalculationResult&gt;
++ hyperfocal(input: CalculationInput): Result&lt;CalculationResult&gt;
++ fieldOfView(input: CalculationInput): Result&lt;CalculationResult&gt;
++ exposureAndND(input: CalculationInput): Result&lt;CalculationResult&gt;
++ storage(input: CalculationInput): Result&lt;CalculationResult&gt;
++ batteryCapacity(input: CalculationInput): Result&lt;CalculationResult&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>CalculationInput
+{validated schema per operation; no free-form expressions}
+--
+- operation: CalculationKind
+- parameters: Map&lt;String, Double&gt;
+- units: Map&lt;String, String&gt;
+--
++ validate(): Result&lt;CalculationInput&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>4900</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>CalculationResult
+{F08; reproducible inputs retained}
+--
+- values: Map&lt;String, Double&gt;
+- units: Map&lt;String, String&gt;
+- estimated: boolean
+- assumptions: List&lt;String&gt;
+- input: CalculationInput
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;enumeration&gt;&gt;
+CalculationKind
+--
+--
+DEPTH_OF_FIELD
+HYPERFOCAL
+FIELD_OF_VIEW
+EXPOSURE_ND
+STORAGE
+BATTERY_CAPACITY
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>CalculationTool
+{AgentTool; deterministic F08}
+--
+- calculator: TechnicalCalculator
+--
++ name(): String
++ inputSchema(): String
++ execute(argumentsJson: String): Result&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>5480</y>
+      <w>660</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>GearMatchingTool
+{AgentTool; returns verified candidates; no AI recursion}
+--
+- matching: GearMatchingService
+- inventory: InventoryRepository
+--
++ name(): String
++ inputSchema(): String
++ execute(argumentsJson: String): Result&lt;String&gt;
+bg=#F3EEFA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>EnvironmentTool
+{AgentTool; invokes retrieve(), not assess()}
+--
+- environment: EnvironmentService
+--
++ name(): String
++ inputSchema(): String
++ execute(argumentsJson: String): Result&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>SpecificationTool
+{AgentTool; factual equipment lookup}
+--
+- provider: EquipmentSpecificationProvider
+--
++ name(): String
++ inputSchema(): String
++ execute(argumentsJson: String): Result&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>6060</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>EquipmentCatalogAdapter
+{Adapter; sources, conflicts and unknowns retained}
+--
+- endpoint: URI
+- http: HttpClient
+--
++ lookup(model: String): Result&lt;List&lt;Equipment&gt;&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>80</x>
+      <y>6960</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>domain services / metadata and review
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>130</x>
+      <y>7015</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>F11: JPEG and exported EXIF first; missing fields excluded and counted. No aesthetic scoring.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/MetadataExtractor/
+{Adapter target; extension point for formats}
+--
+--
+/+ supports(file: Path): boolean/
+/+ extract(files: List&lt;Path&gt;): Result&lt;List&lt;ExifRecord&gt;&gt;/
+bg=#EDF4FA
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>ExifLibraryAdapter
+{Adapter; JPEG EXIF library and exported metadata reader}
+--
+- supportedFormats: Set&lt;String&gt;
+--
++ supports(file: Path): boolean
++ extract(files: List&lt;Path&gt;): Result&lt;List&lt;ExifRecord&gt;&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>StatisticsCalculator
+{F11; deterministic statistics and plan comparison}
+--
+--
++ summarize(records: List&lt;ExifRecord&gt;): Result&lt;ExifStatistics&gt;
++ compare(stats: ExifStatistics, plan: ShootPlan): List&lt;String&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>ExifRecord
+{objective metadata only; per-file errors in Result}
+--
+- sourceName: String
+- focalLengthMm: Optional&lt;Double&gt;
+- shutterSeconds: Optional&lt;Double&gt;
+- aperture: Optional&lt;Double&gt;
+- iso: Optional&lt;Integer&gt;
+- cameraModel: Optional&lt;String&gt;
+- lensModel: Optional&lt;String&gt;
+- capturedAt: Optional&lt;Instant&gt;
+- missingFields: Set&lt;String&gt;
+--
++ validate(): Result&lt;ExifRecord&gt;
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>ExifStatistics
+{F11; denominators exclude missing measurements}
+--
+- importedCount: int
+- usableCount: int
+- missingCounts: Map&lt;String, Integer&gt;
+- focalLengthCounts: Map&lt;Double, Integer&gt;
+- shutterCounts: Map&lt;Double, Integer&gt;
+- apertureCounts: Map&lt;Double, Integer&gt;
+- isoCounts: Map&lt;Integer, Integer&gt;
+- cameraCounts: Map&lt;String, Integer&gt;
+- lensCounts: Map&lt;String, Integer&gt;
+- limitations: List&lt;String&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>PostShootReview
+{F11; saved for future history retrieval}
+--
+- id: UUID
+- createdAt: Instant
+- statistics: ExifStatistics
+- comparedPlanId: UUID
+- comparedRevision: int
+- planDifferences: List&lt;String&gt;
+- lessons: List&lt;String&gt;
+- limitations: List&lt;String&gt;
+--
+bg=#FFFFFF
+fg=#202830
+fontsize=14</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>2640</x>
+      <y>6960</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>cross-package dependencies / application wiring
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>2690</x>
+      <y>7015</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Repeated classifier references below denote the same classes defined above; fields show retained dependencies.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>SessionService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/SessionRepository/
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>HistoryRetriever
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>InventoryService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/InventoryRepository/
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>GearRecognitionService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>2690</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PlanningService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>3470</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotAgent
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>4250</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>ReviewService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLPackage</id>
+    <coordinates>
+      <x>5200</x>
+      <y>6960</y>
+      <w>2400</w>
+      <h>2050</h>
+    </coordinates>
+    <panel_attributes>cross-package dependencies / ownership and tool contracts
+fg=#81909C
+bg=#FAFBFC
+fontsize=18</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>5250</x>
+      <y>7015</y>
+      <w>2300</w>
+      <h>65</h>
+    </coordinates>
+    <panel_attributes>Solid diamonds own copied values. Session records never own the live inventory equipment lifecycle.
+fontsize=14
+fg=#263238
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PhotographySession
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>ShootPlan
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>7110</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PostShootReview
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>CalculationTool
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/AgentTool/
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>7690</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>EnvironmentTool
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>GearMatchingTool
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6810</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>SpecificationTool
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>5250</x>
+      <y>8850</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>ShootPlan
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>6030</x>
+      <y>8850</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>Loadout
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>130</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>EquipmentCatalogAdapter
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>910</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+/EquipmentSpecificationProvider/
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1690</x>
+      <y>8270</y>
+      <w>660</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>ReviewService
+{reference to definition above}
+fontsize=14
+bg=#F3F6F8</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>80</x>
+      <y>30</y>
+      <w>7480</w>
+      <h>240</h>
+    </coordinates>
+    <panel_attributes>PhotoPilot | Section 3 - UML Class Diagram
+Read left to right by package. F01-F11 tags identify responsibilities; {text} records constraints and pattern roles.
+Standard Java types: UUID, Optional, List, Set, Map, Path, URI, HttpClient, Instant, Duration, LocalDate and ZonedDateTime.
+Methods use name(parameter: Type): ReturnType; void returns omitted. Interfaces and abstract names/operations are italic.
+Native UML relationships: dashed open arrow = dependency; dashed hollow triangle = realization; solid hollow triangle = generalization.
+Solid line = association; hollow diamond = shared aggregation; filled diamond = exclusive composition (diamond at owner).
+Reference boxes repeat an existing classifier solely to keep cross-package wiring readable; they are not additional Java types.
+Sources: current Stage1.docx Sections 1-2; stage1.pdf Task 2.1; Project-Instruction.pdf; EECS3311-03-UML pp.15-26 and UML-II.
+fontsize=16
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>80</x>
+      <y>9250</y>
+      <w>3640</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>Runtime boundaries
+--
+LLM failure returns Result errors, never fabricated recommendations.
+Inventory, session persistence, calculations and EXIF statistics bypass the agent.
+PhotoPilotAgent runs a bounded model/tool/evidence loop; output schema validation
+precedes domain validation. Tool access is an allowlist, with consent checked locally.
+Agent tools are read-only: no autonomous saves, inventory changes or plan approval.
+fontsize=15
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>3920</x>
+      <y>9250</y>
+      <w>3640</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>Planning invariants
+--
+F03 retains original text, clarification questions and user confirmation.
+F06 contains capabilities only. F07 rejects incompatible candidates and excludes
+unverified combinations from usable recommendations; ranking preserves candidate IDs.
+GearMatchingTool obtains deterministic candidates only; it does not invoke rank().
+F10 uses approved input, controlled commands, validation, then user approval and save.
+fontsize=15
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>80</x>
+      <y>9470</y>
+      <w>3640</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>Ownership and assumptions
+--
+Saved session plans/reviews are owned records; copied GearSnapshot values preserve
+history after inventory removal. Warn using referencingGear() before removal.
+Loadout values copied into a plan are exclusively owned by that revision.
+JSON persistence and Draft -&gt; Planned -&gt; Completed -&gt; Reviewed are design choices.
+External provider/library brands and the optional device-location adapter remain undecided.
+fontsize=15
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>3920</x>
+      <y>9470</y>
+      <w>3640</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>Source and scope checks
+--
+The current F03 AI paragraph correctly describes natural-language parsing.
+The previously reported location/distance/permission wording is absent from this version.
+Order-image bytes enter AI only as user-approved SanitizedImage; discard after use.
+JPEG/EXIF summaries use extracted values and mark incomplete evidence.
+No aesthetic scores, image editing, client management or social publishing are introduced.
+fontsize=15
+bg=#FFFDEB</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>980</y>
+      <w>420</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>380;10;380;50;35;50;35;120;10;120</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1230</x>
+      <y>980</y>
+      <w>50</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;80</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1310</x>
+      <y>980</y>
+      <w>420</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;50;355;50;355;120;380;120</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>540</y>
+      <w>170</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;35;10;35;1140;10;1140</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>540</y>
+      <w>75</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;35;10;35;1140;10;1140</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2930</x>
+      <y>690</y>
+      <w>50</w>
+      <h>410</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;370</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>540</y>
+      <w>950</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;105;10;105;490;885;490;885;560;910;560</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>1090</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2655</x>
+      <y>540</y>
+      <w>75</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>35;10;10;10;10;1140;35;1140</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>1670</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13
+m1=0..*
+m2=1</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>510</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>540</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;560;105;560;105;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6270</x>
+      <y>620</y>
+      <w>50</w>
+      <h>480</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;440;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>540</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;560;35;560;35;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>1670</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5650</x>
+      <y>890</y>
+      <w>420</w>
+      <h>830</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>380;790;285;790;285;40;10;40;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>2720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>2650</y>
+      <w>950</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;110;105;110;105;10;885;10;885;80;910;80</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1930</x>
+      <y>2850</y>
+      <w>50</w>
+      <h>460</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=1..*</panel_attributes>
+    <additional_attributes>10;10;10;420</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>3330</y>
+      <w>950</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;105;10;105;490;885;490;885;560;910;560</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>3300</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>3880</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>530</x>
+      <y>3450</y>
+      <w>420</w>
+      <h>510</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;370;355;370;355;470;380;470</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>2720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=0..1
+m2=0..*</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>2720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>2750</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;560;105;560;105;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3710</x>
+      <y>2960</y>
+      <w>50</w>
+      <h>350</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;310;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>2750</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;560;35;560;35;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>2960</y>
+      <w>500</w>
+      <h>970</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;930;35;930;35;20;460;20;460;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>3880</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3090</x>
+      <y>2870</y>
+      <w>420</w>
+      <h>1060</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>380;1020;355;1020;355;370;10;370;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>2720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>2720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5490</x>
+      <y>2870</y>
+      <w>50</w>
+      <h>440</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;400</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>3300</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>3230</y>
+      <w>950</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>910;80;815;80;815;10;35;10;35;110;10;110</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>3880</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=1..*</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>2750</y>
+      <w>950</w>
+      <h>1210</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=1</panel_attributes>
+    <additional_attributes>10;1170;105;1170;105;100;885;100;885;10;910;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>4930</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>95</x>
+      <y>4960</y>
+      <w>75</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>35;10;10;10;10;1140;35;1140</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>4930</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1930</x>
+      <y>5020</y>
+      <w>50</w>
+      <h>500</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;460</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>4960</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;560;105;560;105;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>5440</y>
+      <w>950</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;110;35;110;35;10;885;10;885;80;910;80</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1150</x>
+      <y>5020</y>
+      <w>50</w>
+      <h>500</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;460;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>5540</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>5860</y>
+      <w>420</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>380;10;380;170;35;170;35;240;10;240</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>5860</y>
+      <w>1280</w>
+      <h>280</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;240;105;240;105;40;1240;40;1240;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>4930</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>4930</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2930</x>
+      <y>5100</y>
+      <w>50</w>
+      <h>420</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;380</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>5540</y>
+      <w>950</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13
+m1=1
+m2=0..1</panel_attributes>
+    <additional_attributes>10;10;105;10;105;490;885;490;885;560;910;560</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>4960</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;105;10;105;560;130;560</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>4930</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>4860</y>
+      <w>950</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;110;105;110;105;10;885;10;885;80;910;80</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5650</x>
+      <y>5110</y>
+      <w>420</w>
+      <h>450</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>380;410;285;410;285;40;10;40;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>4960</y>
+      <w>170</w>
+      <h>630</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;105;10;105;590;10;590</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>7140</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>370</x>
+      <y>7250</y>
+      <w>50</w>
+      <h>480</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;10;440</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>7170</y>
+      <w>950</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>910;10;815;10;815;490;35;490;35;560;10;560</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>7140</y>
+      <w>170</w>
+      <h>630</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;105;10;105;590;10;590</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1560</x>
+      <y>7750</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=1</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>7140</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>7140</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>7720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>7750</y>
+      <w>950</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;105;10;105;60;885;60;885;10;910;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>3340</x>
+      <y>8300</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>4120</x>
+      <y>8300</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>7140</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>7170</y>
+      <w>950</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..*</panel_attributes>
+    <additional_attributes>10;10;105;10;105;60;885;60;885;10;910;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>7720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>7720</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>7750</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;560;105;560;105;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>6680</x>
+      <y>7750</y>
+      <w>170</w>
+      <h>600</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>130;560;35;560;35;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>5900</x>
+      <y>8880</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
+fontsize=13
+m1=1
+m2=0..1</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>8300</y>
+      <w>170</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;10;130;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>780</x>
+      <y>7170</y>
+      <w>950</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>910;1140;815;1140;815;830;35;830;35;10;10;10</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>2340</x>
+      <y>7170</y>
+      <w>75</w>
+      <h>1180</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fontsize=13</panel_attributes>
+    <additional_attributes>10;1140;35;1140;35;10;10;10</additional_attributes>
+  </element>
+</diagram>
