@@ -1,0 +1,104 @@
+.root {
+    -fx-font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    -fx-font-size: 13px;
+    -fx-text-fill: #1f2937;
+    -fx-background-color: #f7f8fa;
+    -fx-accent: #2563eb;
+    -fx-focus-color: #2563eb;
+    -fx-faint-focus-color: transparent;
+}
+.label { -fx-text-fill: #1f2937; }
+.app-header {
+    -fx-background-color: #ffffff;
+    -fx-padding: 21 28;
+    -fx-border-color: transparent transparent #e5e7eb transparent;
+}
+.brand { -fx-font-size: 23px; -fx-font-weight: bold; }
+.brand-subtitle, .secondary-text, .description { -fx-text-fill: #6b7280; }
+.app-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #596579;
+    -fx-background-color: #f3f4f6;
+    -fx-background-radius: 20;
+    -fx-padding: 6 12;
+}
+.sidebar { -fx-background-color: #ffffff; -fx-padding: 10 14 24; }
+.navigation-group {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6b7280;
+    -fx-padding: 22 12 9;
+}
+.navigation-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 7;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7;
+    -fx-padding: 9 10;
+    -fx-text-fill: #4b5563;
+    -fx-graphic-text-gap: 12;
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+}
+.navigation-number { -fx-font-size: 11px; -fx-text-fill: #6b7280; }
+.navigation-item:hover { -fx-background-color: #f7f8fa; }
+.navigation-item:selected { -fx-background-color: #edf3ff; -fx-text-fill: #1d4ed8; }
+.navigation-item:selected .navigation-number { -fx-text-fill: #2563eb; }
+.navigation-item:focused { -fx-border-color: #2563eb; }
+.scroll-pane { -fx-background-insets: 0; -fx-padding: 0; }
+.navigation-scroll, .navigation-scroll > .viewport { -fx-background-color: #ffffff; }
+.navigation-scroll { -fx-border-color: transparent #e5e7eb transparent transparent; }
+.content-scroll, .content-scroll > .viewport, .content-surface { -fx-background-color: #f7f8fa; }
+.content-surface { -fx-padding: 38 40 40; }
+.feature-content { -fx-spacing: 0; }
+.feature-heading { -fx-padding: 0 0 28; }
+.eyebrow { -fx-font-size: 12px; -fx-text-fill: #6b7280; }
+.feature-title { -fx-font-size: 30px; -fx-font-weight: bold; }
+.description { -fx-font-size: 14px; -fx-line-spacing: 3; }
+.status-badge {
+    -fx-font-size: 12px;
+    -fx-text-fill: #4b5563;
+    -fx-background-color: #eef0f3;
+    -fx-background-radius: 5;
+    -fx-padding: 5 9;
+}
+.separator .line { -fx-border-color: #e5e7eb; -fx-border-width: 1 0 0 0; }
+.empty-state { -fx-padding: 56 16; }
+.empty-title { -fx-font-size: 17px; -fx-font-weight: bold; }
+.secondary-text { -fx-line-spacing: 3; }
+.button {
+    -fx-font-size: 13px;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: transparent;
+    -fx-padding: 10 16;
+    -fx-cursor: hand;
+}
+.primary-button { -fx-background-color: #2563eb; -fx-text-fill: #ffffff; }
+.primary-button:hover { -fx-background-color: #1d4ed8; }
+.primary-button:pressed { -fx-background-color: #1e40af; }
+.primary-button:focused { -fx-border-color: #1e3a8a; -fx-border-width: 2; -fx-padding: 9 15; }
+.secondary-button { -fx-background-color: #eef0f3; -fx-text-fill: #6b7280; }
+.secondary-button:disabled { -fx-opacity: 1; -fx-cursor: default; }
+.feature-actions { -fx-padding: 24 0; }
+.feedback-box {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 7;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 7;
+    -fx-padding: 18 20;
+}
+.section-title { -fx-font-size: 12px; -fx-font-weight: bold; }
+.feedback-text { -fx-text-fill: #4b5563; -fx-line-spacing: 3; }
+.footer {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e7eb transparent transparent transparent;
+    -fx-padding: 10 24;
+}
+.footer-text, .footer-hint { -fx-font-size: 11px; -fx-text-fill: #6b7280; }
+.scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 10; }
+.scroll-bar:vertical .track { -fx-background-color: transparent; }
+.scroll-bar:vertical .thumb { -fx-background-color: #cbd1da; -fx-background-radius: 6; }
+.scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-padding: 2; -fx-background-color: transparent; }
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-shape: ""; -fx-padding: 0; }

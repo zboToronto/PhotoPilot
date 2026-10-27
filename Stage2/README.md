@@ -52,7 +52,9 @@ Wrapper distribution cache defaults to `.mvn/user-home`, and dependency cache to
 
 ## Try the bootstrap
 
-The GUI shows PhotoPilot, all 11 planned features, and a button that displays **Not implemented** for the selected feature. Window closing and Exit release application resources. The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. Feature commands report unavailable status; they do not execute fabricated workflows. Unknown commands return a helpful message.
+The JavaFX GUI uses a minimalist light workspace with grouped navigation for all 11 features, a selected-feature description, an accurate **Scaffolded** status, and a **Check status** action. Workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. No new dependencies are required. See [GUI implementation and verification](docs/gui-redesign.md).
+
+The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. Feature commands report unavailable status; they do not execute fabricated workflows. Unknown commands return a helpful message.
 
 Noninteractive CLI example:
 
@@ -66,9 +68,9 @@ GUI startup smoke mode (opens and closes a real window):
 .\mvnw.cmd javafx:run '-Djavafx.args=--smoke-test'
 ```
 
-A successful run prints `GUI_SMOKE_OK` after the stage is showing, verifies the 11 entries and unavailable feedback, then closes. This is a startup check, not feature or visual-acceptance testing.
+A successful run prints `GUI_SMOKE_OK` after showing the stage and navigating all 11 entries, checking status feedback, disabled workflows, and retained selection, including after requesting the minimum window size. It then closes. This is a graphical control check, not proof of implemented business features or comprehensive visual testing.
 
-Four JUnit tests check bootstrap wiring identity, honest not-implemented results, CLI handling, configurable strategy and duplicate tool registration. They are not Stage 3 deterministic/KUMA coverage. `python tools/verify_sources.py` optionally checks all 87 UML types, 267 fields and 184 declared operations, source hashes and basic unwanted-output patterns; it requires Python 3 and the original local documents at their existing workspace paths. Maven builds do not require Python or those documents. Do not rerun `scaffold_from_uml.py` over this project: it is one-time generation evidence and intentionally refuses to overwrite files.
+Six JUnit tests check bootstrap wiring identity, honest not-implemented results, CLI handling, configurable strategy and duplicate tool registration, plus complete GUI feature mapping and fail-closed status interpretation. They are not Stage 3 deterministic/KUMA coverage. `python tools/verify_sources.py` optionally checks all 87 UML types, 267 fields and 184 declared operations, source hashes and basic unwanted-output patterns; it requires Python 3 and the original local documents at their existing workspace paths. Maven builds do not require Python or those documents. Do not rerun `scaffold_from_uml.py` over this project: it is one-time generation evidence and intentionally refuses to overwrite files.
 
 ## Planned features
 
