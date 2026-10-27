@@ -1,0 +1,53 @@
+# Unrelated local coursework and integration scratch files
+/Labs/
+/Project/
+/Slides/
+/tmp/
+/.photopilot-integration/
+
+# Secrets and machine-local configuration (templates may be shared)
+.env
+.env.*
+!.env.example
+!.env.sample
+secrets/
+.secrets/
+credentials.json
+credentials.*.json
+service-account*.json
+service_account*.json
+config.local.*
+application-local.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Build outputs, caches, and local tools
+target/
+build/
+out/
+bin/
+*.class
+.gradle/
+.m2/
+.mvn/repository/
+.mvn/user-home/
+.tools/
+.cache/
+__pycache__/
+*.pyc
+*.log
+hs_err_pid*
+
+# Editor and operating-system files
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db

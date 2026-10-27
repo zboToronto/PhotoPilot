@@ -1,0 +1,5082 @@
+{
+  "source": "Project\\Stage1\\PhotoPilot-ClassDiagram.uxf",
+  "sha256": "a484a958f85c7c63ad69dc56de2e742dc05207b1e37361f1e6d5e75c2a40dbd0",
+  "classes": {
+    "PhotoPilotGUI": {
+      "name": "PhotoPilotGUI",
+      "title": "PhotoPilotGUI",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "app",
+          "type": "PhotoPilotFacade"
+        },
+        {
+          "name": "draftInput",
+          "type": "String"
+        },
+        {
+          "name": "privacy",
+          "type": "ImagePrivacyBoundary"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "showSession",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "submitBrief",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "showFailure",
+          "parameters": [
+            {
+              "name": "message",
+              "type": "String"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 2,
+      "notes": "{Facade client}",
+      "relations": [],
+      "package": "ui.gui",
+      "file": "src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java"
+    },
+    "PhotoPilotFacade": {
+      "name": "PhotoPilotFacade",
+      "title": "PhotoPilotFacade",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "sessions",
+          "type": "SessionService"
+        },
+        {
+          "name": "inventory",
+          "type": "InventoryService"
+        },
+        {
+          "name": "discovery",
+          "type": "DiscoveryService"
+        },
+        {
+          "name": "planning",
+          "type": "PlanningService"
+        },
+        {
+          "name": "review",
+          "type": "ReviewService"
+        },
+        {
+          "name": "calculations",
+          "type": "TechnicalCalculator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "createSession",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "String"
+            },
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "suggest",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "DiscoveryContext"
+            }
+          ],
+          "return": "Result<List<ActivitySuggestion>>"
+        },
+        {
+          "visibility": "+",
+          "name": "parse",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "recognize",
+          "parameters": [
+            {
+              "name": "image",
+              "type": "SanitizedImage"
+            }
+          ],
+          "return": "Result<GearImportDraft>"
+        },
+        {
+          "visibility": "+",
+          "name": "saveGear",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "Result<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "analyzeNeeds",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        },
+        {
+          "visibility": "+",
+          "name": "matchGear",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        },
+        {
+          "visibility": "+",
+          "name": "calculate",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "assessEnvironment",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<EnvironmentAssessment>"
+        },
+        {
+          "visibility": "+",
+          "name": "generatePlan",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "proposeChange",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "analyze",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "files",
+              "type": "List<Path>"
+            }
+          ],
+          "return": "Result<ExifStatistics>"
+        },
+        {
+          "visibility": "+",
+          "name": "review",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<PostShootReview>"
+        },
+        {
+          "visibility": "+",
+          "name": "sessions",
+          "parameters": [],
+          "return": "SessionService"
+        },
+        {
+          "visibility": "+",
+          "name": "inventory",
+          "parameters": [],
+          "return": "InventoryService"
+        },
+        {
+          "visibility": "+",
+          "name": "planning",
+          "parameters": [],
+          "return": "PlanningService"
+        },
+        {
+          "visibility": "+",
+          "name": "reviews",
+          "parameters": [],
+          "return": "ReviewService"
+        }
+      ],
+      "constants": [],
+      "element": 3,
+      "notes": "{Facade}",
+      "relations": [],
+      "package": "application",
+      "file": "src/main/java/com/photopilot/application/PhotoPilotFacade.java"
+    },
+    "PhotoPilotCLI": {
+      "name": "PhotoPilotCLI",
+      "title": "PhotoPilotCLI",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "app",
+          "type": "PhotoPilotFacade"
+        },
+        {
+          "name": "privacy",
+          "type": "ImagePrivacyBoundary"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "run",
+          "parameters": [
+            {
+              "name": "args",
+              "type": "String[]"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "line",
+              "type": "String"
+            }
+          ],
+          "return": "int"
+        }
+      ],
+      "constants": [],
+      "element": 4,
+      "notes": "{Facade client}",
+      "relations": [],
+      "package": "ui.cli",
+      "file": "src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java"
+    },
+    "SessionService": {
+      "name": "SessionService",
+      "title": "SessionService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "repository",
+          "type": "SessionRepository"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "create",
+          "parameters": [
+            {
+              "name": "title",
+              "type": "String"
+            },
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "open",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<PhotographySession>>"
+        },
+        {
+          "visibility": "+",
+          "name": "transition",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        }
+      ],
+      "constants": [],
+      "element": 5,
+      "notes": "{F01; deterministic}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/SessionService.java"
+    },
+    "PlanningService": {
+      "name": "PlanningService",
+      "title": "PlanningService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "requirements",
+          "type": "RequirementService"
+        },
+        {
+          "name": "matching",
+          "type": "GearMatchingService"
+        },
+        {
+          "name": "environment",
+          "type": "EnvironmentService"
+        },
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        },
+        {
+          "name": "editor",
+          "type": "PlanEditor"
+        },
+        {
+          "name": "validator",
+          "type": "PlanValidator"
+        },
+        {
+          "name": "sessions",
+          "type": "SessionRepository"
+        },
+        {
+          "name": "inventory",
+          "type": "InventoryRepository"
+        },
+        {
+          "name": "calculator",
+          "type": "TechnicalCalculator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "parse",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "edited",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "analyzeNeeds",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirmProfile",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "edited",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        },
+        {
+          "visibility": "+",
+          "name": "matchGear",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        },
+        {
+          "visibility": "+",
+          "name": "assessEnvironment",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<EnvironmentAssessment>"
+        },
+        {
+          "visibility": "+",
+          "name": "generate",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "proposeChange",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "text",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "approve",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "plan",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 6,
+      "notes": "{F03, F06-F10; workflow coordination}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/PlanningService.java"
+    },
+    "InventoryService": {
+      "name": "InventoryService",
+      "title": "InventoryService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "repository",
+          "type": "InventoryRepository"
+        },
+        {
+          "name": "sessions",
+          "type": "SessionRepository"
+        },
+        {
+          "name": "recognition",
+          "type": "GearRecognitionService"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "list",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "Result<GearInventory>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "Result<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "duplicates",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "List<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "affectedSessions",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<List<UUID>>"
+        },
+        {
+          "visibility": "+",
+          "name": "remove",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "warningAccepted",
+              "type": "boolean"
+            }
+          ],
+          "return": "Result<Boolean>"
+        },
+        {
+          "visibility": "+",
+          "name": "recognize",
+          "parameters": [
+            {
+              "name": "image",
+              "type": "SanitizedImage"
+            }
+          ],
+          "return": "Result<GearImportDraft>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "GearImportDraft"
+            }
+          ],
+          "return": "Result<Equipment>"
+        }
+      ],
+      "constants": [],
+      "element": 7,
+      "notes": "{F04-F05; confirmation and validation}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/InventoryService.java"
+    },
+    "DiscoveryService": {
+      "name": "DiscoveryService",
+      "title": "DiscoveryService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        },
+        {
+          "name": "environment",
+          "type": "EnvironmentService"
+        },
+        {
+          "name": "validator",
+          "type": "FeasibilityValidator"
+        },
+        {
+          "name": "sessions",
+          "type": "SessionRepository"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "suggest",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "DiscoveryContext"
+            }
+          ],
+          "return": "Result<List<ActivitySuggestion>>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "idea",
+              "type": "ActivitySuggestion"
+            }
+          ],
+          "return": "Result<ActivitySuggestion>"
+        },
+        {
+          "visibility": "+",
+          "name": "select",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "idea",
+              "type": "ActivitySuggestion"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "dismiss",
+          "parameters": [
+            {
+              "name": "idea",
+              "type": "ActivitySuggestion"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 8,
+      "notes": "{F02; ideas before detailed planning}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/DiscoveryService.java"
+    },
+    "ReviewService": {
+      "name": "ReviewService",
+      "title": "ReviewService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "metadata",
+          "type": "MetadataExtractor"
+        },
+        {
+          "name": "statistics",
+          "type": "StatisticsCalculator"
+        },
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        },
+        {
+          "name": "sessions",
+          "type": "SessionRepository"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "analyze",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "files",
+              "type": "List<Path>"
+            }
+          ],
+          "return": "Result<ExifStatistics>"
+        },
+        {
+          "visibility": "+",
+          "name": "review",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<PostShootReview>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            },
+            {
+              "name": "review",
+              "type": "PostShootReview"
+            }
+          ],
+          "return": "Result<PostShootReview>"
+        }
+      ],
+      "constants": [],
+      "element": 9,
+      "notes": "{F11; statistics independent of AI}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/ReviewService.java"
+    },
+    "Result": {
+      "name": "Result",
+      "title": "Result<T>",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "value",
+          "type": "Optional<T>"
+        },
+        {
+          "name": "errors",
+          "type": "List<String>"
+        },
+        {
+          "name": "warnings",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "isSuccess",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 10,
+      "notes": "{shared return type; preserves failures}",
+      "relations": [],
+      "package": "common",
+      "file": "src/main/java/com/photopilot/common/Result.java"
+    },
+    "PhotoPilotAgent": {
+      "name": "PhotoPilotAgent",
+      "title": "PhotoPilotAgent",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "model",
+          "type": "LLMClient"
+        },
+        {
+          "name": "tools",
+          "type": "ToolRegistry"
+        },
+        {
+          "name": "history",
+          "type": "HistoryRetriever"
+        },
+        {
+          "name": "maxSteps",
+          "type": "int"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "run",
+          "parameters": [
+            {
+              "name": "task",
+              "type": "String"
+            },
+            {
+              "name": "context",
+              "type": "AgentContext"
+            },
+            {
+              "name": "type",
+              "type": "Class<T>"
+            }
+          ],
+          "return": "Result<T>"
+        },
+        {
+          "visibility": "-",
+          "name": "selectTool",
+          "parameters": [
+            {
+              "name": "reply",
+              "type": "ModelReply"
+            }
+          ],
+          "return": "Result<ToolCall>"
+        },
+        {
+          "visibility": "-",
+          "name": "validateOutput",
+          "parameters": [
+            {
+              "name": "json",
+              "type": "String"
+            },
+            {
+              "name": "type",
+              "type": "Class<T>"
+            }
+          ],
+          "return": "Result<T>"
+        }
+      ],
+      "constants": [],
+      "element": 13,
+      "notes": "{AI; generic method <T> run}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/PhotoPilotAgent.java"
+    },
+    "LLMClient": {
+      "name": "LLMClient",
+      "title": "LLMClient",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "complete",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "AgentContext"
+            }
+          ],
+          "return": "Result<ModelReply>"
+        }
+      ],
+      "constants": [],
+      "element": 14,
+      "notes": "{Adapter target; runtime model port}",
+      "relations": [],
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/LLMClient.java"
+    },
+    "GeminiAdapter": {
+      "name": "GeminiAdapter",
+      "title": "GeminiAdapter",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "endpoint",
+          "type": "URI"
+        },
+        {
+          "name": "modelName",
+          "type": "String"
+        },
+        {
+          "name": "http",
+          "type": "HttpClient"
+        },
+        {
+          "name": "timeout",
+          "type": "Duration"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "complete",
+          "parameters": [
+            {
+              "name": "context",
+              "type": "AgentContext"
+            }
+          ],
+          "return": "Result<ModelReply>"
+        }
+      ],
+      "constants": [],
+      "element": 15,
+      "notes": "{Adapter; configurable Gemini runtime}",
+      "relations": [],
+      "implements": "LLMClient",
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/GeminiAdapter.java"
+    },
+    "ToolRegistry": {
+      "name": "ToolRegistry",
+      "title": "ToolRegistry",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "allowedTools",
+          "type": "Map<String, AgentTool>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "call",
+              "type": "ToolCall"
+            }
+          ],
+          "return": "Result<String>"
+        },
+        {
+          "visibility": "+",
+          "name": "schemas",
+          "parameters": [],
+          "return": "Map<String, String>"
+        },
+        {
+          "visibility": "+",
+          "name": "register",
+          "parameters": [
+            {
+              "name": "tool",
+              "type": "AgentTool"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 16,
+      "notes": "{validated allowlist; no arbitrary execution}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/ToolRegistry.java"
+    },
+    "AgentTool": {
+      "name": "AgentTool",
+      "title": "AgentTool",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "name",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "inputSchema",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "argumentsJson",
+              "type": "String"
+            }
+          ],
+          "return": "Result<String>"
+        }
+      ],
+      "constants": [],
+      "element": 17,
+      "notes": "{tool contract; all inputs validated}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/AgentTool.java"
+    },
+    "HistoryRetriever": {
+      "name": "HistoryRetriever",
+      "title": "HistoryRetriever",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "repository",
+          "type": "SessionRepository"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "retrieve",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<PhotographySession>>"
+        },
+        {
+          "visibility": "+",
+          "name": "contextFor",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<AgentContext>"
+        }
+      ],
+      "constants": [],
+      "element": 18,
+      "notes": "{F01, F02, F10, F11; application memory}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/HistoryRetriever.java"
+    },
+    "AgentContext": {
+      "name": "AgentContext",
+      "title": "AgentContext",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "sessionId",
+          "type": "UUID"
+        },
+        {
+          "name": "messages",
+          "type": "List<String>"
+        },
+        {
+          "name": "evidenceJson",
+          "type": "String"
+        },
+        {
+          "name": "history",
+          "type": "List<PhotographySession>"
+        },
+        {
+          "name": "approvedImage",
+          "type": "Optional<SanitizedImage>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "appendToolResult",
+          "parameters": [
+            {
+              "name": "call",
+              "type": "ToolCall"
+            },
+            {
+              "name": "result",
+              "type": "String"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 19,
+      "notes": "{retrieved context and verified evidence}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/AgentContext.java"
+    },
+    "ModelReply": {
+      "name": "ModelReply",
+      "title": "ModelReply",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "structuredOutput",
+          "type": "Optional<String>"
+        },
+        {
+          "name": "toolCalls",
+          "type": "List<ToolCall>"
+        },
+        {
+          "name": "clarificationQuestions",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "requiresTool",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 20,
+      "notes": "{untrusted AI response}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/ModelReply.java"
+    },
+    "ToolCall": {
+      "name": "ToolCall",
+      "title": "ToolCall",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "toolName",
+          "type": "String"
+        },
+        {
+          "name": "argumentsJson",
+          "type": "String"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validateAgainst",
+          "parameters": [
+            {
+              "name": "schema",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ToolCall>"
+        }
+      ],
+      "constants": [],
+      "element": 21,
+      "notes": "{untrusted until schema and permission checks}",
+      "relations": [],
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/ToolCall.java"
+    },
+    "PhotographySession": {
+      "name": "PhotographySession",
+      "title": "PhotographySession",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "date",
+          "type": "LocalDate"
+        },
+        {
+          "name": "location",
+          "type": "Optional<GeoLocation>"
+        },
+        {
+          "name": "notes",
+          "type": "String"
+        },
+        {
+          "name": "createdAt",
+          "type": "Instant"
+        },
+        {
+          "name": "updatedAt",
+          "type": "Instant"
+        },
+        {
+          "name": "state",
+          "type": "SessionState"
+        },
+        {
+          "name": "requirements",
+          "type": "Optional<ShootRequirement>"
+        },
+        {
+          "name": "plans",
+          "type": "List<ShootPlan>"
+        },
+        {
+          "name": "reviews",
+          "type": "List<PostShootReview>"
+        },
+        {
+          "name": "profile",
+          "type": "Optional<EquipmentRequirementProfile>"
+        },
+        {
+          "name": "statistics",
+          "type": "Optional<ExifStatistics>"
+        },
+        {
+          "name": "savedIdeas",
+          "type": "List<ActivitySuggestion>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "apply",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "attachRequirement",
+          "parameters": [
+            {
+              "name": "requirement",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "attachProfile",
+          "parameters": [
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "attachStatistics",
+          "parameters": [
+            {
+              "name": "stats",
+              "type": "ExifStatistics"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "appendApprovedPlan",
+          "parameters": [
+            {
+              "name": "plan",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "appendReview",
+          "parameters": [
+            {
+              "name": "review",
+              "type": "PostShootReview"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 24,
+      "notes": "{F01; State context}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/PhotographySession.java"
+    },
+    "SessionState": {
+      "name": "SessionState",
+      "title": "SessionState",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "next",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<SessionState>"
+        },
+        {
+          "visibility": "+",
+          "name": "canEditPlan",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 25,
+      "notes": "{State contract}",
+      "relations": [],
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/SessionState.java"
+    },
+    "DraftState": {
+      "name": "DraftState",
+      "title": "DraftState",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "next",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<SessionState>"
+        },
+        {
+          "visibility": "+",
+          "name": "canEditPlan",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 26,
+      "notes": "{Concrete State; approve valid plan -> Planned}",
+      "relations": [],
+      "implements": "SessionState",
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/DraftState.java"
+    },
+    "PlannedState": {
+      "name": "PlannedState",
+      "title": "PlannedState",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "next",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<SessionState>"
+        },
+        {
+          "visibility": "+",
+          "name": "canEditPlan",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 27,
+      "notes": "{Concrete State; completion -> Completed}",
+      "relations": [],
+      "implements": "SessionState",
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/PlannedState.java"
+    },
+    "CompletedState": {
+      "name": "CompletedState",
+      "title": "CompletedState",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "next",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<SessionState>"
+        },
+        {
+          "visibility": "+",
+          "name": "canEditPlan",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 28,
+      "notes": "{Concrete State; saved review -> Reviewed}",
+      "relations": [],
+      "implements": "SessionState",
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/CompletedState.java"
+    },
+    "ReviewedState": {
+      "name": "ReviewedState",
+      "title": "ReviewedState",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "next",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            },
+            {
+              "name": "event",
+              "type": "SessionEvent"
+            }
+          ],
+          "return": "Result<SessionState>"
+        },
+        {
+          "visibility": "+",
+          "name": "canEditPlan",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 29,
+      "notes": "{Concrete State; historical plan read-only}",
+      "relations": [],
+      "implements": "SessionState",
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/ReviewedState.java"
+    },
+    "SessionEvent": {
+      "name": "SessionEvent",
+      "title": "SessionEvent",
+      "kind": "enum",
+      "abstract": false,
+      "fields": [],
+      "methods": [],
+      "constants": [
+        "PLAN_APPROVED",
+        "SHOOT_COMPLETED",
+        "REVIEW_SAVED"
+      ],
+      "element": 30,
+      "notes": "",
+      "relations": [],
+      "package": "state",
+      "file": "src/main/java/com/photopilot/state/SessionEvent.java"
+    },
+    "SessionRepository": {
+      "name": "SessionRepository",
+      "title": "SessionRepository",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "find",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<PhotographySession>>"
+        },
+        {
+          "visibility": "+",
+          "name": "referencingGear",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<List<UUID>>"
+        }
+      ],
+      "constants": [],
+      "element": 31,
+      "notes": "{persistence port; atomic aggregate save}",
+      "relations": [],
+      "package": "repository",
+      "file": "src/main/java/com/photopilot/repository/SessionRepository.java"
+    },
+    "JsonSessionRepository": {
+      "name": "JsonSessionRepository",
+      "title": "JsonSessionRepository",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "directory",
+          "type": "Path"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "session",
+              "type": "PhotographySession"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "find",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<PhotographySession>"
+        },
+        {
+          "visibility": "+",
+          "name": "search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<PhotographySession>>"
+        },
+        {
+          "visibility": "+",
+          "name": "referencingGear",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<List<UUID>>"
+        }
+      ],
+      "constants": [],
+      "element": 32,
+      "notes": "{data implementation; storage choice provisional}",
+      "relations": [],
+      "implements": "SessionRepository",
+      "package": "repository",
+      "file": "src/main/java/com/photopilot/repository/JsonSessionRepository.java"
+    },
+    "RequirementService": {
+      "name": "RequirementService",
+      "title": "RequirementService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "parse",
+          "parameters": [
+            {
+              "name": "text",
+              "type": "String"
+            },
+            {
+              "name": "context",
+              "type": "AgentContext"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "clarify",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "ShootRequirement"
+            },
+            {
+              "name": "answers",
+              "type": "String"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [
+            {
+              "name": "edited",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "deriveProfile",
+          "parameters": [
+            {
+              "name": "req",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        },
+        {
+          "visibility": "+",
+          "name": "validateProfile",
+          "parameters": [
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        }
+      ],
+      "constants": [],
+      "element": 35,
+      "notes": "{F03, F06; AI interpretation, deterministic gates}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/RequirementService.java"
+    },
+    "ShootRequirement": {
+      "name": "ShootRequirement",
+      "title": "ShootRequirement",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "originalText",
+          "type": "String"
+        },
+        {
+          "name": "subject",
+          "type": "String"
+        },
+        {
+          "name": "goals",
+          "type": "List<String>"
+        },
+        {
+          "name": "time",
+          "type": "Optional<ZonedDateTime>"
+        },
+        {
+          "name": "location",
+          "type": "Optional<GeoLocation>"
+        },
+        {
+          "name": "duration",
+          "type": "Duration"
+        },
+        {
+          "name": "cameraCount",
+          "type": "int"
+        },
+        {
+          "name": "lensChangesAllowed",
+          "type": "boolean"
+        },
+        {
+          "name": "maxWeightGrams",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "gearConstraints",
+          "type": "List<String>"
+        },
+        {
+          "name": "priorities",
+          "type": "Map<String, Integer>"
+        },
+        {
+          "name": "fixedConstraints",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "clarificationQuestions",
+          "type": "List<String>"
+        },
+        {
+          "name": "confirmed",
+          "type": "boolean"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<ShootRequirement>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [],
+          "return": "Result<ShootRequirement>"
+        }
+      ],
+      "constants": [],
+      "element": 36,
+      "notes": "{F03; confirmed before capability analysis}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/ShootRequirement.java"
+    },
+    "EquipmentRequirementProfile": {
+      "name": "EquipmentRequirementProfile",
+      "title": "EquipmentRequirementProfile",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "needs",
+          "type": "List<CapabilityNeed>"
+        },
+        {
+          "name": "reviewed",
+          "type": "boolean"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [
+            {
+              "name": "req",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<EquipmentRequirementProfile>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [],
+          "return": "Result<EquipmentRequirementProfile>"
+        }
+      ],
+      "constants": [],
+      "element": 37,
+      "notes": "{F06; capabilities only, no product identities}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/EquipmentRequirementProfile.java"
+    },
+    "GearRecognitionService": {
+      "name": "GearRecognitionService",
+      "title": "GearRecognitionService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        },
+        {
+          "name": "specifications",
+          "type": "EquipmentSpecificationProvider"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "recognize",
+          "parameters": [
+            {
+              "name": "image",
+              "type": "SanitizedImage"
+            }
+          ],
+          "return": "Result<GearImportDraft>"
+        },
+        {
+          "visibility": "+",
+          "name": "verify",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "GearImportDraft"
+            }
+          ],
+          "return": "Result<GearImportDraft>"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [
+            {
+              "name": "edited",
+              "type": "GearImportDraft"
+            }
+          ],
+          "return": "Result<Equipment>"
+        }
+      ],
+      "constants": [],
+      "element": 38,
+      "notes": "{F04; no save before confirmation}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/GearRecognitionService.java"
+    },
+    "GearImportDraft": {
+      "name": "GearImportDraft",
+      "title": "GearImportDraft",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "candidates",
+          "type": "List<Equipment>"
+        },
+        {
+          "name": "selected",
+          "type": "Optional<Equipment>"
+        },
+        {
+          "name": "conflicts",
+          "type": "List<String>"
+        },
+        {
+          "name": "confirmed",
+          "type": "boolean"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "correct",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "confirm",
+          "parameters": [],
+          "return": "Result<Equipment>"
+        }
+      ],
+      "constants": [],
+      "element": 39,
+      "notes": "{F04; specification provenance retained}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/GearImportDraft.java"
+    },
+    "CapabilityNeed": {
+      "name": "CapabilityNeed",
+      "title": "CapabilityNeed",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "capability",
+          "type": "String"
+        },
+        {
+          "name": "minimum",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "maximum",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "unit",
+          "type": "String"
+        },
+        {
+          "name": "priority",
+          "type": "int"
+        },
+        {
+          "name": "hardConstraint",
+          "type": "boolean"
+        },
+        {
+          "name": "rationale",
+          "type": "String"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<CapabilityNeed>"
+        }
+      ],
+      "constants": [],
+      "element": 40,
+      "notes": "{F06; e.g. aperture, AF, burst, stabilization}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/CapabilityNeed.java"
+    },
+    "ImagePrivacyBoundary": {
+      "name": "ImagePrivacyBoundary",
+      "title": "ImagePrivacyBoundary",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "approveRedacted",
+          "parameters": [
+            {
+              "name": "copy",
+              "type": "Path"
+            },
+            {
+              "name": "confirmed",
+              "type": "boolean"
+            }
+          ],
+          "return": "Result<SanitizedImage>"
+        },
+        {
+          "visibility": "+",
+          "name": "discard",
+          "parameters": [
+            {
+              "name": "image",
+              "type": "SanitizedImage"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 41,
+      "notes": "{presentation helper; user crops/redacts first}",
+      "relations": [],
+      "package": "ui.privacy",
+      "file": "src/main/java/com/photopilot/ui/privacy/ImagePrivacyBoundary.java"
+    },
+    "SanitizedImage": {
+      "name": "SanitizedImage",
+      "title": "SanitizedImage",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "bytes",
+          "type": "byte[]"
+        },
+        {
+          "name": "mediaType",
+          "type": "String"
+        },
+        {
+          "name": "userApproved",
+          "type": "boolean"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "~",
+          "name": "SanitizedImage",
+          "parameters": [
+            {
+              "name": "bytes",
+              "type": "byte[]"
+            },
+            {
+              "name": "mediaType",
+              "type": "String"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "clear",
+          "parameters": [],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 42,
+      "notes": "{only boundary constructs; transient; never persisted}",
+      "relations": [],
+      "package": "ui.privacy",
+      "file": "src/main/java/com/photopilot/ui/privacy/SanitizedImage.java"
+    },
+    "EquipmentSpecificationProvider": {
+      "name": "EquipmentSpecificationProvider",
+      "title": "EquipmentSpecificationProvider",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "lookup",
+          "parameters": [
+            {
+              "name": "model",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<Equipment>>"
+        }
+      ],
+      "constants": [],
+      "element": 43,
+      "notes": "{integration port; sourced or unverified fields}",
+      "relations": [],
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/EquipmentSpecificationProvider.java"
+    },
+    "GearInventory": {
+      "name": "GearInventory",
+      "title": "GearInventory",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "items",
+          "type": "List<Equipment>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "add",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "Result<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "update",
+          "parameters": [
+            {
+              "name": "item",
+              "type": "Equipment"
+            }
+          ],
+          "return": "Result<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "search",
+          "parameters": [
+            {
+              "name": "query",
+              "type": "String"
+            }
+          ],
+          "return": "List<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "remove",
+          "parameters": [
+            {
+              "name": "id",
+              "type": "UUID"
+            }
+          ],
+          "return": "Result<Boolean>"
+        }
+      ],
+      "constants": [],
+      "element": 46,
+      "notes": "{F05; aggregate of independently identified gear}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/GearInventory.java"
+    },
+    "Equipment": {
+      "name": "Equipment",
+      "title": "Equipment",
+      "kind": "class",
+      "abstract": true,
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "brand",
+          "type": "String"
+        },
+        {
+          "name": "model",
+          "type": "String"
+        },
+        {
+          "name": "quantity",
+          "type": "int"
+        },
+        {
+          "name": "weightGrams",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "verifiedFields",
+          "type": "Set<String>"
+        },
+        {
+          "name": "sources",
+          "type": "Map<String, URI>"
+        },
+        {
+          "name": "verifiedAt",
+          "type": "Optional<Instant>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<Equipment>"
+        },
+        {
+          "visibility": "+",
+          "name": "snapshot",
+          "parameters": [],
+          "return": "GearSnapshot"
+        }
+      ],
+      "constants": [],
+      "element": 47,
+      "notes": "{shared gear identity; missing data explicit}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Equipment.java"
+    },
+    "Camera": {
+      "name": "Camera",
+      "title": "Camera",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "mount",
+          "type": "String"
+        },
+        {
+          "name": "sensorWidthMm",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "sensorHeightMm",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "batteryTypes",
+          "type": "Set<String>"
+        },
+        {
+          "name": "storageFormats",
+          "type": "Set<String>"
+        },
+        {
+          "name": "resolutionMP",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "burstFps",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "stabilization",
+          "type": "Optional<Boolean>"
+        },
+        {
+          "name": "autofocusModes",
+          "type": "Set<String>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 48,
+      "notes": "{F05}",
+      "relations": [],
+      "extends": "Equipment",
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Camera.java"
+    },
+    "Lens": {
+      "name": "Lens",
+      "title": "Lens",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "mount",
+          "type": "String"
+        },
+        {
+          "name": "minFocalMm",
+          "type": "double"
+        },
+        {
+          "name": "maxFocalMm",
+          "type": "double"
+        },
+        {
+          "name": "maxAperture",
+          "type": "double"
+        },
+        {
+          "name": "filterDiameterMm",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "autofocus",
+          "type": "Optional<Boolean>"
+        },
+        {
+          "name": "stabilization",
+          "type": "Optional<Boolean>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 49,
+      "notes": "{F05}",
+      "relations": [],
+      "extends": "Equipment",
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Lens.java"
+    },
+    "Filter": {
+      "name": "Filter",
+      "title": "Filter",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "diameterMm",
+          "type": "double"
+        },
+        {
+          "name": "ndStops",
+          "type": "Optional<Double>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 50,
+      "notes": "{F05}",
+      "relations": [],
+      "extends": "Equipment",
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Filter.java"
+    },
+    "Battery": {
+      "name": "Battery",
+      "title": "Battery",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "batteryType",
+          "type": "String"
+        },
+        {
+          "name": "capacityMah",
+          "type": "double"
+        },
+        {
+          "name": "ratedShots",
+          "type": "Optional<Integer>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 51,
+      "notes": "{F05}",
+      "relations": [],
+      "extends": "Equipment",
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Battery.java"
+    },
+    "StorageMedia": {
+      "name": "StorageMedia",
+      "title": "StorageMedia",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "format",
+          "type": "String"
+        },
+        {
+          "name": "capacityGB",
+          "type": "double"
+        },
+        {
+          "name": "writeSpeedMBps",
+          "type": "Optional<Double>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 52,
+      "notes": "{F05}",
+      "relations": [],
+      "extends": "Equipment",
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/StorageMedia.java"
+    },
+    "InventoryRepository": {
+      "name": "InventoryRepository",
+      "title": "InventoryRepository",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "load",
+          "parameters": [],
+          "return": "Result<GearInventory>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "inventory",
+              "type": "GearInventory"
+            }
+          ],
+          "return": "Result<GearInventory>"
+        }
+      ],
+      "constants": [],
+      "element": 53,
+      "notes": "{persistence port}",
+      "relations": [],
+      "package": "repository",
+      "file": "src/main/java/com/photopilot/repository/InventoryRepository.java"
+    },
+    "JsonInventoryRepository": {
+      "name": "JsonInventoryRepository",
+      "title": "JsonInventoryRepository",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "file",
+          "type": "Path"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "load",
+          "parameters": [],
+          "return": "Result<GearInventory>"
+        },
+        {
+          "visibility": "+",
+          "name": "save",
+          "parameters": [
+            {
+              "name": "inventory",
+              "type": "GearInventory"
+            }
+          ],
+          "return": "Result<GearInventory>"
+        }
+      ],
+      "constants": [],
+      "element": 54,
+      "notes": "{data implementation; atomic write}",
+      "relations": [],
+      "implements": "InventoryRepository",
+      "package": "repository",
+      "file": "src/main/java/com/photopilot/repository/JsonInventoryRepository.java"
+    },
+    "GearMatchingService": {
+      "name": "GearMatchingService",
+      "title": "GearMatchingService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "validator",
+          "type": "CompatibilityValidator"
+        },
+        {
+          "name": "ranking",
+          "type": "LoadoutRankingStrategy"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "match",
+          "parameters": [
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            },
+            {
+              "name": "gear",
+              "type": "GearInventory"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        },
+        {
+          "visibility": "+",
+          "name": "setRanking",
+          "parameters": [
+            {
+              "name": "strategy",
+              "type": "LoadoutRankingStrategy"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "+",
+          "name": "compatibleCandidates",
+          "parameters": [
+            {
+              "name": "gear",
+              "type": "GearInventory"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        }
+      ],
+      "constants": [],
+      "element": 57,
+      "notes": "{F07; Strategy context; postvalidates ranked IDs}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/GearMatchingService.java"
+    },
+    "CompatibilityValidator": {
+      "name": "CompatibilityValidator",
+      "title": "CompatibilityValidator",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [
+            {
+              "name": "loadout",
+              "type": "Loadout"
+            }
+          ],
+          "return": "CompatibilityReport"
+        },
+        {
+          "visibility": "+",
+          "name": "matchNeeds",
+          "parameters": [
+            {
+              "name": "loadout",
+              "type": "Loadout"
+            },
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "List<String>"
+        }
+      ],
+      "constants": [],
+      "element": 58,
+      "notes": "{F07; deterministic mount/filter/battery/storage rules}",
+      "relations": [],
+      "package": "validation",
+      "file": "src/main/java/com/photopilot/validation/CompatibilityValidator.java"
+    },
+    "CompatibilityReport": {
+      "name": "CompatibilityReport",
+      "title": "CompatibilityReport",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "compatible",
+          "type": "boolean"
+        },
+        {
+          "name": "unverified",
+          "type": "List<String>"
+        },
+        {
+          "name": "violations",
+          "type": "List<String>"
+        },
+        {
+          "name": "unmetNeeds",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "isUsable",
+          "parameters": [],
+          "return": "boolean"
+        }
+      ],
+      "constants": [],
+      "element": 59,
+      "notes": "{unknown is not compatible; partial needs explicit}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/CompatibilityReport.java"
+    },
+    "LoadoutRankingStrategy": {
+      "name": "LoadoutRankingStrategy",
+      "title": "LoadoutRankingStrategy",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "rank",
+          "parameters": [
+            {
+              "name": "candidates",
+              "type": "List<Loadout>"
+            },
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        }
+      ],
+      "constants": [],
+      "element": 60,
+      "notes": "{Strategy; only verified-compatible candidates}",
+      "relations": [],
+      "package": "strategy",
+      "file": "src/main/java/com/photopilot/strategy/LoadoutRankingStrategy.java"
+    },
+    "PortabilityRanking": {
+      "name": "PortabilityRanking",
+      "title": "PortabilityRanking",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "rank",
+          "parameters": [
+            {
+              "name": "candidates",
+              "type": "List<Loadout>"
+            },
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        }
+      ],
+      "constants": [],
+      "element": 61,
+      "notes": "{AI Concrete Strategy; prioritize carrying weight}",
+      "relations": [],
+      "implements": "LoadoutRankingStrategy",
+      "package": "strategy",
+      "file": "src/main/java/com/photopilot/strategy/PortabilityRanking.java"
+    },
+    "CoverageRanking": {
+      "name": "CoverageRanking",
+      "title": "CoverageRanking",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "rank",
+          "parameters": [
+            {
+              "name": "candidates",
+              "type": "List<Loadout>"
+            },
+            {
+              "name": "profile",
+              "type": "EquipmentRequirementProfile"
+            }
+          ],
+          "return": "Result<List<Loadout>>"
+        }
+      ],
+      "constants": [],
+      "element": 62,
+      "notes": "{AI Concrete Strategy; prioritize focal coverage}",
+      "relations": [],
+      "implements": "LoadoutRankingStrategy",
+      "package": "strategy",
+      "file": "src/main/java/com/photopilot/strategy/CoverageRanking.java"
+    },
+    "Loadout": {
+      "name": "Loadout",
+      "title": "Loadout",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "gear",
+          "type": "List<GearSnapshot>"
+        },
+        {
+          "name": "cameraLensAssignments",
+          "type": "Map<UUID, UUID>"
+        },
+        {
+          "name": "compatibility",
+          "type": "CompatibilityReport"
+        },
+        {
+          "name": "tradeOffs",
+          "type": "List<String>"
+        },
+        {
+          "name": "unmetNeeds",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "totalWeightGrams",
+          "parameters": [],
+          "return": "Optional<Double>"
+        }
+      ],
+      "constants": [],
+      "element": 63,
+      "notes": "{F07; immutable selected quantities and evidence}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/Loadout.java"
+    },
+    "GearSnapshot": {
+      "name": "GearSnapshot",
+      "title": "GearSnapshot",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "sourceGearId",
+          "type": "UUID"
+        },
+        {
+          "name": "type",
+          "type": "String"
+        },
+        {
+          "name": "brand",
+          "type": "String"
+        },
+        {
+          "name": "model",
+          "type": "String"
+        },
+        {
+          "name": "selectedQuantity",
+          "type": "int"
+        },
+        {
+          "name": "capturedAt",
+          "type": "Instant"
+        },
+        {
+          "name": "specs",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "verifiedFields",
+          "type": "Set<String>"
+        },
+        {
+          "name": "sources",
+          "type": "Map<String, URI>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 64,
+      "notes": "{immutable historical value; no live inventory dependency}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/GearSnapshot.java"
+    },
+    "FeasibilityValidator": {
+      "name": "FeasibilityValidator",
+      "title": "FeasibilityValidator",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [
+            {
+              "name": "idea",
+              "type": "ActivitySuggestion"
+            },
+            {
+              "name": "context",
+              "type": "DiscoveryContext"
+            }
+          ],
+          "return": "Result<ActivitySuggestion>"
+        },
+        {
+          "visibility": "+",
+          "name": "checkTiming",
+          "parameters": [
+            {
+              "name": "assessment",
+              "type": "EnvironmentAssessment"
+            }
+          ],
+          "return": "Result<EnvironmentAssessment>"
+        }
+      ],
+      "constants": [],
+      "element": 65,
+      "notes": "{F02/F09; time, distance, gear and consent gates}",
+      "relations": [],
+      "package": "validation",
+      "file": "src/main/java/com/photopilot/validation/FeasibilityValidator.java"
+    },
+    "PlanEditor": {
+      "name": "PlanEditor",
+      "title": "PlanEditor",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "validator",
+          "type": "PlanValidator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "preview",
+          "parameters": [
+            {
+              "name": "base",
+              "type": "ShootPlan"
+            },
+            {
+              "name": "change",
+              "type": "PlanCommand"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "applyApproved",
+          "parameters": [
+            {
+              "name": "base",
+              "type": "ShootPlan"
+            },
+            {
+              "name": "change",
+              "type": "PlanCommand"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 68,
+      "notes": "{F10; Command invoker; no mutation of saved base}",
+      "relations": [],
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/PlanEditor.java"
+    },
+    "PlanCommand": {
+      "name": "PlanCommand",
+      "title": "PlanCommand",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "applyTo",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 69,
+      "notes": "{Command contract; validated by invoker}",
+      "relations": [],
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/PlanCommand.java"
+    },
+    "ReplaceLoadoutCommand": {
+      "name": "ReplaceLoadoutCommand",
+      "title": "ReplaceLoadoutCommand",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "replacement",
+          "type": "Loadout"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "applyTo",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 70,
+      "notes": "{Concrete Command; lighter or different gear}",
+      "relations": [],
+      "implements": "PlanCommand",
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/ReplaceLoadoutCommand.java"
+    },
+    "ReviseScheduleCommand": {
+      "name": "ReviseScheduleCommand",
+      "title": "ReviseScheduleCommand",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "windows",
+          "type": "List<ShootingWindow>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "applyTo",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 71,
+      "notes": "{Concrete Command; timing change}",
+      "relations": [],
+      "implements": "PlanCommand",
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/ReviseScheduleCommand.java"
+    },
+    "ReviseStrategyCommand": {
+      "name": "ReviseStrategyCommand",
+      "title": "ReviseStrategyCommand",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "settings",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "shotPriorities",
+          "type": "List<String>"
+        },
+        {
+          "name": "preparation",
+          "type": "List<String>"
+        },
+        {
+          "name": "checklist",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "applyTo",
+          "parameters": [
+            {
+              "name": "draft",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 72,
+      "notes": "{Concrete Command; settings and shot goals}",
+      "relations": [],
+      "implements": "PlanCommand",
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/ReviseStrategyCommand.java"
+    },
+    "ShootPlan": {
+      "name": "ShootPlan",
+      "title": "ShootPlan",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "revision",
+          "type": "int"
+        },
+        {
+          "name": "approved",
+          "type": "boolean"
+        },
+        {
+          "name": "provisionalReasons",
+          "type": "List<String>"
+        },
+        {
+          "name": "loadout",
+          "type": "Optional<Loadout>"
+        },
+        {
+          "name": "settings",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "windows",
+          "type": "List<ShootingWindow>"
+        },
+        {
+          "name": "checklist",
+          "type": "List<String>"
+        },
+        {
+          "name": "preparation",
+          "type": "List<String>"
+        },
+        {
+          "name": "shotPriorities",
+          "type": "List<String>"
+        },
+        {
+          "name": "fixedConstraints",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "calculations",
+          "type": "List<CalculationResult>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "copyForRevision",
+          "parameters": [],
+          "return": "ShootPlan"
+        },
+        {
+          "visibility": "~",
+          "name": "replaceLoadout",
+          "parameters": [
+            {
+              "name": "loadout",
+              "type": "Loadout"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "~",
+          "name": "reviseSchedule",
+          "parameters": [
+            {
+              "name": "windows",
+              "type": "List<ShootingWindow>"
+            }
+          ],
+          "return": "void"
+        },
+        {
+          "visibility": "~",
+          "name": "reviseStrategy",
+          "parameters": [
+            {
+              "name": "change",
+              "type": "ReviseStrategyCommand"
+            }
+          ],
+          "return": "void"
+        }
+      ],
+      "constants": [],
+      "element": 73,
+      "notes": "{F10; Command receiver; immutable after approval}",
+      "relations": [],
+      "package": "command",
+      "file": "src/main/java/com/photopilot/command/ShootPlan.java"
+    },
+    "PlanValidator": {
+      "name": "PlanValidator",
+      "title": "PlanValidator",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "compatibility",
+          "type": "CompatibilityValidator"
+        },
+        {
+          "name": "calculator",
+          "type": "TechnicalCalculator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [
+            {
+              "name": "plan",
+              "type": "ShootPlan"
+            },
+            {
+              "name": "req",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        },
+        {
+          "visibility": "+",
+          "name": "validateChange",
+          "parameters": [
+            {
+              "name": "base",
+              "type": "ShootPlan"
+            },
+            {
+              "name": "next",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "Result<ShootPlan>"
+        }
+      ],
+      "constants": [],
+      "element": 74,
+      "notes": "{deterministic; recompute numbers, reject fixed-constraint changes}",
+      "relations": [],
+      "package": "validation",
+      "file": "src/main/java/com/photopilot/validation/PlanValidator.java"
+    },
+    "ShootingWindow": {
+      "name": "ShootingWindow",
+      "title": "ShootingWindow",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "start",
+          "type": "ZonedDateTime"
+        },
+        {
+          "name": "end",
+          "type": "ZonedDateTime"
+        },
+        {
+          "name": "arrival",
+          "type": "ZonedDateTime"
+        },
+        {
+          "name": "conditions",
+          "type": "String"
+        },
+        {
+          "name": "estimated",
+          "type": "boolean"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<ShootingWindow>"
+        }
+      ],
+      "constants": [],
+      "element": 75,
+      "notes": "{F09/F10; copied into approved revisions}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/ShootingWindow.java"
+    },
+    "EnvironmentAssessment": {
+      "name": "EnvironmentAssessment",
+      "title": "EnvironmentAssessment",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "context",
+          "type": "EnvironmentContext"
+        },
+        {
+          "name": "windows",
+          "type": "List<ShootingWindow>"
+        },
+        {
+          "name": "limitations",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 76,
+      "notes": "{F09; guidance grounded in timestamped source data}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/EnvironmentAssessment.java"
+    },
+    "EnvironmentService": {
+      "name": "EnvironmentService",
+      "title": "EnvironmentService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "provider",
+          "type": "EnvironmentProvider"
+        },
+        {
+          "name": "location",
+          "type": "LocationService"
+        },
+        {
+          "name": "agent",
+          "type": "PhotoPilotAgent"
+        },
+        {
+          "name": "validator",
+          "type": "FeasibilityValidator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "retrieve",
+          "parameters": [
+            {
+              "name": "place",
+              "type": "GeoLocation"
+            },
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "return": "Result<EnvironmentContext>"
+        },
+        {
+          "visibility": "+",
+          "name": "assess",
+          "parameters": [
+            {
+              "name": "req",
+              "type": "ShootRequirement"
+            }
+          ],
+          "return": "Result<EnvironmentAssessment>"
+        }
+      ],
+      "constants": [],
+      "element": 79,
+      "notes": "{F09; factual retrieval independent of AI interpretation}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/EnvironmentService.java"
+    },
+    "EnvironmentProvider": {
+      "name": "EnvironmentProvider",
+      "title": "EnvironmentProvider",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "fetch",
+          "parameters": [
+            {
+              "name": "place",
+              "type": "GeoLocation"
+            },
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "return": "Result<EnvironmentContext>"
+        }
+      ],
+      "constants": [],
+      "element": 80,
+      "notes": "{weather and sunlight integration port}",
+      "relations": [],
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/EnvironmentProvider.java"
+    },
+    "EnvironmentApiAdapter": {
+      "name": "EnvironmentApiAdapter",
+      "title": "EnvironmentApiAdapter",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "weatherEndpoint",
+          "type": "URI"
+        },
+        {
+          "name": "sunEndpoint",
+          "type": "URI"
+        },
+        {
+          "name": "http",
+          "type": "HttpClient"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "fetch",
+          "parameters": [
+            {
+              "name": "place",
+              "type": "GeoLocation"
+            },
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "return": "Result<EnvironmentContext>"
+        }
+      ],
+      "constants": [],
+      "element": 81,
+      "notes": "{Adapter; providers not yet selected}",
+      "relations": [],
+      "implements": "EnvironmentProvider",
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/EnvironmentApiAdapter.java"
+    },
+    "LocationService": {
+      "name": "LocationService",
+      "title": "LocationService",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "provider",
+          "type": "Optional<DeviceLocationProvider>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "manual",
+          "parameters": [
+            {
+              "name": "label",
+              "type": "String"
+            },
+            {
+              "name": "lat",
+              "type": "double"
+            },
+            {
+              "name": "lon",
+              "type": "double"
+            }
+          ],
+          "return": "Result<GeoLocation>"
+        },
+        {
+          "visibility": "+",
+          "name": "current",
+          "parameters": [
+            {
+              "name": "explicitConsent",
+              "type": "boolean"
+            }
+          ],
+          "return": "Result<GeoLocation>"
+        }
+      ],
+      "constants": [],
+      "element": 82,
+      "notes": "{F01/F02/F09; no call without consent}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/LocationService.java"
+    },
+    "EnvironmentContext": {
+      "name": "EnvironmentContext",
+      "title": "EnvironmentContext",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "weather",
+          "type": "Map<String, Double>"
+        },
+        {
+          "name": "sunrise",
+          "type": "Optional<ZonedDateTime>"
+        },
+        {
+          "name": "sunset",
+          "type": "Optional<ZonedDateTime>"
+        },
+        {
+          "name": "sources",
+          "type": "Map<String, URI>"
+        },
+        {
+          "name": "sourceTimestamps",
+          "type": "Map<String, Instant>"
+        },
+        {
+          "name": "unavailableFields",
+          "type": "Set<String>"
+        },
+        {
+          "name": "retrievedAt",
+          "type": "Instant"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "staleFields",
+          "parameters": [
+            {
+              "name": "now",
+              "type": "Instant"
+            },
+            {
+              "name": "maxAge",
+              "type": "Duration"
+            }
+          ],
+          "return": "Set<String>"
+        }
+      ],
+      "constants": [],
+      "element": 83,
+      "notes": "{weather values carry documented units; partial data allowed}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/EnvironmentContext.java"
+    },
+    "GeoLocation": {
+      "name": "GeoLocation",
+      "title": "GeoLocation",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "label",
+          "type": "String"
+        },
+        {
+          "name": "latitude",
+          "type": "double"
+        },
+        {
+          "name": "longitude",
+          "type": "double"
+        },
+        {
+          "name": "approximate",
+          "type": "boolean"
+        },
+        {
+          "name": "fromDevice",
+          "type": "boolean"
+        },
+        {
+          "name": "consentGrantedAt",
+          "type": "Optional<Instant>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<GeoLocation>"
+        }
+      ],
+      "constants": [],
+      "element": 84,
+      "notes": "{value; no operating-system assumption}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/GeoLocation.java"
+    },
+    "DiscoveryContext": {
+      "name": "DiscoveryContext",
+      "title": "DiscoveryContext",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "location",
+          "type": "Optional<GeoLocation>"
+        },
+        {
+          "name": "start",
+          "type": "ZonedDateTime"
+        },
+        {
+          "name": "availableTime",
+          "type": "Duration"
+        },
+        {
+          "name": "maxDistanceKm",
+          "type": "double"
+        },
+        {
+          "name": "preferences",
+          "type": "List<String>"
+        },
+        {
+          "name": "gear",
+          "type": "GearInventory"
+        },
+        {
+          "name": "history",
+          "type": "List<PhotographySession>"
+        },
+        {
+          "name": "environment",
+          "type": "Optional<EnvironmentContext>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 85,
+      "notes": "{F02; permitted user context}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/DiscoveryContext.java"
+    },
+    "ActivitySuggestion": {
+      "name": "ActivitySuggestion",
+      "title": "ActivitySuggestion",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "subject",
+          "type": "String"
+        },
+        {
+          "name": "setting",
+          "type": "String"
+        },
+        {
+          "name": "estimatedDuration",
+          "type": "Duration"
+        },
+        {
+          "name": "estimatedTravelKm",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "rationale",
+          "type": "String"
+        },
+        {
+          "name": "limitations",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "toRequirement",
+          "parameters": [],
+          "return": "ShootRequirement"
+        }
+      ],
+      "constants": [],
+      "element": 86,
+      "notes": "{F02; conversion produces unconfirmed draft}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/ActivitySuggestion.java"
+    },
+    "DeviceLocationProvider": {
+      "name": "DeviceLocationProvider",
+      "title": "DeviceLocationProvider",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "current",
+          "parameters": [],
+          "return": "Result<GeoLocation>"
+        }
+      ],
+      "constants": [],
+      "element": 87,
+      "notes": "{optional platform integration; implementation deferred}",
+      "relations": [],
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/DeviceLocationProvider.java"
+    },
+    "TechnicalCalculator": {
+      "name": "TechnicalCalculator",
+      "title": "TechnicalCalculator",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "calculate",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "depthOfField",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "hyperfocal",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "fieldOfView",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "exposureAndND",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "storage",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        },
+        {
+          "visibility": "+",
+          "name": "batteryCapacity",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "CalculationInput"
+            }
+          ],
+          "return": "Result<CalculationResult>"
+        }
+      ],
+      "constants": [],
+      "element": 90,
+      "notes": "{F08; deterministic suite; operation-specific required keys}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/TechnicalCalculator.java"
+    },
+    "CalculationInput": {
+      "name": "CalculationInput",
+      "title": "CalculationInput",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "operation",
+          "type": "CalculationKind"
+        },
+        {
+          "name": "parameters",
+          "type": "Map<String, Double>"
+        },
+        {
+          "name": "units",
+          "type": "Map<String, String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<CalculationInput>"
+        }
+      ],
+      "constants": [],
+      "element": 91,
+      "notes": "{validated schema per operation; no free-form expressions}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/CalculationInput.java"
+    },
+    "CalculationResult": {
+      "name": "CalculationResult",
+      "title": "CalculationResult",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "values",
+          "type": "Map<String, Double>"
+        },
+        {
+          "name": "units",
+          "type": "Map<String, String>"
+        },
+        {
+          "name": "estimated",
+          "type": "boolean"
+        },
+        {
+          "name": "assumptions",
+          "type": "List<String>"
+        },
+        {
+          "name": "input",
+          "type": "CalculationInput"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 92,
+      "notes": "{F08; reproducible inputs retained}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/CalculationResult.java"
+    },
+    "CalculationKind": {
+      "name": "CalculationKind",
+      "title": "CalculationKind",
+      "kind": "enum",
+      "abstract": false,
+      "fields": [],
+      "methods": [],
+      "constants": [
+        "DEPTH_OF_FIELD",
+        "HYPERFOCAL",
+        "FIELD_OF_VIEW",
+        "EXPOSURE_ND",
+        "STORAGE",
+        "BATTERY_CAPACITY"
+      ],
+      "element": 93,
+      "notes": "",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/CalculationKind.java"
+    },
+    "CalculationTool": {
+      "name": "CalculationTool",
+      "title": "CalculationTool",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "calculator",
+          "type": "TechnicalCalculator"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "name",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "inputSchema",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "argumentsJson",
+              "type": "String"
+            }
+          ],
+          "return": "Result<String>"
+        }
+      ],
+      "constants": [],
+      "element": 94,
+      "notes": "{AgentTool; deterministic F08}",
+      "relations": [],
+      "implements": "AgentTool",
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/CalculationTool.java"
+    },
+    "GearMatchingTool": {
+      "name": "GearMatchingTool",
+      "title": "GearMatchingTool",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "matching",
+          "type": "GearMatchingService"
+        },
+        {
+          "name": "inventory",
+          "type": "InventoryRepository"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "name",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "inputSchema",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "argumentsJson",
+              "type": "String"
+            }
+          ],
+          "return": "Result<String>"
+        }
+      ],
+      "constants": [],
+      "element": 95,
+      "notes": "{AgentTool; returns verified candidates; no AI recursion}",
+      "relations": [],
+      "implements": "AgentTool",
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/GearMatchingTool.java"
+    },
+    "EnvironmentTool": {
+      "name": "EnvironmentTool",
+      "title": "EnvironmentTool",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "environment",
+          "type": "EnvironmentService"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "name",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "inputSchema",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "argumentsJson",
+              "type": "String"
+            }
+          ],
+          "return": "Result<String>"
+        }
+      ],
+      "constants": [],
+      "element": 96,
+      "notes": "{AgentTool; invokes retrieve(), not assess()}",
+      "relations": [],
+      "implements": "AgentTool",
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/EnvironmentTool.java"
+    },
+    "SpecificationTool": {
+      "name": "SpecificationTool",
+      "title": "SpecificationTool",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "provider",
+          "type": "EquipmentSpecificationProvider"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "name",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "inputSchema",
+          "parameters": [],
+          "return": "String"
+        },
+        {
+          "visibility": "+",
+          "name": "execute",
+          "parameters": [
+            {
+              "name": "argumentsJson",
+              "type": "String"
+            }
+          ],
+          "return": "Result<String>"
+        }
+      ],
+      "constants": [],
+      "element": 97,
+      "notes": "{AgentTool; factual equipment lookup}",
+      "relations": [],
+      "implements": "AgentTool",
+      "package": "agent",
+      "file": "src/main/java/com/photopilot/agent/SpecificationTool.java"
+    },
+    "EquipmentCatalogAdapter": {
+      "name": "EquipmentCatalogAdapter",
+      "title": "EquipmentCatalogAdapter",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "endpoint",
+          "type": "URI"
+        },
+        {
+          "name": "http",
+          "type": "HttpClient"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "lookup",
+          "parameters": [
+            {
+              "name": "model",
+              "type": "String"
+            }
+          ],
+          "return": "Result<List<Equipment>>"
+        }
+      ],
+      "constants": [],
+      "element": 98,
+      "notes": "{Adapter; sources, conflicts and unknowns retained}",
+      "relations": [],
+      "implements": "EquipmentSpecificationProvider",
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/EquipmentCatalogAdapter.java"
+    },
+    "MetadataExtractor": {
+      "name": "MetadataExtractor",
+      "title": "MetadataExtractor",
+      "kind": "interface",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "supports",
+          "parameters": [
+            {
+              "name": "file",
+              "type": "Path"
+            }
+          ],
+          "return": "boolean"
+        },
+        {
+          "visibility": "+",
+          "name": "extract",
+          "parameters": [
+            {
+              "name": "files",
+              "type": "List<Path>"
+            }
+          ],
+          "return": "Result<List<ExifRecord>>"
+        }
+      ],
+      "constants": [],
+      "element": 101,
+      "notes": "{Adapter target; extension point for formats}",
+      "relations": [],
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/MetadataExtractor.java"
+    },
+    "ExifLibraryAdapter": {
+      "name": "ExifLibraryAdapter",
+      "title": "ExifLibraryAdapter",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "supportedFormats",
+          "type": "Set<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "supports",
+          "parameters": [
+            {
+              "name": "file",
+              "type": "Path"
+            }
+          ],
+          "return": "boolean"
+        },
+        {
+          "visibility": "+",
+          "name": "extract",
+          "parameters": [
+            {
+              "name": "files",
+              "type": "List<Path>"
+            }
+          ],
+          "return": "Result<List<ExifRecord>>"
+        }
+      ],
+      "constants": [],
+      "element": 102,
+      "notes": "{Adapter; JPEG EXIF library and exported metadata reader}",
+      "relations": [],
+      "implements": "MetadataExtractor",
+      "package": "integration",
+      "file": "src/main/java/com/photopilot/integration/ExifLibraryAdapter.java"
+    },
+    "StatisticsCalculator": {
+      "name": "StatisticsCalculator",
+      "title": "StatisticsCalculator",
+      "kind": "class",
+      "abstract": false,
+      "fields": [],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "summarize",
+          "parameters": [
+            {
+              "name": "records",
+              "type": "List<ExifRecord>"
+            }
+          ],
+          "return": "Result<ExifStatistics>"
+        },
+        {
+          "visibility": "+",
+          "name": "compare",
+          "parameters": [
+            {
+              "name": "stats",
+              "type": "ExifStatistics"
+            },
+            {
+              "name": "plan",
+              "type": "ShootPlan"
+            }
+          ],
+          "return": "List<String>"
+        }
+      ],
+      "constants": [],
+      "element": 103,
+      "notes": "{F11; deterministic statistics and plan comparison}",
+      "relations": [],
+      "package": "service",
+      "file": "src/main/java/com/photopilot/service/StatisticsCalculator.java"
+    },
+    "ExifRecord": {
+      "name": "ExifRecord",
+      "title": "ExifRecord",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "sourceName",
+          "type": "String"
+        },
+        {
+          "name": "focalLengthMm",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "shutterSeconds",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "aperture",
+          "type": "Optional<Double>"
+        },
+        {
+          "name": "iso",
+          "type": "Optional<Integer>"
+        },
+        {
+          "name": "cameraModel",
+          "type": "Optional<String>"
+        },
+        {
+          "name": "lensModel",
+          "type": "Optional<String>"
+        },
+        {
+          "name": "capturedAt",
+          "type": "Optional<Instant>"
+        },
+        {
+          "name": "missingFields",
+          "type": "Set<String>"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "+",
+          "name": "validate",
+          "parameters": [],
+          "return": "Result<ExifRecord>"
+        }
+      ],
+      "constants": [],
+      "element": 104,
+      "notes": "{objective metadata only; per-file errors in Result}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/ExifRecord.java"
+    },
+    "ExifStatistics": {
+      "name": "ExifStatistics",
+      "title": "ExifStatistics",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "importedCount",
+          "type": "int"
+        },
+        {
+          "name": "usableCount",
+          "type": "int"
+        },
+        {
+          "name": "missingCounts",
+          "type": "Map<String, Integer>"
+        },
+        {
+          "name": "focalLengthCounts",
+          "type": "Map<Double, Integer>"
+        },
+        {
+          "name": "shutterCounts",
+          "type": "Map<Double, Integer>"
+        },
+        {
+          "name": "apertureCounts",
+          "type": "Map<Double, Integer>"
+        },
+        {
+          "name": "isoCounts",
+          "type": "Map<Integer, Integer>"
+        },
+        {
+          "name": "cameraCounts",
+          "type": "Map<String, Integer>"
+        },
+        {
+          "name": "lensCounts",
+          "type": "Map<String, Integer>"
+        },
+        {
+          "name": "limitations",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 105,
+      "notes": "{F11; denominators exclude missing measurements}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/ExifStatistics.java"
+    },
+    "PostShootReview": {
+      "name": "PostShootReview",
+      "title": "PostShootReview",
+      "kind": "class",
+      "abstract": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID"
+        },
+        {
+          "name": "createdAt",
+          "type": "Instant"
+        },
+        {
+          "name": "statistics",
+          "type": "ExifStatistics"
+        },
+        {
+          "name": "comparedPlanId",
+          "type": "UUID"
+        },
+        {
+          "name": "comparedRevision",
+          "type": "int"
+        },
+        {
+          "name": "planDifferences",
+          "type": "List<String>"
+        },
+        {
+          "name": "lessons",
+          "type": "List<String>"
+        },
+        {
+          "name": "limitations",
+          "type": "List<String>"
+        }
+      ],
+      "methods": [],
+      "constants": [],
+      "element": 106,
+      "notes": "{F11; saved for future history retrieval}",
+      "relations": [],
+      "package": "model",
+      "file": "src/main/java/com/photopilot/model/PostShootReview.java"
+    }
+  },
+  "relations": [
+    {
+      "source": "PhotoPilotGUI",
+      "target": "PhotoPilotFacade",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotCLI",
+      "target": "PhotoPilotFacade",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotFacade",
+      "target": "SessionService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotFacade",
+      "target": "PlanningService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotFacade",
+      "target": "InventoryService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotFacade",
+      "target": "DiscoveryService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotFacade",
+      "target": "ReviewService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotAgent",
+      "target": "LLMClient",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "GeminiAdapter",
+      "target": "LLMClient",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "PhotoPilotAgent",
+      "target": "ToolRegistry",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotoPilotAgent",
+      "target": "HistoryRetriever",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "ToolRegistry",
+      "target": "AgentTool",
+      "notation": [
+        "lt=<<<<-",
+        "m1=1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "PhotoPilotAgent",
+      "target": "AgentContext",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ModelReply",
+      "target": "ToolCall",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "PhotographySession",
+      "target": "SessionState",
+      "notation": [
+        "lt=->",
+        "m1=0..*",
+        "m2=1"
+      ]
+    },
+    {
+      "source": "DraftState",
+      "target": "SessionState",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "PlannedState",
+      "target": "SessionState",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "CompletedState",
+      "target": "SessionState",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ReviewedState",
+      "target": "SessionState",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "JsonSessionRepository",
+      "target": "SessionRepository",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "SessionRepository",
+      "target": "PhotographySession",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "RequirementService",
+      "target": "ShootRequirement",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "RequirementService",
+      "target": "EquipmentRequirementProfile",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "EquipmentRequirementProfile",
+      "target": "CapabilityNeed",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=1..*"
+      ]
+    },
+    {
+      "source": "GearRecognitionService",
+      "target": "EquipmentSpecificationProvider",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "GearRecognitionService",
+      "target": "GearImportDraft",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ImagePrivacyBoundary",
+      "target": "SanitizedImage",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "GearRecognitionService",
+      "target": "SanitizedImage",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "GearInventory",
+      "target": "Equipment",
+      "notation": [
+        "lt=<<<<-",
+        "m1=0..1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "Camera",
+      "target": "Equipment",
+      "notation": [
+        "lt=->>"
+      ]
+    },
+    {
+      "source": "Lens",
+      "target": "Equipment",
+      "notation": [
+        "lt=->>"
+      ]
+    },
+    {
+      "source": "Filter",
+      "target": "Equipment",
+      "notation": [
+        "lt=->>"
+      ]
+    },
+    {
+      "source": "Battery",
+      "target": "Equipment",
+      "notation": [
+        "lt=->>"
+      ]
+    },
+    {
+      "source": "StorageMedia",
+      "target": "Equipment",
+      "notation": [
+        "lt=->>"
+      ]
+    },
+    {
+      "source": "JsonInventoryRepository",
+      "target": "InventoryRepository",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "InventoryRepository",
+      "target": "GearInventory",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "GearMatchingService",
+      "target": "CompatibilityValidator",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "CompatibilityValidator",
+      "target": "CompatibilityReport",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "GearMatchingService",
+      "target": "LoadoutRankingStrategy",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PortabilityRanking",
+      "target": "LoadoutRankingStrategy",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "CoverageRanking",
+      "target": "LoadoutRankingStrategy",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "Loadout",
+      "target": "GearSnapshot",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=1..*"
+      ]
+    },
+    {
+      "source": "Loadout",
+      "target": "CompatibilityReport",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=1"
+      ]
+    },
+    {
+      "source": "PlanEditor",
+      "target": "PlanCommand",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "PlanEditor",
+      "target": "PlanValidator",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "ReplaceLoadoutCommand",
+      "target": "PlanCommand",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ReplaceLoadoutCommand",
+      "target": "ShootPlan",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ReviseScheduleCommand",
+      "target": "PlanCommand",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ReviseScheduleCommand",
+      "target": "ShootPlan",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ReviseStrategyCommand",
+      "target": "PlanCommand",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ReviseStrategyCommand",
+      "target": "ShootPlan",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ShootPlan",
+      "target": "ShootingWindow",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "PlanValidator",
+      "target": "ShootPlan",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "EnvironmentService",
+      "target": "EnvironmentProvider",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "EnvironmentApiAdapter",
+      "target": "EnvironmentProvider",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "EnvironmentService",
+      "target": "LocationService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "LocationService",
+      "target": "DeviceLocationProvider",
+      "notation": [
+        "lt=->",
+        "m1=1",
+        "m2=0..1"
+      ]
+    },
+    {
+      "source": "EnvironmentService",
+      "target": "EnvironmentContext",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "TechnicalCalculator",
+      "target": "CalculationInput",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "TechnicalCalculator",
+      "target": "CalculationResult",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "CalculationTool",
+      "target": "TechnicalCalculator",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "CalculationInput",
+      "target": "CalculationKind",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "ExifLibraryAdapter",
+      "target": "MetadataExtractor",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "MetadataExtractor",
+      "target": "ExifRecord",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "StatisticsCalculator",
+      "target": "ExifRecord",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "StatisticsCalculator",
+      "target": "ExifStatistics",
+      "notation": [
+        "lt=.>"
+      ]
+    },
+    {
+      "source": "PostShootReview",
+      "target": "ExifStatistics",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=1"
+      ]
+    },
+    {
+      "source": "SessionService",
+      "target": "SessionRepository",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "HistoryRetriever",
+      "target": "SessionRepository",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "InventoryService",
+      "target": "InventoryRepository",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "InventoryService",
+      "target": "GearRecognitionService",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PlanningService",
+      "target": "PhotoPilotAgent",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "ReviewService",
+      "target": "PhotoPilotAgent",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "PhotographySession",
+      "target": "ShootPlan",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "PhotographySession",
+      "target": "PostShootReview",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=0..*"
+      ]
+    },
+    {
+      "source": "CalculationTool",
+      "target": "AgentTool",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "EnvironmentTool",
+      "target": "AgentTool",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "GearMatchingTool",
+      "target": "AgentTool",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "SpecificationTool",
+      "target": "AgentTool",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ShootPlan",
+      "target": "Loadout",
+      "notation": [
+        "lt=<<<<<-",
+        "m1=1",
+        "m2=0..1"
+      ]
+    },
+    {
+      "source": "EquipmentCatalogAdapter",
+      "target": "EquipmentSpecificationProvider",
+      "notation": [
+        "lt=.>>"
+      ]
+    },
+    {
+      "source": "ReviewService",
+      "target": "MetadataExtractor",
+      "notation": [
+        "lt=->"
+      ]
+    },
+    {
+      "source": "ReviewService",
+      "target": "StatisticsCalculator",
+      "notation": [
+        "lt=->"
+      ]
+    }
+  ]
+}
