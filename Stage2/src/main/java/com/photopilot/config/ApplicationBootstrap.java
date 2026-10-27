@@ -4,6 +4,7 @@ import com.photopilot.agent.*;
 import com.photopilot.application.PhotoPilotFacade;
 import com.photopilot.command.PlanEditor;
 import com.photopilot.integration.*;
+import com.photopilot.i18n.*;
 import com.photopilot.repository.*;
 import com.photopilot.service.*;
 import com.photopilot.strategy.*;
@@ -16,13 +17,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** Explicit per-application composition root. Constructors perform no external I/O. */
+/** Per-application composition root. Reads preferences, but never writes business data or calls providers at startup. */
 public final class ApplicationBootstrap implements AutoCloseable {
     private final PhotoPilotFacade facade;
     private final HttpClient http;
+    private final LocalizationService localization;
 
     public ApplicationBootstrap(Map<String, String> environment) {
         Path directory = Path.of(environment.getOrDefault("PHOTOPILOT_DATA_DIR", "data"));
+        Path configuration = Path.of(environment.getOrDefault("PHOTOPILOT_CONFIG_DIR",
+            Path.of(System.getProperty("user.home"), ".photopilot").toString()));
+        localization = new LocalizationService(new FileLocalePreferenceRepository(configuration.resolve("settings.properties")));
         String preference = environment.getOrDefault("PHOTOPILOT_RANKING", "portability");
         if (!Set.of("portability", "coverage").contains(preference)) {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
@@ -32,8 +37,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
         SessionRepository sessions = new JsonSessionRepository(directory.resolve("sessions"));
         InventoryRepository inventory = new JsonInventoryRepository(directory.resolve("inventory.json"));
         ToolRegistry tools = new ToolRegistry(Map.of());
-        LLMClient model = new GeminiAdapter(geminiEndpoint,
-            environment.getOrDefault("GEMINI_MODEL", "UNCONFIGURED"), http, Duration.ofSeconds(30));
+        LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
+            environment.getOrDefault("GEMINI_MODEL", "UNCONFIGURED"), http, Duration.ofSeconds(30)), localization);
         PhotoPilotAgent agent = new PhotoPilotAgent(model, tools, new HistoryRetriever(sessions), 8);
         TechnicalCalculator calculator = new TechnicalCalculator();
         CompatibilityValidator compatibility = new CompatibilityValidator();
@@ -64,6 +69,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
     }
 
     public PhotoPilotFacade facade() { return facade; }
+    public LocalizationService localization() { return localization; }
 
     @Override
     public void close() { http.close(); }

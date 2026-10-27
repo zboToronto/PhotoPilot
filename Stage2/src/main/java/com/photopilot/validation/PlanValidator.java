@@ -20,10 +20,10 @@ public class PlanValidator {
     }
 
     public Result<ShootPlan> validate(ShootPlan plan, ShootRequirement req) {
-        return Result.failure("NOT IMPLEMENTED: PlanValidator.validate");
+        return Result.failureKey("error.notImplemented", "PlanValidator.validate");
     }
 
     public Result<ShootPlan> validateChange(ShootPlan base, ShootPlan next) {
-        return Result.failure("NOT IMPLEMENTED: PlanValidator.validateChange");
+        return Result.failureKey("error.notImplemented", "PlanValidator.validateChange");
     }
 }

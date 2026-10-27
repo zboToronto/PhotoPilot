@@ -3,6 +3,9 @@
 /.mvn/repository/
 /.mvn/user-home/
 /data/
+/local-config/
+settings.properties
+settings.properties.lock
 .env
 .env.*
 !.env.example

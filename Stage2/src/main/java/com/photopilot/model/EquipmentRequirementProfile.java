@@ -17,10 +17,10 @@ public class EquipmentRequirementProfile {
     }
 
     public Result<EquipmentRequirementProfile> validate(ShootRequirement req) {
-        return Result.failure("NOT IMPLEMENTED: EquipmentRequirementProfile.validate");
+        return Result.failureKey("error.notImplemented", "EquipmentRequirementProfile.validate");
     }
 
     public Result<EquipmentRequirementProfile> confirm() {
-        return Result.failure("NOT IMPLEMENTED: EquipmentRequirementProfile.confirm");
+        return Result.failureKey("error.notImplemented", "EquipmentRequirementProfile.confirm");
     }
 }

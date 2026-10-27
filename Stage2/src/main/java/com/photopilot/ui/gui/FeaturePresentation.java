@@ -2,25 +2,31 @@ package com.photopilot.ui.gui;
 
 import com.photopilot.config.FeatureCatalog;
 import java.util.List;
+import com.photopilot.i18n.*;
 
 /** GUI-only names and grouping. The shared catalog remains the source of feature status. */
 record FeaturePresentation(String id, String title, String description, String group) {
     static List<FeaturePresentation> all() {
         return List.of(
-            new FeaturePresentation("F01", "Sessions & History", "Organize photography sessions and revisit your shooting history.", "Workspace"),
-            new FeaturePresentation("F02", "Inspiration", "Explore photography ideas and activities for your next session.", "Workspace"),
-            new FeaturePresentation("F03", "Requirement Parsing", "Turn a photography brief into structured shooting requirements.", "Workspace"),
-            new FeaturePresentation("F10", "Shoot Planning", "Build a shoot plan and refine your equipment, schedule, and strategy.", "Workspace"),
-            new FeaturePresentation("F04", "AI Gear Import", "Identify photography gear and prepare it for import into your inventory.", "Equipment"),
-            new FeaturePresentation("F05", "Gear Inventory", "Keep your cameras, lenses, and accessories organized in one place.", "Equipment"),
-            new FeaturePresentation("F06", "Capability Analysis", "Understand the equipment capabilities your photography session needs.", "Equipment"),
-            new FeaturePresentation("F07", "Compatibility Check", "Match your owned gear to a session and check equipment compatibility.", "Equipment"),
-            new FeaturePresentation("F08", "Technical Calculator", "Work through the technical calculations behind your camera settings.", "Photography Tools"),
-            new FeaturePresentation("F09", "Environment Planning", "Consider location, timing, and environmental conditions for your shoot.", "Photography Tools"),
-            new FeaturePresentation("F11", "Post-Shoot Analysis", "Review image metadata and reflect on a completed photography session.", "Photography Tools")
+            new FeaturePresentation("F01", EnglishMessages.text("feature.F01.title"), EnglishMessages.text("feature.F01.description"), EnglishMessages.text("group.workspace")),
+            new FeaturePresentation("F02", EnglishMessages.text("feature.F02.title"), EnglishMessages.text("feature.F02.description"), EnglishMessages.text("group.workspace")),
+            new FeaturePresentation("F03", EnglishMessages.text("feature.F03.title"), EnglishMessages.text("feature.F03.description"), EnglishMessages.text("group.workspace")),
+            new FeaturePresentation("F10", EnglishMessages.text("feature.F10.title"), EnglishMessages.text("feature.F10.description"), EnglishMessages.text("group.workspace")),
+            new FeaturePresentation("F04", EnglishMessages.text("feature.F04.title"), EnglishMessages.text("feature.F04.description"), EnglishMessages.text("group.equipment")),
+            new FeaturePresentation("F05", EnglishMessages.text("feature.F05.title"), EnglishMessages.text("feature.F05.description"), EnglishMessages.text("group.equipment")),
+            new FeaturePresentation("F06", EnglishMessages.text("feature.F06.title"), EnglishMessages.text("feature.F06.description"), EnglishMessages.text("group.equipment")),
+            new FeaturePresentation("F07", EnglishMessages.text("feature.F07.title"), EnglishMessages.text("feature.F07.description"), EnglishMessages.text("group.equipment")),
+            new FeaturePresentation("F08", EnglishMessages.text("feature.F08.title"), EnglishMessages.text("feature.F08.description"), EnglishMessages.text("group.tools")),
+            new FeaturePresentation("F09", EnglishMessages.text("feature.F09.title"), EnglishMessages.text("feature.F09.description"), EnglishMessages.text("group.tools")),
+            new FeaturePresentation("F11", EnglishMessages.text("feature.F11.title"), EnglishMessages.text("feature.F11.description"), EnglishMessages.text("group.tools"))
         );
     }
 
+    String title(LocalizationService l) { return l.text("feature." + id + ".title"); }
+    String description(LocalizationService l) { return l.text("feature." + id + ".description"); }
+    String group(LocalizationService l) {
+        return l.text("group." + switch(id) { case "F01", "F02", "F03", "F10" -> "workspace"; case "F04", "F05", "F06", "F07" -> "equipment"; default -> "tools"; });
+    }
     Status status() { return statusFrom(FeatureCatalog.lines()); }
 
     // Fail closed if a feature or its status is missing/unrecognized; never infer completion.
@@ -39,9 +45,8 @@ record FeaturePresentation(String id, String title, String description, String g
     }
 
     enum Status {
-        SCAFFOLDED("Scaffolded"), IN_PROGRESS("In Progress"), IMPLEMENTED("Implemented"), UNAVAILABLE("Unavailable");
-        private final String label;
-        Status(String label) { this.label = label; }
-        String label() { return label; }
+        SCAFFOLDED, IN_PROGRESS, IMPLEMENTED, UNAVAILABLE;
+        String label() { return EnglishMessages.text("feature.status." + name()); }
+        String label(LocalizationService l) { return l.text("feature.status." + name()); }
     }
 }

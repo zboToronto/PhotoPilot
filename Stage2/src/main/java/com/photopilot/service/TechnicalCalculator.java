@@ -1,6 +1,7 @@
 package com.photopilot.service;
 
 import com.photopilot.common.Result;
+import com.photopilot.i18n.*;
 import com.photopilot.model.*;
 import java.util.*;
 import java.math.BigDecimal;
@@ -12,7 +13,7 @@ public class TechnicalCalculator {
     public TechnicalCalculator() { }
     public Result<CalculationResult> calculate(CalculationInput input) {
         var checked = CalculationValidation.validate(input);
-        if (!checked.isSuccess()) return Result.failure(String.join("; ", checked.errors()));
+        if (!checked.isSuccess()) return Result.failure(checked);
         try {
             return switch (input.operation()) {
                 case EXPOSURE_ND -> exposure(input);
@@ -21,19 +22,19 @@ public class TechnicalCalculator {
                 case STORAGE -> storageEstimate(input);
                 case BATTERY_CAPACITY -> batteryEstimate(input);
             };
-        } catch (IllegalArgumentException e) { return Result.failure(e.getMessage()); }
+        } catch (IllegalArgumentException e) { return Result.failure(e); }
     }
     private Result<CalculationResult> exposure(CalculationInput input) {
         Map<String, Double> values = new LinkedHashMap<>();
         Map<String, String> units = new LinkedHashMap<>();
-        List<String> notes = new ArrayList<>();
+        List<LocalizedMessage> notes = new ArrayList<>();
         double t = value(input, "shutter");
         if (input.parameters().containsKey("aperture")) {
             double ev = 2 * log2(value(input, "aperture")) - log2(t);
             values.put("Camera setting EV", ev); units.put("Camera setting EV", "EV");
             values.put("ISO-normalized EV100", ev - (log2(value(input, "iso")) - log2(100)));
             units.put("ISO-normalized EV100", "EV100");
-            notes.add("EV = log2(N^2/t). EV100 = EV - log2(ISO/100); equal at ISO 100. This is not exposure compensation or a light measurement.");
+            notes.add(LocalizedMessage.of("calc.assumption.exposure"));
         }
         String nd = List.of("ndStops", "ndFactor", "opticalDensity").stream().filter(input.parameters()::containsKey).findFirst().orElse(null);
         if (nd != null) {
@@ -44,7 +45,7 @@ public class TechnicalCalculator {
             positiveFinite(adjusted);
             values.put("ND strength", stops); units.put("ND strength", "stops");
             values.put("Adjusted shutter", adjusted); units.put("Adjusted shutter", "s");
-            notes.add("Adjusted shutter = original shutter x 2^stops. Aperture and ISO remain fixed; assumes ideal filter transmission. ND8 factor = 3 stops; OD 3.0 is about 9.966 stops.");
+            notes.add(LocalizedMessage.of("calc.assumption.nd"));
         }
         return result(input, values, units, false, notes);
     }
@@ -64,20 +65,20 @@ public class TechnicalCalculator {
             values.put("Near focus limit",near);values.put("Far focus limit",far);values.put("Total depth of field",depth);
             units.put("Near focus limit","m");units.put("Far focus limit","m");units.put("Total depth of field","m");
         }
-        return result(input,values,units,true,List.of("Thin-lens theoretical approximation: H=f^2/(N*c)+f; h0=H-f; near=s*h0/(h0+s-f); far=s*h0/(h0-s+f). Far limit is Infinity at s >= H.",
-            "Distances are measured from the lens principal plane. CoC is user-specified, not an intrinsic sensor constant. Ignores diffraction, pupil magnification and focus breathing; macro accuracy is limited."));
+        return result(input,values,units,true,List.of(LocalizedMessage.of("calc.assumption.focusFormula"),
+            LocalizedMessage.of("calc.assumption.focusLimits")));
     }
     private Result<CalculationResult> view(CalculationInput input) {
         double f=value(input,"focalLength"), w=value(input,"sensorWidth"), h=value(input,"sensorHeight");
         double diagonal=positiveFinite(Math.hypot(w,h));
         Map<String,Double> values=Map.of("Horizontal field of view",angle(w,f),"Vertical field of view",angle(h,f),"Diagonal field of view",angle(diagonal,f));
         return result(input,values,Map.of("Horizontal field of view","degrees","Vertical field of view","degrees","Diagonal field of view","degrees"),true,
-            List.of("Rectilinear lens at infinity focus: angle=2*atan(sensor dimension/(2*f)). Actual active sensor dimensions required; ignores cropping, distortion and focus breathing."));
+            List.of(LocalizedMessage.of("calc.assumption.fov")));
     }
     private static double angle(double dimension,double focal) {
         double ratio=positiveFinite((dimension/focal)/2);
         double angle=positiveFinite(Math.toDegrees(2*Math.atan(ratio)));
-        if (angle>=180) throw new IllegalArgumentException("Field of view exceeds numerical precision.");
+        if (angle>=180) throw new LocalizedException("error.calc.fovPrecision");
         return angle;
     }
     private Result<CalculationResult> storageEstimate(CalculationInput input) {
@@ -85,29 +86,29 @@ public class TechnicalCalculator {
         double cards=wholeCeiling(BigDecimal.valueOf(value(input,"shotCount")).multiply(BigDecimal.valueOf(value(input,"fileSize"))),
             BigDecimal.valueOf(value(input,"cardCapacity")).multiply(BigDecimal.valueOf(1000)));
         return result(input,Map.of("Required storage",size,"Cards required",cards),Map.of("Required storage","GB","Cards required","cards"),true,
-            List.of("Storage = shot count x average file size. Decimal MB=10^6 bytes; GB=10^9 bytes. Cards are rounded up; no filesystem overhead, redundancy or safety reserve included. Variable compression/video requires a measured average."));
+            List.of(LocalizedMessage.of("calc.assumption.storage")));
     }
     private Result<CalculationResult> batteryEstimate(CalculationInput input) {
         double batteries=wholeCeiling(BigDecimal.valueOf(value(input,"shotCount")),BigDecimal.valueOf(value(input,"ratedShots")));
         return result(input,Map.of("Batteries required",batteries),Map.of("Batteries required","batteries"),true,
-            List.of("Shooting capacity estimate: ceil(planned shots / rated shots per full battery). Rating must match expected usage. Temperature, battery age, screen, autofocus and video affect capacity; no reserve included. mAh alone cannot determine shot count."));
+            List.of(LocalizedMessage.of("calc.assumption.battery")));
     }
     private static double wholeCeiling(BigDecimal numerator, BigDecimal denominator) {
         // Decimal ceiling prevents e.g. 0.07 GB / 0.01 GB becoming 8 through binary roundoff.
         double count=numerator.divide(denominator,0,RoundingMode.CEILING).doubleValue();
-        if (!Double.isFinite(count) || count>9_007_199_254_740_991d) throw new IllegalArgumentException("Capacity count exceeds exact integer precision.");
+        if (!Double.isFinite(count) || count>9_007_199_254_740_991d) throw new LocalizedException("error.calc.capacityPrecision");
         return positiveFinite(count);
     }
     private static double log2(double v) { return Math.log(v) / Math.log(2); }
     private static double positiveFinite(double v) {
-        if (!Double.isFinite(v) || v <= 0) throw new IllegalArgumentException("Result is outside the supported numerical range (overflow or underflow).");
+        if (!Double.isFinite(v) || v <= 0) throw new LocalizedException("error.calc.resultRange");
         return v;
     }
-    private static Result<CalculationResult> result(CalculationInput input, Map<String, Double> values, Map<String, String> units, boolean estimated, List<String> notes) {
-        return Result.success(new CalculationResult(values, units, estimated, notes, input));
+    private static Result<CalculationResult> result(CalculationInput input, Map<String, Double> values, Map<String, String> units, boolean estimated, List<LocalizedMessage> notes) {
+        return Result.success(CalculationResult.localized(values, units, estimated, notes, input));
     }
     private Result<CalculationResult> operation(CalculationInput input, CalculationKind kind) {
-        if (input == null || input.operation() != kind) return Result.failure("Expected operation " + kind);
+        if (input == null || input.operation() != kind) return Result.failureKey("error.calc.operation", kind);
         return calculate(input);
     }
     public Result<CalculationResult> depthOfField(CalculationInput input) { return operation(input, CalculationKind.DEPTH_OF_FIELD); }

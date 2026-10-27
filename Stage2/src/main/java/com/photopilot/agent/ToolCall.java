@@ -17,6 +17,6 @@ public class ToolCall {
     }
 
     public Result<ToolCall> validateAgainst(String schema) {
-        return Result.failure("NOT IMPLEMENTED: ToolCall.validateAgainst");
+        return Result.failureKey("error.notImplemented", "ToolCall.validateAgainst");
     }
 }

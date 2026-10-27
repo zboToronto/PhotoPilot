@@ -22,14 +22,14 @@ public class PhotoPilotAgent {
     }
 
     public <T> Result<T> run(String task, AgentContext context, Class<T> type) {
-        return Result.failure("NOT IMPLEMENTED: PhotoPilotAgent.run");
+        return Result.failureKey("error.notImplemented", "PhotoPilotAgent.run");
     }
 
     private Result<ToolCall> selectTool(ModelReply reply) {
-        return Result.failure("NOT IMPLEMENTED: PhotoPilotAgent.selectTool");
+        return Result.failureKey("error.notImplemented", "PhotoPilotAgent.selectTool");
     }
 
     private <T> Result<T> validateOutput(String json, Class<T> type) {
-        return Result.failure("NOT IMPLEMENTED: PhotoPilotAgent.validateOutput");
+        return Result.failureKey("error.notImplemented", "PhotoPilotAgent.validateOutput");
     }
 }

@@ -19,6 +19,6 @@ public class CoverageRanking implements LoadoutRankingStrategy {
     }
 
     public Result<List<Loadout>> rank(List<Loadout> candidates, EquipmentRequirementProfile profile) {
-        return Result.failure("NOT IMPLEMENTED: CoverageRanking.rank");
+        return Result.failureKey("error.notImplemented", "CoverageRanking.rank");
     }
 }

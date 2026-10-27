@@ -13,7 +13,7 @@ public class ImagePrivacyBoundary {
     }
 
     public Result<SanitizedImage> approveRedacted(Path copy, boolean confirmed) {
-        return Result.failure("NOT IMPLEMENTED: ImagePrivacyBoundary.approveRedacted");
+        return Result.failureKey("error.notImplemented", "ImagePrivacyBoundary.approveRedacted");
     }
 
     public void discard(SanitizedImage image) {

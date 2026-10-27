@@ -1,6 +1,6 @@
 # Stage 1 feature status
 
-Last source/test review: 2026-10-26 (America/Toronto). **2 of 11 business features implemented and verified: F05 and F08.** The other nine retain structural scaffolds, GUI navigation/status display, and CLI unavailable responses. F05 saved-session integration is deliberately gated until F01 implements session storage; see its row and evidence.
+Last source/test review: 2026-10-27 (America/Toronto). **2 of 11 business features implemented and verified: F05 and F08.** The other nine retain structural scaffolds, GUI navigation/status display, and CLI unavailable responses. F05 saved-session integration is deliberately gated until F01 implements session storage; see its row and evidence.
 
 Source of names/scope: Stage1/Stage1PPP.pdf section 2. Full class/method/pattern mappings: [existing feature mapping](../Stage2/docs/feature-mapping.md). Current implementation evidence: `Stage2/src/main/java/com/photopilot/config/FeatureCatalog.java`, application/service/repository source, `ui/gui/FeaturePane.java`, and `ui/cli/PhotoPilotCLI.java`.
 
@@ -23,6 +23,10 @@ Status vocabulary: **Scaffolded** = declarations/wiring with unavailable behavio
 UC14 is included validation, not a twelfth user feature. Except F05 and F08, every row currently has **GUI workflow unavailable; CLI business operation unavailable; business acceptance unverified; real external integration unverified where applicable; demonstration not established**.
 
 ## Working infrastructure and test evidence
+
+- Authorized localization upload recheck (2026-10-27): fresh `test javafx:run --smoke-test` passed **71/71** and GUI_SMOKE_OK; source/UML hash audit passed. This reused compiled classes and does not establish additional business features or live provider verification. Publication includes the bilingual implementation, tests and documentation; runtime preferences/build files/local launchers remain excluded.
+
+- Bilingual usability infrastructure (2026-10-27): GUI Settings and CLI `lang` / `--lang`, persistent `en`/`zh-CN`, 327-key UTF-8 bundles, live JavaFX updates with retained drafts/selection and disposal, localized F05/F08 validation/results and CLI help. Full suite **71/71**, no failures/errors/skips; GUI smoke, packaged-JAR resources and isolated CLI restart/UTF-8 checks passed. AI default-language policy is wired/tested at the model port only; Gemini/agent execution remains scaffolded. This does not add a substantial business feature. [Implementation, UML, tests and remaining limits](../Stage2/docs/localization.md).
 
 - F08 final verification (2026-10-26): 53/53 tests, no failures/errors/skips, GUI_SMOKE_OK, all calculator GUI/CLI paths, optional F05 prefill and unchanged F05 regressions. All main/test classes recompiled; Maven clean itself was blocked by a locked native cache DLL. Native wide and rendered narrow layouts inspected. Original sources/UML audit passed. [Commands and limits](../Stage2/docs/f08-calculators.md).
 

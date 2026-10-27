@@ -24,6 +24,6 @@ public class EnvironmentApiAdapter implements EnvironmentProvider {
     }
 
     public Result<EnvironmentContext> fetch(GeoLocation place, LocalDate date) {
-        return Result.failure("NOT IMPLEMENTED: EnvironmentApiAdapter.fetch");
+        return Result.failureKey("error.notImplemented", "EnvironmentApiAdapter.fetch");
     }
 }

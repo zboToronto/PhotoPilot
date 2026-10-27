@@ -17,7 +17,7 @@ public class ToolRegistry {
     }
 
     public Result<String> execute(ToolCall call) {
-        return Result.failure("NOT IMPLEMENTED: ToolRegistry.execute");
+        return Result.failureKey("error.notImplemented", "ToolRegistry.execute");
     }
 
     public Map<String, String> schemas() {

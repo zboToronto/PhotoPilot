@@ -1,5 +1,6 @@
 package com.photopilot.application;
 
+import com.photopilot.i18n.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.*;
 import java.util.*;
@@ -20,11 +21,11 @@ public final class EquipmentForm {
             var allowed = new HashSet<>(List.of("brand", "model", "quantity", "weightGrams"));
             type.fields().forEach(field -> allowed.add(field.key()));
             for (var entry : changes.entrySet()) {
-                if (!allowed.contains(entry.getKey())) return Result.failure("Unknown equipment field: " + entry.getKey());
+                if (!allowed.contains(entry.getKey())) return Result.failureKey("error.gear.unknownField", entry.getKey());
                 values.put(entry.getKey(), entry.getValue().strip());
             }
             String brand = values.remove("brand"), model = values.remove("model");
-            if (brand == null || model == null) return Result.failure("Brand and model are required.");
+            if (brand == null || model == null) return Result.failureKey("error.gear.brandModel");
             int quantity = Integer.parseInt(values.getOrDefault("quantity", "1")); values.remove("quantity");
             String weight = values.remove("weightGrams");
             Double grams = weight == null || weight.isBlank() ? null : Double.valueOf(weight);
@@ -43,6 +44,6 @@ public final class EquipmentForm {
                 if (verified.isEmpty()) verifiedAt = null;
             }
             return new EquipmentData(type.name(), id.toString(), brand, model, quantity, grams, verified, sources, verifiedAt, values).toEquipment();
-        } catch (IllegalArgumentException error) { return Result.failure("Invalid quantity or weight: enter a valid number (quantity must be an integer)."); }
+        } catch (IllegalArgumentException error) { return Result.failureKey("error.gear.number"); }
     }
 }

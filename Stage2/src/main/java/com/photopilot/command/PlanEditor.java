@@ -16,10 +16,10 @@ public class PlanEditor {
     }
 
     public Result<ShootPlan> preview(ShootPlan base, PlanCommand change) {
-        return Result.failure("NOT IMPLEMENTED: PlanEditor.preview");
+        return Result.failureKey("error.notImplemented", "PlanEditor.preview");
     }
 
     public Result<ShootPlan> applyApproved(ShootPlan base, PlanCommand change) {
-        return Result.failure("NOT IMPLEMENTED: PlanEditor.applyApproved");
+        return Result.failureKey("error.notImplemented", "PlanEditor.applyApproved");
     }
 }

@@ -26,6 +26,6 @@ public class GeminiAdapter implements LLMClient {
     }
 
     public Result<ModelReply> complete(AgentContext context) {
-        return Result.failure("NOT IMPLEMENTED: GeminiAdapter.complete");
+        return Result.failureKey("error.notImplemented", "GeminiAdapter.complete");
     }
 }

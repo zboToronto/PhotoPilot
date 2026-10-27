@@ -1,5 +1,6 @@
 package com.photopilot.repository;
 
+import com.photopilot.i18n.*;
 
 import com.photopilot.common.Result;
 import com.photopilot.model.GearInventory;
@@ -18,12 +19,12 @@ public interface InventoryRepository {
     default <T> Result<T> transact(java.util.function.Function<GearInventory, Result<T>> change) {
         synchronized (this) {
             var loaded = load();
-            if (!loaded.isSuccess()) return Result.failure(String.join("; ", loaded.errors()));
+            if (!loaded.isSuccess()) return Result.failure(loaded);
             var inventory = loaded.value().orElseThrow();
             var result = change.apply(inventory);
             if (!result.isSuccess()) return result;
             var saved = save(inventory);
-            return saved.isSuccess() ? result : Result.failure(String.join("; ", saved.errors()));
+            return saved.isSuccess() ? result : Result.failure(saved);
         }
     }
 }

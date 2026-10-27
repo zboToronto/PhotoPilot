@@ -14,7 +14,7 @@ public class ReviewedState implements SessionState {
     }
 
     public Result<SessionState> next(PhotographySession session, SessionEvent event) {
-        return Result.failure("NOT IMPLEMENTED: ReviewedState.next");
+        return Result.failureKey("error.notImplemented", "ReviewedState.next");
     }
 
     public boolean canEditPlan() {

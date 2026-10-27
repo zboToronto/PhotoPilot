@@ -21,6 +21,7 @@ public class PhotoPilotGUI extends Application {
     private ImagePrivacyBoundary privacy;
     private ApplicationBootstrap bootstrap;
     private PhotoPilotWorkspace workspace;
+    private FxLocalizer texts;
     private Throwable smokeFailure;
     private final ExecutorService operations = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "photopilot-gui-operation");
@@ -39,13 +40,14 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void start(Stage stage) {
-        workspace = new PhotoPilotWorkspace();
-        workspace.connectInventory(new InventoryPane(app, operations));
-        workspace.connectCalculator(new CalculatorPane(app, operations));
+        workspace = new PhotoPilotWorkspace(bootstrap.localization());
+        workspace.connectInventory(new InventoryPane(app, operations, bootstrap.localization()));
+        workspace.connectCalculator(new CalculatorPane(app, operations, bootstrap.localization()));
+        texts = new FxLocalizer(workspace, bootstrap.localization());
         Scene scene = new Scene(workspace, 1120, 760);
         scene.getStylesheets().add(Objects.requireNonNull(
             PhotoPilotGUI.class.getResource("photopilot.css"), "Missing PhotoPilot stylesheet").toExternalForm());
-        stage.setTitle("PhotoPilot");
+        texts.text(stage.titleProperty(), "app.title");
         stage.setMinWidth(880);
         stage.setMinHeight(600);
         stage.setScene(scene);
@@ -73,21 +75,21 @@ public class PhotoPilotGUI extends Application {
         }
     }
 
-    public void showSession(UUID id) { showFailure(FeatureCatalog.unavailable("F01")); }
+    public void showSession(UUID id) { onFxThread(() -> workspace.showFeedback(() -> bootstrap.localization().text("feature.unavailable", "F01"))); }
 
     public void submitBrief(UUID id, String text) {
         onFxThread(() -> {
             draftInput = text;
             long selection = workspace.selectionVersion();
-            Task<String> task = new Task<>() {
-                @Override protected String call() { return String.join("; ", app.parse(id, text).errors()); }
+            Task<com.photopilot.common.Result<com.photopilot.model.ShootRequirement>> task = new Task<>() {
+                @Override protected com.photopilot.common.Result<com.photopilot.model.ShootRequirement> call() { return app.parse(id, text); }
             };
             task.setOnSucceeded(event -> {
-                if (workspace.selectionVersion() == selection) showFailure(task.getValue());
+                if (workspace.selectionVersion() == selection) workspace.showFeedback(() -> String.join("; ", task.getValue().errors(bootstrap.localization())));
             });
             task.setOnFailed(event -> {
                 if (workspace.selectionVersion() == selection) {
-                    showFailure("Could not process the photography brief. Please try again.");
+                    workspace.showFeedback(() -> bootstrap.localization().text("error.brief"));
                 }
             });
             operations.execute(task);
@@ -104,8 +106,9 @@ public class PhotoPilotGUI extends Application {
     @Override
     public void stop() {
         operations.shutdownNow();
+        if (texts != null) texts.close();
         if (bootstrap != null) bootstrap.close();
-        System.out.println("PhotoPilot GUI closed cleanly.");
+        if (bootstrap != null) System.out.println(bootstrap.localization().text("app.closed"));
         // Propagate smoke failures through the Application lifecycle to Maven's exit code.
         if (smokeFailure != null) throw new IllegalStateException("GUI smoke verification failed", smokeFailure);
     }

@@ -21,6 +21,6 @@ public class EquipmentCatalogAdapter implements EquipmentSpecificationProvider {
     }
 
     public Result<List<Equipment>> lookup(String model) {
-        return Result.failure("NOT IMPLEMENTED: EquipmentCatalogAdapter.lookup");
+        return Result.failureKey("error.notImplemented", "EquipmentCatalogAdapter.lookup");
     }
 }

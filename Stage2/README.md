@@ -72,6 +72,23 @@ A successful run prints `GUI_SMOKE_OK` after showing the stage and navigating al
 
 The original six JUnit tests check bootstrap wiring identity, honest not-implemented results, CLI handling, configurable strategy and duplicate tool registration, plus complete GUI feature mapping and fail-closed status interpretation. They are not Stage 3 deterministic/KUMA coverage. `python tools/verify_sources.py` optionally checks all 87 UML types, 267 fields and 184 declared operations, source hashes and basic unwanted-output patterns; it requires Python 3 and the original local documents under `../../Project/` in the EECS3311 workspace. Paths recorded in the source-hash manifest resolve against EECS3311, outside the repository. Maven builds do not require Python or those documents. Do not rerun `scaffold_from_uml.py` over this project: it is one-time generation evidence and intentionally refuses to overwrite files.
 
+## Language settings (English / 简体中文)
+
+English (`en`) is the fresh-user default and fallback. Open **Settings / 设置** in the GUI and select **English** or **简体中文**; labels, open settings windows, validation and displayed calculation results update immediately while preserving unsaved inputs and selection. The preference is saved at `${user.home}/.photopilot/settings.properties`, shared with the CLI. Set the actual environment variable `PHOTOPILOT_CONFIG_DIR` to override that directory. Save failures retain the session language and show retry feedback.
+
+In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a preference. `--lang zh-CN` (or `--lang=en`) overrides only the current invocation. Existing command identifiers/options and structured tool data stay unchanged. UTF-8 terminal input/output is used.
+
+```powershell
+./mvnw.cmd exec:java '-Dexec.mainClass=com.photopilot.ui.cli.PhotoPilotCLI' '-Dexec.args=--lang zh-CN help "calc nd shutter=1/125 ndStops=10" exit'
+./mvnw.cmd test '-Dtest=LocalizationTest,LocalizedCliTest,TranslationResourcesTest,AgentLanguageTest,LocalizationGuiTest'
+```
+
+The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **71 passing tests** (2026-10-27); GUI smoke and JAR packaging also passed. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
+
+Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
+
+The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. **Actual AI responses remain unavailable:** `PhotoPilotAgent.run` and `GeminiAdapter.complete` are still scaffolds. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
+
 ## F05 gear inventory
 
 Open **Equipment > Gear Inventory** in the GUI, or enter `gear help` in the CLI. Both use `PhotoPilotFacade.inventory()` and the same service. Manual entries require no Gemini connection. For example, in the interactive CLI:
@@ -85,7 +102,7 @@ gear remove <UUID printed by add>
 
 Data is stored in `data/inventory.json` relative to the application working directory, or under `PHOTOPILOT_DATA_DIR`. Start GUI and CLI from the same directory or set the same absolute data root. Use Search / Refresh or reopen F05 to see changes made by the other interface. Duplicate model entries need explicit review; duplicate IDs are rejected by add. The desktop editor also rejects stale edits/removals. Corrupt files are preserved and reported; they are never silently replaced with an empty inventory.
 
-The full JUnit suite now contains **36 passing tests** (Windows, JDK 21, 2026-10-26), including real JavaFX controls. A graphical desktop is required for the full suite. Headless service/CLI runs may use `-Dtest=BootstrapTest,FeaturePresentationTest,InventoryTest,InventoryCliTest`; this excludes GUI acceptance and must not be reported as full verification. See [F05 evidence and known limits](docs/f05-inventory.md).
+The historical F05 verification contained **36 passing tests** (Windows, JDK 21, 2026-10-26), including real JavaFX controls; the current full-suite count is listed in Language settings above. A graphical desktop is required for the full suite. Headless service/CLI runs may use `-Dtest=BootstrapTest,FeaturePresentationTest,InventoryTest,InventoryCliTest`; this excludes GUI acceptance and must not be reported as full verification. See [F05 evidence and known limits](docs/f05-inventory.md).
 
 ## Planned features
 
@@ -98,7 +115,7 @@ The full JUnit suite now contains **36 passing tests** (Windows, JDK 21, 2026-10
 | F05 | Photography Gear Inventory Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
 | F06 | AI Photography Equipment Capability Requirement Analysis | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F07 | Owned Gear Matching and Compatibility Validation | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
-| F08 | Photography Technical Calculation Tool Suite | Deterministic | SCAFFOLDED / NOT IMPLEMENTED |
+| F08 | Photography Technical Calculation Tool Suite | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
 | F09 | Location, Time, and Environment-Aware Photography Planning | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F10 | AI Shoot Plan Generation and Interactive Modification | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F11 | AI Post-Shoot Analysis and Review | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |

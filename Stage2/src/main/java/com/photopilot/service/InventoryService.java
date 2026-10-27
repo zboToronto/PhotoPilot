@@ -1,5 +1,6 @@
 package com.photopilot.service;
 
+import com.photopilot.i18n.*;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -41,7 +42,7 @@ public class InventoryService {
     }
 
     public Result<List<UUID>> affectedSessions(UUID id) {
-        return id == null ? Result.failure("Equipment ID is required.") : sessions.referencingGear(id);
+        return id == null ? Result.failureKey("error.gear.idRequired") : sessions.referencingGear(id);
     }
 
     public Result<Boolean> remove(UUID id, boolean warningAccepted) {
@@ -50,28 +51,27 @@ public class InventoryService {
 
     public Result<Boolean> remove(UUID id, boolean warningAccepted, Equipment expected) {
         return repository.transact(inventory -> {
-            if (expected != null && !same(inventory.find(id).orElse(null), expected)) return Result.failure("Equipment changed in another window. Refresh and review before removal.");
+            if (expected != null && !same(inventory.find(id).orElse(null), expected)) return Result.failureKey("error.gear.changedRemoval");
             var affected = affectedSessions(id);
-            if (!affected.isSuccess()) return Result.failure(String.join("; ", affected.errors()));
+            if (!affected.isSuccess()) return Result.failure(affected);
             if (!affected.value().orElseThrow().isEmpty() && !warningAccepted) {
-                return Result.failure("Removal affects saved sessions " + affected.value().orElseThrow()
-                    + ". Confirm removal; historical gear snapshots will remain unchanged.");
+                return Result.failureKey("error.gear.removalReferences", affected.value().orElseThrow());
             }
             return inventory.remove(id);
         });
     }
 
     public Result<GearImportDraft> recognize(SanitizedImage image) {
-        return Result.failure("NOT IMPLEMENTED: InventoryService.recognize");
+        return Result.failureKey("error.notImplemented", "InventoryService.recognize");
     }
 
     public Result<Equipment> confirm(GearImportDraft draft) {
-        return Result.failure("NOT IMPLEMENTED: InventoryService.confirm");
+        return Result.failureKey("error.notImplemented", "InventoryService.confirm");
     }
 
     public Result<GearInventory> list(String query, com.photopilot.model.EquipmentType type) {
         var loaded = repository.load();
-        if (!loaded.isSuccess()) return Result.failure(String.join("; ", loaded.errors()));
+        if (!loaded.isSuccess()) return Result.failure(loaded);
         var inventory = loaded.value().orElseThrow();
         return Result.success(new GearInventory(inventory.search(query).stream()
             .filter(item -> type == null || item.type() == type).toList(), inventory.revision()));
@@ -87,16 +87,15 @@ public class InventoryService {
         return change(item, duplicatesAccepted, operation, null);
     }
     private Result<Equipment> change(Equipment item, boolean duplicatesAccepted, String operation, Equipment expected) {
-        if (item == null) return Result.failure("Equipment is required.");
+        if (item == null) return Result.failureKey("error.gear.required");
         if (!item.validate().isSuccess()) return item.validate();
         return repository.transact(inventory -> {
             var existing = inventory.find(item.id());
-            if (expected != null && !same(existing.orElse(null), expected)) return Result.failure("Equipment changed in another window. Refresh and reopen the editor before saving.");
-            if (operation.equals("add") && existing.isPresent()) return Result.failure("Duplicate equipment ID: " + item.id());
-            if (operation.equals("update") && existing.isEmpty()) return Result.failure("Equipment no longer exists. Refresh the inventory.");
+            if (expected != null && !same(existing.orElse(null), expected)) return Result.failureKey("error.gear.changedSave");
+            if (operation.equals("add") && existing.isPresent()) return Result.failureKey("error.gear.duplicateId", item.id());
+            if (operation.equals("update") && existing.isEmpty()) return Result.failureKey("error.gear.noLongerExists");
             var duplicates = duplicates(inventory, item);
-            if (!duplicates.isEmpty() && !duplicatesAccepted) return Result.failure("Possible duplicate gear: "
-                + duplicates.stream().map(e -> e.id().toString()).toList() + ". Review and explicitly confirm the duplicate before saving.");
+            if (!duplicates.isEmpty() && !duplicatesAccepted) return Result.failureKey("error.gear.duplicate", duplicates.stream().map(e -> e.id().toString()).toList());
             return existing.isPresent() ? inventory.update(item) : inventory.add(item);
         });
     }

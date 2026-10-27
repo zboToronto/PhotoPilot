@@ -1,6 +1,7 @@
 package com.photopilot.ui.gui;
 
 import com.photopilot.config.FeatureCatalog;
+import com.photopilot.i18n.*;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -10,22 +11,31 @@ import javafx.scene.layout.VBox;
 
 /** Selected feature content; future workflow controls belong here, not in navigation. */
 final class FeaturePane extends VBox {
+    private final FxLocalizer texts;
+    private final LocalizationService localization;
+    private final Label detailsTitle = label("", "section-title");
     private final Label eyebrow = label("", "eyebrow");
     private final Label title = label("", "feature-title");
     private final Label description = label("", "description");
     private final Label status = label("", "status-badge");
     private final Label emptyDescription = label("", "secondary-text");
     private final Label feedback = label("", "feedback-text");
-    private final VBox feedbackBox = new VBox(8, label("Status details", "section-title"), feedback);
-    private final Button checkStatus = new Button("Check status");
-    private final Button workflow = new Button("Workflow unavailable");
+    private final VBox feedbackBox = new VBox(8, detailsTitle, feedback);
+    private final Button checkStatus = new Button();
+    private final Button workflow = new Button();
     private FeaturePresentation feature;
     private VBox empty;
     private FlowPane actions;
     private InventoryPane inventory;
     private CalculatorPane calculator;
 
-    FeaturePane() {
+    FeaturePane() { this(LocalizationService.english()); }
+    FeaturePane(LocalizationService localization) {
+        this.localization = localization;
+        texts = new FxLocalizer(this, localization);
+        texts.text(detailsTitle.textProperty(), "feature.statusDetails");
+        texts.text(checkStatus.textProperty(), "feature.checkStatus");
+        texts.text(workflow.textProperty(), "feature.workflowUnavailable");
         getStyleClass().add("feature-content");
         setMaxWidth(880);
         setMinWidth(0);
@@ -33,20 +43,20 @@ final class FeaturePane extends VBox {
         FlowPane metadata = new FlowPane(10, 8, status);
         VBox heading = new VBox(12, eyebrow, title, description, metadata);
         heading.getStyleClass().add("feature-heading");
-        Label placeholder = label("No workspace content yet", "empty-title");
+        Label placeholder = texts.label("feature.empty", "empty-title");
         emptyDescription.setMaxWidth(460);
         emptyDescription.setAlignment(Pos.CENTER);
         emptyDescription.setStyle("-fx-text-alignment: center;");
         workflow.getStyleClass().add("secondary-button");
         workflow.setDisable(true);
-        workflow.setAccessibleHelp("This feature does not have an available GUI workflow.");
+        texts.text(workflow.accessibleHelpProperty(), "feature.accessibility.unavailable");
         empty = new VBox(14, placeholder, emptyDescription, workflow);
         empty.getStyleClass().add("empty-state");
         empty.setAlignment(Pos.CENTER);
         checkStatus.getStyleClass().add("primary-button");
         checkStatus.setId("check-status");
         checkStatus.setOnAction(event -> inspectStatus());
-        Label hint = label("Check availability for this feature.", "secondary-text");
+        Label hint = texts.label("feature.checkHint", "secondary-text");
         actions = new FlowPane(14, 10, checkStatus, hint);
         actions.setAlignment(Pos.CENTER_LEFT);
         actions.getStyleClass().add("feature-actions");
@@ -64,26 +74,21 @@ final class FeaturePane extends VBox {
         empty.setVisible(!gear && !calc); empty.setManaged(!gear && !calc);
         actions.setVisible(!gear && !calc); actions.setManaged(!gear && !calc);
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
-        eyebrow.setText(selected.group() + "  /  " + selected.id());
-        title.setText(selected.title());
-        description.setText(selected.description());
+        texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
+        texts.bind(title.textProperty(), () -> selected.title(localization));
+        texts.bind(description.textProperty(), () -> selected.description(localization));
         refreshStatus();
-        feedback.setText("");
+        texts.bind(feedback.textProperty(), () -> "");
         feedbackBox.setVisible(false);
         feedbackBox.setManaged(false);
-        checkStatus.setAccessibleText("Check status for " + selected.id() + " " + selected.title());
+        texts.bind(checkStatus.accessibleTextProperty(), () -> localization.text("feature.checkAccessible", selected.id(), selected.title(localization)));
     }
 
     private void refreshStatus() {
         var current = feature.status();
-        status.setText(current.label());
-        status.setAccessibleText("Implementation status: " + current.label());
-        emptyDescription.setText(switch (current) {
-            case SCAFFOLDED -> "This feature is scaffolded. Its workflow is not implemented yet, so no actions are available.";
-            case IN_PROGRESS -> "This feature is in progress. Its workflow is not available in this interface yet.";
-            case IMPLEMENTED -> "The application reports this feature as implemented. A GUI workflow has not been connected yet.";
-            case UNAVAILABLE -> "This feature is currently unavailable. Check its status for more information.";
-        });
+        texts.bind(status.textProperty(), () -> current.label(localization));
+        texts.bind(status.accessibleTextProperty(), () -> localization.text("feature.statusAccessible", current.label(localization)));
+        texts.text(emptyDescription.textProperty(), "feature.empty." + current.name());
     }
 
     void connectInventory(InventoryPane inventory) {
@@ -99,15 +104,17 @@ final class FeaturePane extends VBox {
 
     void inspectStatus() {
         refreshStatus();
-        if (feature.id().equals("F08")) { showFeedback("F08 · " + feature.status().label() + ". See calc help or the calculator selector for available tools."); return; }
-        if (feature.id().equals("F05") && inventory != null) { showFeedback("F05 · Implemented. Local inventory is available."); return; }
-        showFeedback(feature.status() == FeaturePresentation.Status.SCAFFOLDED
-            ? FeatureCatalog.unavailable(feature.id())
-            : feature.id() + " · " + feature.status().label() + ". No GUI workflow is available; no operation performed.");
+        var selected = feature;
+        if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
+        if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
+        showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED
+            ? localization.text("feature.unavailable", selected.id())
+            : localization.text("feature.noWorkflow", selected.id(), selected.status().label(localization)));
     }
 
-    void showFeedback(String message) {
-        feedback.setText(message);
+    void showFeedback(String message) { showFeedback(() -> message); }
+    void showFeedback(java.util.function.Supplier<String> message) {
+        texts.bind(feedback.textProperty(), message);
         feedbackBox.setVisible(true);
         feedbackBox.setManaged(true);
     }
@@ -116,6 +123,7 @@ final class FeaturePane extends VBox {
     String statusText() { return status.getText(); }
     Button checkStatusButton() { return checkStatus; }
     boolean workflowDisabled() { return workflow.isDisabled(); }
+    boolean inventoryConnected() { return inventory != null; }
 
     static Label label(String text, String style) {
         Label label = new Label(text);

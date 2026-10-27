@@ -27,6 +27,6 @@ public class GearMatchingTool implements AgentTool {
     }
 
     public Result<String> execute(String argumentsJson) {
-        return Result.failure("NOT IMPLEMENTED: GearMatchingTool.execute");
+        return Result.failureKey("error.notImplemented", "GearMatchingTool.execute");
     }
 }

@@ -23,7 +23,7 @@ public class GearMatchingService {
     }
 
     public Result<List<Loadout>> match(EquipmentRequirementProfile profile, GearInventory gear) {
-        return Result.failure("NOT IMPLEMENTED: GearMatchingService.match");
+        return Result.failureKey("error.notImplemented", "GearMatchingService.match");
     }
 
     public void setRanking(LoadoutRankingStrategy strategy) {
@@ -31,6 +31,6 @@ public class GearMatchingService {
     }
 
     public Result<List<Loadout>> compatibleCandidates(GearInventory gear) {
-        return Result.failure("NOT IMPLEMENTED: GearMatchingService.compatibleCandidates");
+        return Result.failureKey("error.notImplemented", "GearMatchingService.compatibleCandidates");
     }
 }

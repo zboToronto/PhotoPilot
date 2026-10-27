@@ -49,7 +49,7 @@ public class PhotographySession {
     }
 
     public Result<PhotographySession> apply(SessionEvent event) {
-        return Result.failure("NOT IMPLEMENTED: PhotographySession.apply");
+        return Result.failureKey("error.notImplemented", "PhotographySession.apply");
     }
 
     public void attachRequirement(ShootRequirement requirement) {

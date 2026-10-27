@@ -24,6 +24,6 @@ public class SpecificationTool implements AgentTool {
     }
 
     public Result<String> execute(String argumentsJson) {
-        return Result.failure("NOT IMPLEMENTED: SpecificationTool.execute");
+        return Result.failureKey("error.notImplemented", "SpecificationTool.execute");
     }
 }

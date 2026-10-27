@@ -19,6 +19,6 @@ public class PortabilityRanking implements LoadoutRankingStrategy {
     }
 
     public Result<List<Loadout>> rank(List<Loadout> candidates, EquipmentRequirementProfile profile) {
-        return Result.failure("NOT IMPLEMENTED: PortabilityRanking.rank");
+        return Result.failureKey("error.notImplemented", "PortabilityRanking.rank");
     }
 }

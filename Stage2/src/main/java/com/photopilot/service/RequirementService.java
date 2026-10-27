@@ -19,22 +19,22 @@ public class RequirementService {
     }
 
     public Result<ShootRequirement> parse(String text, AgentContext context) {
-        return Result.failure("NOT IMPLEMENTED: RequirementService.parse");
+        return Result.failureKey("error.notImplemented", "RequirementService.parse");
     }
 
     public Result<ShootRequirement> clarify(ShootRequirement draft, String answers) {
-        return Result.failure("NOT IMPLEMENTED: RequirementService.clarify");
+        return Result.failureKey("error.notImplemented", "RequirementService.clarify");
     }
 
     public Result<ShootRequirement> confirm(ShootRequirement edited) {
-        return Result.failure("NOT IMPLEMENTED: RequirementService.confirm");
+        return Result.failureKey("error.notImplemented", "RequirementService.confirm");
     }
 
     public Result<EquipmentRequirementProfile> deriveProfile(ShootRequirement req) {
-        return Result.failure("NOT IMPLEMENTED: RequirementService.deriveProfile");
+        return Result.failureKey("error.notImplemented", "RequirementService.deriveProfile");
     }
 
     public Result<EquipmentRequirementProfile> validateProfile(EquipmentRequirementProfile profile) {
-        return Result.failure("NOT IMPLEMENTED: RequirementService.validateProfile");
+        return Result.failureKey("error.notImplemented", "RequirementService.validateProfile");
     }
 }

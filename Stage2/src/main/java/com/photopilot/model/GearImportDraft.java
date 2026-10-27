@@ -27,6 +27,6 @@ public class GearImportDraft {
     }
 
     public Result<Equipment> confirm() {
-        return Result.failure("NOT IMPLEMENTED: GearImportDraft.confirm");
+        return Result.failureKey("error.notImplemented", "GearImportDraft.confirm");
     }
 }

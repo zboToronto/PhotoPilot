@@ -22,14 +22,14 @@ public class GearRecognitionService {
     }
 
     public Result<GearImportDraft> recognize(SanitizedImage image) {
-        return Result.failure("NOT IMPLEMENTED: GearRecognitionService.recognize");
+        return Result.failureKey("error.notImplemented", "GearRecognitionService.recognize");
     }
 
     public Result<GearImportDraft> verify(GearImportDraft draft) {
-        return Result.failure("NOT IMPLEMENTED: GearRecognitionService.verify");
+        return Result.failureKey("error.notImplemented", "GearRecognitionService.verify");
     }
 
     public Result<Equipment> confirm(GearImportDraft edited) {
-        return Result.failure("NOT IMPLEMENTED: GearRecognitionService.confirm");
+        return Result.failureKey("error.notImplemented", "GearRecognitionService.confirm");
     }
 }

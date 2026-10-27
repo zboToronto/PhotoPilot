@@ -46,10 +46,10 @@ public class ShootRequirement {
     }
 
     public Result<ShootRequirement> validate() {
-        return Result.failure("NOT IMPLEMENTED: ShootRequirement.validate");
+        return Result.failureKey("error.notImplemented", "ShootRequirement.validate");
     }
 
     public Result<ShootRequirement> confirm() {
-        return Result.failure("NOT IMPLEMENTED: ShootRequirement.confirm");
+        return Result.failureKey("error.notImplemented", "ShootRequirement.confirm");
     }
 }

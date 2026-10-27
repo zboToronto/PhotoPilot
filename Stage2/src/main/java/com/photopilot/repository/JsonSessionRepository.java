@@ -1,5 +1,6 @@
 package com.photopilot.repository;
 
+import com.photopilot.i18n.*;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -19,28 +20,28 @@ public class JsonSessionRepository implements SessionRepository {
     }
 
     public Result<PhotographySession> save(PhotographySession session) {
-        return Result.failure("NOT IMPLEMENTED: JsonSessionRepository.save");
+        return Result.failureKey("error.notImplemented", "JsonSessionRepository.save");
     }
 
     public Result<PhotographySession> find(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: JsonSessionRepository.find");
+        return Result.failureKey("error.notImplemented", "JsonSessionRepository.find");
     }
 
     public Result<List<PhotographySession>> search(String query) {
-        return Result.failure("NOT IMPLEMENTED: JsonSessionRepository.search");
+        return Result.failureKey("error.notImplemented", "JsonSessionRepository.search");
     }
 
     public Result<List<UUID>> referencingGear(UUID id) {
-        if (id == null) return Result.failure("Equipment ID is required.");
+        if (id == null) return Result.failureKey("error.gear.idRequired");
         // F01 has no session file schema yet. An empty store is provably unreferenced;
         // any existing content must be checked by F01 before gear can be deleted.
         try (var entries = java.nio.file.Files.list(directory)) {
             if (entries.findAny().isEmpty()) return Result.success(List.of());
-            return Result.failure("Cannot check saved-session references until session storage is implemented. Removal blocked; historical files preserved.");
+            return Result.failureKey("error.session.referencesUnavailable");
         } catch (java.nio.file.NoSuchFileException error) {
             return Result.success(List.of());
         } catch (java.io.IOException | SecurityException error) {
-            return Result.failure("Cannot check saved-session references. Removal blocked: " + error.getMessage());
+            return Result.failureKey("error.session.references", Objects.toString(error.getMessage(), error.getClass().getSimpleName()));
         }
     }
 }

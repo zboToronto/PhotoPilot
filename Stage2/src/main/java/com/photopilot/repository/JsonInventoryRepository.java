@@ -1,5 +1,6 @@
 package com.photopilot.repository;
 
+import com.photopilot.i18n.*;
 import com.google.gson.*;
 import com.google.gson.stream.*;
 import com.photopilot.common.Result;
@@ -25,7 +26,7 @@ public class JsonInventoryRepository implements InventoryRepository {
 
     @Override public Result<GearInventory> load() {
         try { return Result.success(read()); }
-        catch (IOException | RuntimeException error) { return Result.failure("Cannot read inventory; original file preserved. " + error.getMessage()); }
+        catch (IOException | RuntimeException error) { return Result.failureKey("error.inventory.read", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
     private GearInventory read() throws IOException {
         byte[] bytes;
@@ -95,10 +96,10 @@ public class JsonInventoryRepository implements InventoryRepository {
         }
     }
     @Override public Result<GearInventory> save(GearInventory inventory) {
-        if (inventory == null) return Result.failure("Inventory is required.");
+        if (inventory == null) return Result.failureKey("error.inventory.required");
         return locked(() -> {
             var current = read();
-            if (!current.revision().equals(inventory.revision())) return Result.failure("Inventory changed. Reload before saving.");
+            if (!current.revision().equals(inventory.revision())) return Result.failureKey("error.inventory.changed");
             write(inventory);
             return Result.success(inventory);
         });
@@ -117,11 +118,11 @@ public class JsonInventoryRepository implements InventoryRepository {
             Files.createDirectories(file.getParent());
             try (FileChannel channel = FileChannel.open(file.resolveSibling(file.getFileName() + ".lock"), CREATE, WRITE);
                  FileLock lock = channel.tryLock()) {
-                if (lock == null) return Result.failure("Inventory is busy in another window. Retry.");
+                if (lock == null) return Result.failureKey("error.inventory.busy");
                 return operation.run();
             }
-        } catch (OverlappingFileLockException error) { return Result.failure("Inventory is busy in another window. Retry."); }
-        catch (IOException | RuntimeException error) { return Result.failure("Inventory change was not saved; original file preserved. " + error.getMessage()); }
+        } catch (OverlappingFileLockException error) { return Result.failureKey("error.inventory.busy"); }
+        catch (IOException | RuntimeException error) { return Result.failureKey("error.inventory.write", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
     private void write(GearInventory inventory) throws IOException {
         // Revalidate even when called directly through the persistence port.

@@ -29,10 +29,10 @@ public class EnvironmentService {
     }
 
     public Result<EnvironmentContext> retrieve(GeoLocation place, LocalDate date) {
-        return Result.failure("NOT IMPLEMENTED: EnvironmentService.retrieve");
+        return Result.failureKey("error.notImplemented", "EnvironmentService.retrieve");
     }
 
     public Result<EnvironmentAssessment> assess(ShootRequirement req) {
-        return Result.failure("NOT IMPLEMENTED: EnvironmentService.assess");
+        return Result.failureKey("error.notImplemented", "EnvironmentService.assess");
     }
 }

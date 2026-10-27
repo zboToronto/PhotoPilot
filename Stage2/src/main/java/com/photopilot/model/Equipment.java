@@ -1,5 +1,6 @@
 package com.photopilot.model;
 
+import com.photopilot.i18n.*;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
@@ -36,13 +37,13 @@ public abstract class Equipment {
 
     public Result<Equipment> validate() {
         try {
-            if (brand.isBlank() || model.isBlank()) throw new IllegalArgumentException("Brand and model are required.");
-            if (quantity <= 0) throw new IllegalArgumentException("Quantity must be a positive integer.");
-            weightGrams.ifPresent(value -> EquipmentType.positive(value, "Weight (g)"));
+            if (brand.isBlank() || model.isBlank()) throw new LocalizedException("error.gear.brandModel");
+            if (quantity <= 0) throw new LocalizedException("error.gear.quantity");
+            weightGrams.ifPresent(value -> EquipmentType.positive(value, LocalizedMessage.of("gear.field.weightGrams")));
             type().validate(specifications());
             return Result.success(this);
         } catch (IllegalArgumentException error) {
-            return Result.failure(error.getMessage());
+            return Result.failure(error);
         }
     }
 

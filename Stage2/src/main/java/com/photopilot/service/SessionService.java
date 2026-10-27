@@ -21,22 +21,22 @@ public class SessionService {
     }
 
     public Result<PhotographySession> create(String title, LocalDate date) {
-        return Result.failure("NOT IMPLEMENTED: SessionService.create");
+        return Result.failureKey("error.notImplemented", "SessionService.create");
     }
 
     public Result<PhotographySession> save(PhotographySession session) {
-        return Result.failure("NOT IMPLEMENTED: SessionService.save");
+        return Result.failureKey("error.notImplemented", "SessionService.save");
     }
 
     public Result<PhotographySession> open(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: SessionService.open");
+        return Result.failureKey("error.notImplemented", "SessionService.open");
     }
 
     public Result<List<PhotographySession>> search(String query) {
-        return Result.failure("NOT IMPLEMENTED: SessionService.search");
+        return Result.failureKey("error.notImplemented", "SessionService.search");
     }
 
     public Result<PhotographySession> transition(UUID id, SessionEvent event) {
-        return Result.failure("NOT IMPLEMENTED: SessionService.transition");
+        return Result.failureKey("error.notImplemented", "SessionService.transition");
     }
 }

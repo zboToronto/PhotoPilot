@@ -24,6 +24,6 @@ public class ShootingWindow {
     }
 
     public Result<ShootingWindow> validate() {
-        return Result.failure("NOT IMPLEMENTED: ShootingWindow.validate");
+        return Result.failureKey("error.notImplemented", "ShootingWindow.validate");
     }
 }

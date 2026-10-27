@@ -14,7 +14,7 @@ public class CompletedState implements SessionState {
     }
 
     public Result<SessionState> next(PhotographySession session, SessionEvent event) {
-        return Result.failure("NOT IMPLEMENTED: CompletedState.next");
+        return Result.failureKey("error.notImplemented", "CompletedState.next");
     }
 
     public boolean canEditPlan() {

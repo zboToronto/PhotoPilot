@@ -16,10 +16,10 @@ public class FeasibilityValidator {
     }
 
     public Result<ActivitySuggestion> validate(ActivitySuggestion idea, DiscoveryContext context) {
-        return Result.failure("NOT IMPLEMENTED: FeasibilityValidator.validate");
+        return Result.failureKey("error.notImplemented", "FeasibilityValidator.validate");
     }
 
     public Result<EnvironmentAssessment> checkTiming(EnvironmentAssessment assessment) {
-        return Result.failure("NOT IMPLEMENTED: FeasibilityValidator.checkTiming");
+        return Result.failureKey("error.notImplemented", "FeasibilityValidator.checkTiming");
     }
 }

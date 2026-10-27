@@ -19,10 +19,10 @@ public class HistoryRetriever {
     }
 
     public Result<List<PhotographySession>> retrieve(String query) {
-        return Result.failure("NOT IMPLEMENTED: HistoryRetriever.retrieve");
+        return Result.failureKey("error.notImplemented", "HistoryRetriever.retrieve");
     }
 
     public Result<AgentContext> contextFor(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: HistoryRetriever.contextFor");
+        return Result.failureKey("error.notImplemented", "HistoryRetriever.contextFor");
     }
 }

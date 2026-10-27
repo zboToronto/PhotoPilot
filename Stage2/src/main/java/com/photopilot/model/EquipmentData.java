@@ -1,5 +1,6 @@
 package com.photopilot.model;
 
+import com.photopilot.i18n.*;
 import com.photopilot.common.Result;
 import java.net.URI;
 import java.time.Instant;
@@ -28,7 +29,7 @@ public record EquipmentData(String type, String id, String brand, String model, 
             EquipmentType kind = EquipmentType.valueOf(type);
             kind.validate(specs);
             UUID uuid = UUID.fromString(id);
-            if (!uuid.toString().equalsIgnoreCase(id)) throw new IllegalArgumentException("ID must be a full UUID.");
+            if (!uuid.toString().equalsIgnoreCase(id)) throw new LocalizedException("error.gear.uuid");
             Optional<Double> weight = Optional.ofNullable(weightGrams);
             Map<String, URI> links = sources.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> URI.create(e.getValue())));
             Optional<Instant> date = Optional.ofNullable(verifiedAt).map(Instant::parse);
@@ -42,7 +43,7 @@ public record EquipmentData(String type, String id, String brand, String model, 
             };
             return item.validate();
         } catch (IllegalArgumentException | java.time.DateTimeException error) {
-            return Result.failure("Invalid equipment: " + error.getMessage());
+            return Result.failureKey("error.gear.invalid", error instanceof LocalizedException localized ? localized.localizedMessage() : Objects.toString(error.getMessage(), error.getClass().getSimpleName()));
         }
     }
     private String text(String key) { return specs.getOrDefault(key, "").strip(); }

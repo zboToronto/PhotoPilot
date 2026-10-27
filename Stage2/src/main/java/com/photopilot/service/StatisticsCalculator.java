@@ -16,7 +16,7 @@ public class StatisticsCalculator {
     }
 
     public Result<ExifStatistics> summarize(List<ExifRecord> records) {
-        return Result.failure("NOT IMPLEMENTED: StatisticsCalculator.summarize");
+        return Result.failureKey("error.notImplemented", "StatisticsCalculator.summarize");
     }
 
     public List<String> compare(ExifStatistics stats, ShootPlan plan) {

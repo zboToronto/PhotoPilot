@@ -17,6 +17,7 @@ public class AgentContext {
     private String evidenceJson;
     private List<PhotographySession> history;
     private Optional<SanitizedImage> approvedImage;
+    private String responseLanguageInstruction = "";
 
     public AgentContext(UUID sessionId, List<String> messages, String evidenceJson, List<PhotographySession> history, Optional<SanitizedImage> approvedImage) {
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
@@ -29,4 +30,17 @@ public class AgentContext {
     public void appendToolResult(ToolCall call, String result) {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: AgentContext.appendToolResult");
     }
+
+    /** Request-scoped copy: never rewrite saved messages, evidence, history, or image approval. */
+    public AgentContext withResponseLanguageInstruction(String instruction) {
+        AgentContext copy = new AgentContext(sessionId, messages, evidenceJson, history, approvedImage);
+        copy.responseLanguageInstruction = Objects.requireNonNull(instruction);
+        return copy;
+    }
+    public String responseLanguageInstruction() { return responseLanguageInstruction; }
+    public List<String> messages() { return messages; }
+    public String evidenceJson() { return evidenceJson; }
+    public List<PhotographySession> history() { return history; }
+    public UUID sessionId() { return sessionId; }
+    public Optional<SanitizedImage> approvedImage() { return approvedImage; }
 }

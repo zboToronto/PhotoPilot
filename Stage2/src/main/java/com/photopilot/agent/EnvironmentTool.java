@@ -24,6 +24,6 @@ public class EnvironmentTool implements AgentTool {
     }
 
     public Result<String> execute(String argumentsJson) {
-        return Result.failure("NOT IMPLEMENTED: EnvironmentTool.execute");
+        return Result.failureKey("error.notImplemented", "EnvironmentTool.execute");
     }
 }

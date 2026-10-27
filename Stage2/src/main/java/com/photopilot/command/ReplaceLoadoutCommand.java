@@ -16,6 +16,6 @@ public class ReplaceLoadoutCommand implements PlanCommand {
     }
 
     public Result<ShootPlan> applyTo(ShootPlan draft) {
-        return Result.failure("NOT IMPLEMENTED: ReplaceLoadoutCommand.applyTo");
+        return Result.failureKey("error.notImplemented", "ReplaceLoadoutCommand.applyTo");
     }
 }

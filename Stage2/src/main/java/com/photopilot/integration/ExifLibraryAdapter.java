@@ -22,6 +22,6 @@ public class ExifLibraryAdapter implements MetadataExtractor {
     }
 
     public Result<List<ExifRecord>> extract(List<Path> files) {
-        return Result.failure("NOT IMPLEMENTED: ExifLibraryAdapter.extract");
+        return Result.failureKey("error.notImplemented", "ExifLibraryAdapter.extract");
     }
 }

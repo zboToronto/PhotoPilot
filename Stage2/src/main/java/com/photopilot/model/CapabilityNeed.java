@@ -28,6 +28,6 @@ public class CapabilityNeed {
     }
 
     public Result<CapabilityNeed> validate() {
-        return Result.failure("NOT IMPLEMENTED: CapabilityNeed.validate");
+        return Result.failureKey("error.notImplemented", "CapabilityNeed.validate");
     }
 }

@@ -1,5 +1,9 @@
 # Local verification results
 
+## Bilingual localization verification — 2026-10-27
+
+Current extension: **71/71 tests passed**, zero failures/errors/skips (53 existing + 18 new); `GUI_SMOKE_OK`; JAR packaging and all UTF-8 bundle entries verified. Independent CLI processes from the JAR checked fresh English, persistent Chinese/restart, nonpersistent overrides and UTF-8 redirected I/O. Live JavaFX checks cover retained draft/selection, visible results, open settings, background updates and zero listeners after windows close. Chinese settings, inventory editor and narrow calculator snapshots inspected. Structural audit preserves all 20 original source hashes. No live AI response or clean build is claimed. See [commands, intermediate failures/fixes and limits](localization.md) and [implementation UML](localization-architecture.md). The sections below are historical snapshots, not current feature-completion claims.
+
 > Historical record of the original scaffolding task before Git integration. Statements about no Git operations or publication apply to that task only.
 
 Verified October 26, 2026, Toronto time. Final verification: Windows 11 amd64, Microsoft OpenJDK **21.0.13.0.2**, Maven **3.9.9**, JavaFX **21.0.6**. The portable JDK is extracted only into `.tools/jdk21/jdk-21.0.13.0.2+1`. Its downloaded archive was checked against Microsoft's SHA-256 sidecar. Maven's archive was checked against Maven Central's SHA-512 sidecar; the wrapper also pins its SHA-256.

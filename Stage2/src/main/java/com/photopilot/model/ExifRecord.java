@@ -34,6 +34,6 @@ public class ExifRecord {
     }
 
     public Result<ExifRecord> validate() {
-        return Result.failure("NOT IMPLEMENTED: ExifRecord.validate");
+        return Result.failureKey("error.notImplemented", "ExifRecord.validate");
     }
 }

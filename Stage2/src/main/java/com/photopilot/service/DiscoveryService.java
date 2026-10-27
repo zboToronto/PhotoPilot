@@ -29,15 +29,15 @@ public class DiscoveryService {
     }
 
     public Result<List<ActivitySuggestion>> suggest(DiscoveryContext context) {
-        return Result.failure("NOT IMPLEMENTED: DiscoveryService.suggest");
+        return Result.failureKey("error.notImplemented", "DiscoveryService.suggest");
     }
 
     public Result<ActivitySuggestion> save(UUID id, ActivitySuggestion idea) {
-        return Result.failure("NOT IMPLEMENTED: DiscoveryService.save");
+        return Result.failureKey("error.notImplemented", "DiscoveryService.save");
     }
 
     public Result<ShootRequirement> select(UUID id, ActivitySuggestion idea) {
-        return Result.failure("NOT IMPLEMENTED: DiscoveryService.select");
+        return Result.failureKey("error.notImplemented", "DiscoveryService.select");
     }
 
     public void dismiss(ActivitySuggestion idea) {

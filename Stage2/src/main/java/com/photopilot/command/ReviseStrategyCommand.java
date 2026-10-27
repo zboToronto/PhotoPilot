@@ -22,6 +22,6 @@ public class ReviseStrategyCommand implements PlanCommand {
     }
 
     public Result<ShootPlan> applyTo(ShootPlan draft) {
-        return Result.failure("NOT IMPLEMENTED: ReviseStrategyCommand.applyTo");
+        return Result.failureKey("error.notImplemented", "ReviseStrategyCommand.applyTo");
     }
 }

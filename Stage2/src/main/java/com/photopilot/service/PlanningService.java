@@ -43,38 +43,38 @@ public class PlanningService {
     }
 
     public Result<ShootRequirement> parse(UUID id, String text) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.parse");
+        return Result.failureKey("error.notImplemented", "PlanningService.parse");
     }
 
     public Result<ShootRequirement> confirm(UUID id, ShootRequirement edited) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.confirm");
+        return Result.failureKey("error.notImplemented", "PlanningService.confirm");
     }
 
     public Result<EquipmentRequirementProfile> analyzeNeeds(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.analyzeNeeds");
+        return Result.failureKey("error.notImplemented", "PlanningService.analyzeNeeds");
     }
 
     public Result<EquipmentRequirementProfile> confirmProfile(UUID id, EquipmentRequirementProfile edited) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.confirmProfile");
+        return Result.failureKey("error.notImplemented", "PlanningService.confirmProfile");
     }
 
     public Result<List<Loadout>> matchGear(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.matchGear");
+        return Result.failureKey("error.notImplemented", "PlanningService.matchGear");
     }
 
     public Result<EnvironmentAssessment> assessEnvironment(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.assessEnvironment");
+        return Result.failureKey("error.notImplemented", "PlanningService.assessEnvironment");
     }
 
     public Result<ShootPlan> generate(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.generate");
+        return Result.failureKey("error.notImplemented", "PlanningService.generate");
     }
 
     public Result<ShootPlan> proposeChange(UUID id, String text) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.proposeChange");
+        return Result.failureKey("error.notImplemented", "PlanningService.proposeChange");
     }
 
     public Result<ShootPlan> approve(UUID id, ShootPlan plan) {
-        return Result.failure("NOT IMPLEMENTED: PlanningService.approve");
+        return Result.failureKey("error.notImplemented", "PlanningService.approve");
     }
 }

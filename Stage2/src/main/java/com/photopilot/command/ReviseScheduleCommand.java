@@ -16,6 +16,6 @@ public class ReviseScheduleCommand implements PlanCommand {
     }
 
     public Result<ShootPlan> applyTo(ShootPlan draft) {
-        return Result.failure("NOT IMPLEMENTED: ReviseScheduleCommand.applyTo");
+        return Result.failureKey("error.notImplemented", "ReviseScheduleCommand.applyTo");
     }
 }

@@ -18,10 +18,10 @@ public class LocationService {
     }
 
     public Result<GeoLocation> manual(String label, double lat, double lon) {
-        return Result.failure("NOT IMPLEMENTED: LocationService.manual");
+        return Result.failureKey("error.notImplemented", "LocationService.manual");
     }
 
     public Result<GeoLocation> current(boolean explicitConsent) {
-        return Result.failure("NOT IMPLEMENTED: LocationService.current");
+        return Result.failureKey("error.notImplemented", "LocationService.current");
     }
 }

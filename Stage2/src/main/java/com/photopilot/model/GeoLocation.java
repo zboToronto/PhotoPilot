@@ -27,6 +27,6 @@ public class GeoLocation {
     }
 
     public Result<GeoLocation> validate() {
-        return Result.failure("NOT IMPLEMENTED: GeoLocation.validate");
+        return Result.failureKey("error.notImplemented", "GeoLocation.validate");
     }
 }

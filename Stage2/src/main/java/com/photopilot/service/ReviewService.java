@@ -29,14 +29,14 @@ public class ReviewService {
     }
 
     public Result<ExifStatistics> analyze(UUID id, List<Path> files) {
-        return Result.failure("NOT IMPLEMENTED: ReviewService.analyze");
+        return Result.failureKey("error.notImplemented", "ReviewService.analyze");
     }
 
     public Result<PostShootReview> review(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: ReviewService.review");
+        return Result.failureKey("error.notImplemented", "ReviewService.review");
     }
 
     public Result<PostShootReview> save(UUID id, PostShootReview review) {
-        return Result.failure("NOT IMPLEMENTED: ReviewService.save");
+        return Result.failureKey("error.notImplemented", "ReviewService.save");
     }
 }

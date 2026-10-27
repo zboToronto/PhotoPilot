@@ -1,6 +1,6 @@
 # PhotoPilot project memory
 
-Last reviewed: 2026-10-26 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
+Last reviewed: 2026-10-27 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
 
 ## Evidence and repository layout
 
@@ -36,6 +36,8 @@ Five pattern structures exist; their business operations are not yet five comple
 - JavaFX changes run on the UI thread. Follow the existing background Task callback pattern for slow work, stale-navigation completion checks and shutdown cancellation.
 
 ## Known gaps and outstanding work
+
+Current cross-cutting UI/CLI behavior includes bilingual localization; see [implementation and verification](../Stage2/docs/localization.md). Future features must use semantic bundle keys and descriptor-preserving Result errors, share the bootstrap localization instance, and detach UI subscriptions. Do not translate command identifiers, JSON evidence, user values or existing conversation content.
 
 These are confirmed gaps, not permission to implement or redesign them.
 
@@ -101,6 +103,14 @@ The post-F05 Git follow-up includes the previously uncommitted repository-reloca
 Fresh `./mvnw.cmd -B -o test javafx:run '-Djavafx.args=--smoke-test'` passed 36 tests with zero failures/errors/skips and printed GUI_SMOKE_OK. This reused compiled classes; it was not a clean rebuild. The structural audit passed all 87 UML types / 267 fields / 184 operations and 20 source hashes. Both Python tooling files passed syntax parsing; the one-time scaffold generator was not executed. F05 remains verified and the other ten features remain scaffolded.
 
 ## Maintenance and discoverability
+
+Authorized localization publication verification (2026-10-27): user explicitly requested uploading this change to GitHub. Fetched origin and confirmed main matched origin/main before staging. Fresh `./mvnw.cmd -B -o test javafx:run '-Djavafx.args=--smoke-test'` passed 71/71 with no failures/errors/skips and GUI_SMOKE_OK; classes were up to date, so this is not a clean-build claim. Structural audit again passed 87 types / 267 fields / 184 operations and 20 unchanged source hashes. Publication scope is localization source/resources/tests and its documentation; ignored launchers, preferences, data, caches and build outputs are excluded. The implementation-turn statement below that no commit/push occurred is historical; the authorized publication is a subsequent task.
+
+Localization decision (2026-10-27): English-only presentation → `LocalizationService`, UTF-8 ResourceBundle resources, `LocalePreferenceRepository`, `FxLocalizer` Observer and model-port Decorator → immediate language changes without replacing views/business logic → F05/F08 presentation and F01–F11 status localized. GUI/CLI share `${user.home}/.photopilot/settings.properties` or `PHOTOPILOT_CONFIG_DIR`; language saving preserves unrelated properties and fails visibly. CLI `--lang` never writes preferences. No global JVM locale mutation. Existing Stage1 sources remain unchanged. [Updated implementation UML and change rationale](../Stage2/docs/localization-architecture.md).
+
+Localization verification (2026-10-27): 53-test baseline passed; current **71/71** tests pass (18 added), with real JavaFX multiwindow switching/draft retention/thread/disposal checks, resource consistency, isolated preference failures, CLI integration and captured model-policy requests. GUI_SMOKE_OK, JAR packaging/resource inspection, independent UTF-8 CLI persistence/override runs, and structural audit (87 types / 267 fields / 184 methods / 20 source hashes) passed. Actual snapshots inspected for Chinese settings/editor/narrow results. Sandbox compilation needed existing-cache access; intermediate compiler/audit fixture issues and blank combo-box prompts were fixed. No clean rebuild, live model, macOS/Linux, screen-reader or video verification is claimed. No commit/push performed. Detailed evidence remains in [localization guide](../Stage2/docs/localization.md).
+
+AI localization boundary: `LanguageAwareLLMClient.complete` copies `AgentContext` with a default response-language instruction and delegates once. It yields to explicit user language requests and all tool/schema/safety contracts. The Gemini provider must serialize this separate instruction when implemented; `PhotoPilotAgent.run` and `GeminiAdapter.complete` remain unavailable. Do not claim working bilingual AI responses from passing policy tests.
 
 Root AGENTS.md explicitly routes task start/end to these files. No nested AGENTS.md or AGENTS.override.md was found in this repository during setup. Run future PhotoPilot chats with working directory ProjectGit or Stage2; parent EECS3311 chats must explicitly read the repository instructions. Verified placement and links establish discovery eligibility, not proof of a future session's injected context. Official behavior: [Codex AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 

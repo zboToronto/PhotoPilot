@@ -1,6 +1,14 @@
 # Feature to skeleton mapping
 
-Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. F05 is implemented with [verified GUI/CLI evidence and additive design decisions](f05-inventory.md). Other feature behavior remains **NOT IMPLEMENTED**; its structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
+Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. F05 is implemented with [verified GUI/CLI evidence and additive design decisions](f05-inventory.md); F08 has [verified calculator evidence](f08-calculators.md). Other feature behavior remains **NOT IMPLEMENTED**; its structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
+
+## Cross-cutting addition: bilingual localization (2026-10-27)
+
+**Original design → implementation → reason → impact:** English-only presentation → shared resource/locale facade, durable preference port, JavaFX Observer bindings and an LLM-port Decorator → switch GUI/CLI language without duplicating domain logic or resetting state → bilingual F01–F11 navigation and status; complete current F05/UC05/SD02 and F08/UC08/SD03 presentation, validation and CLI output. Original business-feature status is unchanged; this usability capability does not count toward the ten-feature minimum.
+
+**Participants/methods:** `ApplicationBootstrap.localization`; `LocalizationService.text/selectLanguage/useLanguage/listen`; `FileLocalePreferenceRepository.load/save`; `FxLocalizer.bind/close`; `SettingsDialog`; existing GUI/CLI adapters; `Result.failureKey/errors(localization)`; `CalculationForm.format(result, localization)`; `LanguageAwareLLMClient.complete`; `AgentContext.withResponseLanguageInstruction`. Facade/Observer/Decorator solve resource access, in-place refresh/disposal and request language policy respectively. Existing business Facade, Strategy, Adapter, Command and State boundaries are preserved.
+
+**Evidence and limits:** [implementation/file map/71-test evidence](localization.md), [updated class and sequence UML](localization-architecture.md). AI policy is mock-verified at the model port; actual Gemini and agent execution remain unavailable. No submission demonstration video is claimed.
 
 ## F01 Photography Session and History Management
 
@@ -162,7 +170,7 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [TechnicalCalculator](../src/main/java/com/photopilot/service/TechnicalCalculator.java), [CalculationInput](../src/main/java/com/photopilot/model/CalculationInput.java), [CalculationResult](../src/main/java/com/photopilot/model/CalculationResult.java), [CalculationTool](../src/main/java/com/photopilot/agent/CalculationTool.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** IMPLEMENTED / GUI + CLI VERIFIED for the standalone deterministic suite and tool adapter. F10 orchestration remains scaffolded. Bilingual presentation is verified with the current 71-test suite; see [localization evidence](localization.md).
 
 ## F09 Location, Time, and Environment-Aware Photography Planning
 

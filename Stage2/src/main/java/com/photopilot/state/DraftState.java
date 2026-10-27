@@ -14,7 +14,7 @@ public class DraftState implements SessionState {
     }
 
     public Result<SessionState> next(PhotographySession session, SessionEvent event) {
-        return Result.failure("NOT IMPLEMENTED: DraftState.next");
+        return Result.failureKey("error.notImplemented", "DraftState.next");
     }
 
     public boolean canEditPlan() {

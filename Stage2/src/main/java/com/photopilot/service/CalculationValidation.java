@@ -1,5 +1,6 @@
 package com.photopilot.service;
 
+import com.photopilot.i18n.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.*;
 import java.util.*;
@@ -9,7 +10,7 @@ public final class CalculationValidation {
     private CalculationValidation() { }
     public static Result<CalculationInput> validate(CalculationInput input) {
         try {
-            if (input == null) throw new IllegalArgumentException("Calculation input is required.");
+            if (input == null) throw new LocalizedException("error.calc.required");
             Set<String> allowed = switch (input.operation()) {
                 case EXPOSURE_ND -> Set.of("aperture", "shutter", "iso", "ndStops", "ndFactor", "opticalDensity");
                 case HYPERFOCAL -> Set.of("focalLength", "aperture", "coc");
@@ -19,41 +20,41 @@ public final class CalculationValidation {
                 case BATTERY_CAPACITY -> Set.of("shotCount", "ratedShots");
             };
             for (var key : input.parameters().keySet()) {
-                if (!allowed.contains(key)) throw new IllegalArgumentException("Unsupported parameter: " + key);
+                if (!allowed.contains(key)) throw new LocalizedException("error.calc.parameter", key);
                 double value = input.parameters().get(key);
-                if (!Double.isFinite(value)) throw new IllegalArgumentException(key + " must be finite.");
+                if (!Double.isFinite(value)) throw new LocalizedException("error.validation.finite", key);
                 if (key.equals("ndStops") || key.equals("opticalDensity")) {
-                    if (value < 0) throw new IllegalArgumentException(key + " must be nonnegative.");
-                } else if (value <= 0) throw new IllegalArgumentException(key + " must be positive.");
-                if (key.equals("ndFactor") && value < 1) throw new IllegalArgumentException("ndFactor must be at least 1.");
+                    if (value < 0) throw new LocalizedException("error.validation.nonnegative", key);
+                } else if (value <= 0) throw new LocalizedException("error.validation.positive", key);
+                if (key.equals("ndFactor") && value < 1) throw new LocalizedException("error.calc.ndFactor");
                 if ((key.equals("shotCount") || key.equals("ratedShots")) && (value != Math.rint(value) || value > 9_007_199_254_740_991d))
-                    throw new IllegalArgumentException(key + " must be a positive whole number within the exact integer range.");
+                    throw new LocalizedException("error.validation.whole", key);
                 value(input, key);
             }
             if (!input.parameters().keySet().equals(input.units().keySet()))
-                throw new IllegalArgumentException("Every parameter must have exactly one supported unit.");
+                throw new LocalizedException("error.calc.units");
             if (input.operation() != CalculationKind.EXPOSURE_ND) {
                 for (String key : allowed) required(input, key);
                 if (input.operation() == CalculationKind.DEPTH_OF_FIELD && value(input, "distance") <= value(input, "focalLength") / 1000)
-                    throw new IllegalArgumentException("Subject distance must exceed focal length (distance measured from the lens principal plane).");
+                    throw new LocalizedException("error.calc.distance");
                 return Result.success(input);
             }
             required(input, "shutter");
             boolean exposure = input.parameters().containsKey("aperture") || input.parameters().containsKey("iso");
             if (exposure) { required(input, "aperture"); required(input, "iso"); }
             long ndCount = List.of("ndStops", "ndFactor", "opticalDensity").stream().filter(input.parameters()::containsKey).count();
-            if (ndCount > 1) throw new IllegalArgumentException("Use only one ND strength: ndStops, ndFactor or opticalDensity.");
-            if (!exposure && ndCount == 0) throw new IllegalArgumentException("Supply aperture and iso, or one ND strength.");
+            if (ndCount > 1) throw new LocalizedException("error.calc.oneND");
+            if (!exposure && ndCount == 0) throw new LocalizedException("error.calc.exposureOrND");
             return Result.success(input);
-        } catch (IllegalArgumentException e) { return Result.failure(e.getMessage()); }
+        } catch (IllegalArgumentException e) { return Result.failure(e); }
     }
     private static void required(CalculationInput input, String key) {
-        if (!input.parameters().containsKey(key)) throw new IllegalArgumentException(key + " is required.");
+        if (!input.parameters().containsKey(key)) throw new LocalizedException("error.validation.required", key);
     }
     /** Canonical units: seconds, millimetres for optical dimensions, metres for distance. */
     public static double value(CalculationInput input, String key) {
         String unit = input.units().get(key);
-        if (unit == null) throw new IllegalArgumentException("Unit is required for " + key);
+        if (unit == null) throw new LocalizedException("error.validation.unitRequired", key);
         double v = input.parameters().get(key);
         double factor = switch (key) {
             case "shutter" -> switch (unit) { case "s" -> 1; case "ms" -> .001; default -> invalid(key); };
@@ -71,8 +72,8 @@ public final class CalculationValidation {
         };
         double result = v * factor;
         if (!Double.isFinite(result) || (v > 0 && result == 0))
-            throw new IllegalArgumentException(key + " is outside the supported numerical range.");
+            throw new LocalizedException("error.validation.range", key);
         return result;
     }
-    private static double invalid(String key) { throw new IllegalArgumentException("Unsupported unit for " + key); }
+    private static double invalid(String key) { throw new LocalizedException("error.validation.unit", key); }
 }

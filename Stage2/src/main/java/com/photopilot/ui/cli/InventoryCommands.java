@@ -1,6 +1,7 @@
 package com.photopilot.ui.cli;
 
 import com.photopilot.application.*;
+import com.photopilot.i18n.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.*;
 import java.io.PrintStream;
@@ -8,9 +9,10 @@ import java.util.*;
 
 /** F05 command parsing and output; all mutations go through the shared facade service. */
 final class InventoryCommands {
+    private final LocalizationService localization;
     private final PhotoPilotFacade app;
     private final PrintStream output;
-    InventoryCommands(PhotoPilotFacade app, PrintStream output) { this.app = app; this.output = output; }
+    InventoryCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization) { this.app = app; this.output = output; this.localization = localization; }
     int execute(String line) {
         try {
             var words = tokenize(line);
@@ -22,23 +24,23 @@ final class InventoryCommands {
                 var result = app.inventory().list(options.getOrDefault("query", ""), type);
                 if (!report(result)) return 2;
                 var items = result.value().orElseThrow().items();
-                output.println("Inventory: " + items.size() + " item(s)");
+                output.println(localization.text("cli.inventory.count", items.size()));
                 items.forEach(this::show);
                 return 0;
             }
             if (action.equals("remove")) {
-                if (words.size() < 3) throw new IllegalArgumentException("Use gear remove <UUID> [--confirm].");
+                if (words.size() < 3) throw new LocalizedException("error.cli.removeUsage");
                 UUID id = UUID.fromString(words.get(2));
                 var opts = options(words, 3, Set.of("--confirm"));
                 var affected = app.inventory().affectedSessions(id);
                 if (!report(affected)) return 2;
-                if (!affected.value().orElseThrow().isEmpty()) output.println("Affected sessions: " + affected.value().orElseThrow() + ". Historical snapshots are preserved.");
+                if (!affected.value().orElseThrow().isEmpty()) output.println(localization.text("cli.inventory.references", affected.value().orElseThrow()));
                 var result = app.inventory().remove(id, opts.containsKey("--confirm"));
                 if (!report(result)) return 2;
-                output.println("Removed " + id); return 0;
+                output.println(localization.text("cli.inventory.removed", id)); return 0;
             }
-            if (!action.equals("add") && !action.equals("edit")) throw new IllegalArgumentException("Unknown gear action. Use gear help.");
-            if (words.size() < 3) throw new IllegalArgumentException("Supply an equipment type for add or UUID for edit. Use gear help.");
+            if (!action.equals("add") && !action.equals("edit")) throw new LocalizedException("error.cli.unknownGear");
+            if (words.size() < 3) throw new LocalizedException("error.cli.gearArgument");
             Equipment original = null;
             EquipmentType kind;
             UUID id;
@@ -46,7 +48,7 @@ final class InventoryCommands {
                 id = UUID.fromString(words.get(2));
                 var loaded = app.inventory().list("");
                 if (!report(loaded)) return 2;
-                original = loaded.value().orElseThrow().find(id).orElseThrow(() -> new IllegalArgumentException("Equipment not found."));
+                original = loaded.value().orElseThrow().find(id).orElseThrow(() -> new LocalizedException("error.cli.gearNotFound"));
                 kind = original.type();
             } else { kind = type(words.get(2)); id = UUID.randomUUID(); }
             var allowed = new HashSet<>(List.of("brand", "model", "quantity", "weightGrams", "--confirm-duplicate"));
@@ -60,27 +62,30 @@ final class InventoryCommands {
             var item = parsed.value().orElseThrow();
             var result = original == null ? app.inventory().add(item, duplicateAccepted) : app.inventory().update(item, duplicateAccepted, original);
             if (!report(result)) return 2;
-            output.println("Saved " + item.id()); show(item); return 0;
-        } catch (IllegalArgumentException error) { output.println("Error: " + error.getMessage()); return 2; }
+            output.println(localization.text("cli.inventory.saved", item.id())); show(item); return 0;
+        } catch (IllegalArgumentException error) { output.println(localization.text("cli.error", String.join("; ", Result.failure(error).errors(localization)))); return 2; }
     }
     private boolean report(Result<?> result) {
-        result.warnings().forEach(warning -> output.println("Warning: " + warning));
-        if (!result.isSuccess()) { result.errors().forEach(error -> output.println("Error: " + error)); return false; }
+        result.warnings().forEach(warning -> output.println(localization.text("cli.warning", warning)));
+        if (!result.isSuccess()) { result.errors(localization).forEach(error -> output.println(localization.text("cli.error", error))); return false; }
         return true;
     }
     private void show(Equipment item) {
-        output.printf("%s | %s | %s %s | qty %d%n", item.id(), item.type(), item.brand(), item.model(), item.quantity());
+        output.println(localization.text("cli.inventory.item", item.id(), localization.text("gear.type." + item.type().name()), item.brand(), item.model(), item.quantity()));
         output.println("  " + EquipmentForm.values(item));
-        output.println("  Verified fields: " + item.verifiedFields() + "; remaining fields are unverified; blank optional values are unknown.");
+        output.println(localization.text("cli.inventory.verified", item.verifiedFields()));
     }
-    private static EquipmentType type(String text) { return EquipmentType.valueOf(text.replace("-", "").replace("_", "").toUpperCase(Locale.ROOT)); }
+    private static EquipmentType type(String text) {
+        try { return EquipmentType.valueOf(text.replace("-", "").replace("_", "").toUpperCase(Locale.ROOT)); }
+        catch (IllegalArgumentException error) { throw new LocalizedException("error.cli.type", text); }
+    }
     private static Map<String, String> options(List<String> words, int start, Set<String> allowed) {
         var result = new LinkedHashMap<String, String>();
         for (int i = start; i < words.size(); i++) {
             String word = words.get(i); int split = word.indexOf('=');
             String key = split < 0 ? word : word.substring(0, split);
-            if (!allowed.contains(key) || (split < 0 && !key.startsWith("--")) || (split >= 0 && key.startsWith("--"))) throw new IllegalArgumentException("Unknown or malformed option: " + key);
-            if (result.putIfAbsent(key, split < 0 ? "true" : word.substring(split + 1)) != null) throw new IllegalArgumentException("Repeated option: " + key);
+            if (!allowed.contains(key) || (split < 0 && !key.startsWith("--")) || (split >= 0 && key.startsWith("--"))) throw new LocalizedException("error.cli.option", key);
+            if (result.putIfAbsent(key, split < 0 ? "true" : word.substring(split + 1)) != null) throw new LocalizedException("error.cli.repeated", key);
         }
         return result;
     }
@@ -92,16 +97,16 @@ final class InventoryCommands {
             else if (Character.isWhitespace(c)) { if (!word.isEmpty()) { words.add(word.toString()); word.setLength(0); } }
             else word.append(c);
         }
-        if (quote != 0) throw new IllegalArgumentException("Unclosed quote.");
+        if (quote != 0) throw new LocalizedException("error.cli.quote");
         if (!word.isEmpty()) words.add(word.toString());
         return words;
     }
     private void help() {
-        output.println("gear list [query=\"text\"] [type=camera|lens|filter|battery|storagemedia]");
-        output.println("gear add <type> brand=\"brand\" model=\"model\" quantity=1 <spec=value ...> [id=<UUID>] [--confirm-duplicate]");
-        output.println("gear edit <UUID> <field=value ...> [--confirm-duplicate] | gear remove <UUID> [--confirm]");
-        output.println("Optional common field: weightGrams. Use an empty value to clear an optional field. Unchanged edit fields are preserved.");
+        output.println(localization.text("cli.inventory.listHelp"));
+        output.println(localization.text("cli.inventory.addHelp"));
+        output.println(localization.text("cli.inventory.editHelp"));
+        output.println(localization.text("cli.inventory.commonHelp"));
         for (var type : EquipmentType.values()) output.println(type.name().toLowerCase(Locale.ROOT) + ": " + type.fields().stream().map(f -> f.key() + (f.required() ? "*" : "")).toList());
-        output.println("* required; booleans true/false or blank (unknown); multiple values comma separated. F05 aliases gear list.");
+        output.println(localization.text("cli.inventory.requiredHelp"));
     }
 }

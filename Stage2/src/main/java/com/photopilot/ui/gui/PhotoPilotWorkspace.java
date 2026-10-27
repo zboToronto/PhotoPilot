@@ -1,5 +1,7 @@
 package com.photopilot.ui.gui;
 
+import com.photopilot.i18n.*;
+import javafx.scene.control.Button;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javafx.geometry.Pos;
@@ -15,14 +17,21 @@ import javafx.scene.layout.VBox;
 
 /** Lightweight application shell. No services, persistence, or feature execution. */
 final class PhotoPilotWorkspace extends BorderPane {
-    private final FeaturePane detail = new FeaturePane();
+    private final FeaturePane detail;
+    private final LocalizationService localization;
+    private final FxLocalizer texts;
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
     private final Label footer = FeaturePane.label("", "footer-text");
     private final ScrollPane contentScroll;
     private String selectedId;
     private long selectionVersion;
 
-    PhotoPilotWorkspace() {
+    PhotoPilotWorkspace() { this(LocalizationService.english()); }
+    PhotoPilotWorkspace(LocalizationService localization) {
+        this.localization = localization;
+        texts = new FxLocalizer(this, localization);
+        texts.useReadableFont(this);
+        detail = new FeaturePane(localization);
         getStyleClass().add("workspace");
         setTop(header());
         VBox content = new VBox(detail);
@@ -36,15 +45,18 @@ final class PhotoPilotWorkspace extends BorderPane {
         String previousGroup = "";
         for (FeaturePresentation feature : FeaturePresentation.all()) {
             if (!feature.group().equals(previousGroup)) {
-                sidebar.getChildren().add(FeaturePane.label(feature.group(), "navigation-group"));
+                Label group = FeaturePane.label("", "navigation-group");
+                texts.bind(group.textProperty(), () -> feature.group(localization));
+                sidebar.getChildren().add(group);
                 previousGroup = feature.group();
             }
-            ToggleButton button = new ToggleButton(feature.title());
+            ToggleButton button = new ToggleButton();
+            texts.bind(button.textProperty(), () -> feature.title(localization));
             button.getStyleClass().add("navigation-item");
             button.setId("nav-" + feature.id());
             button.setMaxWidth(Double.MAX_VALUE);
             button.setMinHeight(38);
-            button.setAccessibleText(feature.id() + " " + feature.title());
+            texts.bind(button.accessibleTextProperty(), () -> localization.text("feature.navigationAccessible", feature.id(), feature.title(localization)));
             button.setToggleGroup(selection);
             button.setOnAction(event -> {
                 // Repeated clicks must not clear the current workspace selection.
@@ -53,7 +65,7 @@ final class PhotoPilotWorkspace extends BorderPane {
                 selectionVersion++;
                 detail.show(feature);
                 contentScroll.setVvalue(0);
-                footer.setText(feature.id() + "  ·  " + feature.title());
+                texts.bind(footer.textProperty(), () -> localization.text("feature.footer", feature.id(), feature.title(localization)));
             });
             navigation.put(feature.id(), button);
             sidebar.getChildren().add(button);
@@ -86,7 +98,7 @@ final class PhotoPilotWorkspace extends BorderPane {
             });
         }
         setLeft(navigationScroll);
-        Label keyboardHint = FeaturePane.label("↑ ↓ Navigate   ·   Tab Switch focus", "footer-hint");
+        Label keyboardHint = texts.label("keyboard.navigation", "footer-hint");
         HBox bottom = new HBox(16, footer, spacer(), keyboardHint);
         bottom.setAlignment(Pos.CENTER_LEFT);
         bottom.getStyleClass().add("footer");
@@ -95,10 +107,13 @@ final class PhotoPilotWorkspace extends BorderPane {
     }
 
     private HBox header() {
-        Label brand = FeaturePane.label("PhotoPilot", "brand");
-        Label subtitle = FeaturePane.label("AI Photography Assistant", "brand-subtitle");
-        Label status = FeaturePane.label("Scaffolding build", "app-status");
-        HBox header = new HBox(18, brand, subtitle, spacer(), status);
+        Label brand = texts.label("app.title", "brand");
+        Label subtitle = texts.label("app.subtitle", "brand-subtitle");
+        Label status = texts.label("app.build", "app-status");
+        Button settings = texts.button("settings.title");
+        settings.setId("settings-open"); settings.getStyleClass().add("secondary-button");
+        settings.setOnAction(event -> new SettingsDialog(getScene().getWindow(), localization).show());
+        HBox header = new HBox(18, brand, subtitle, spacer(), status, settings);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("app-header");
         return header;
@@ -124,6 +139,7 @@ final class PhotoPilotWorkspace extends BorderPane {
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
 
     void showFeedback(String message) { detail.showFeedback(message); }
+    void showFeedback(java.util.function.Supplier<String> message) { detail.showFeedback(message); }
     long selectionVersion() { return selectionVersion; }
 
     /** Exercises real controls in the existing opt-in graphical smoke mode. */
@@ -135,11 +151,16 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(entry.getKey().equals("F05") ? "Implemented" : entry.getKey().equals("F08") ? "Implemented" : "Scaffolded") || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (entry.getKey().equals("F05") || entry.getKey().equals("F08") ? "IMPLEMENTED" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
-            if (!detail.feedbackText().startsWith(entry.getKey().equals("F05") ? "F05 · Implemented" : entry.getKey().equals("F08") ? "F08 · Implemented" : "Not implemented: " + entry.getKey())) {
+            String expected = entry.getKey().equals("F05")
+                ? detail.inventoryConnected() ? localization.text("feature.inventoryReady")
+                    : localization.text("feature.noWorkflow", "F05", localization.text("feature.status.IMPLEMENTED"))
+                : entry.getKey().equals("F08") ? localization.text("feature.calculatorReady", localization.text("feature.status.IMPLEMENTED"))
+                    : localization.text("feature.unavailable", entry.getKey());
+            if (!detail.feedbackText().equals(expected)) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());
             }
         }
