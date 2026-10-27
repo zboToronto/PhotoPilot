@@ -51,8 +51,11 @@ public class PhotoPilotCLI {
         if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
             return new InventoryCommands(app, output).execute(command.equals("f05") ? "gear list" : line.strip());
         }
+        if (command.equals("f08") || command.equals("calc") || command.startsWith("calc ")) {
+            return new CalculationCommands(app, output).execute(command.equals("f08") ? "calc help" : line);
+        }
         switch (command) {
-            case "help" -> output.println("help: commands | status: feature status | gear help: inventory commands | F05: inventory | other F01-F11: availability | exit: close");
+            case "help" -> output.println("help: commands | status: feature status | calc help: calculators | gear help: inventory commands | F05: inventory | other F01-F11: availability | exit: close");
             case "status" -> FeatureCatalog.lines().forEach(output::println);
             case "exit", "quit" -> { output.println("PhotoPilot closed."); return 1; }
             case "" -> { return 0; }

@@ -23,6 +23,7 @@ final class FeaturePane extends VBox {
     private VBox empty;
     private FlowPane actions;
     private InventoryPane inventory;
+    private CalculatorPane calculator;
 
     FeaturePane() {
         getStyleClass().add("feature-content");
@@ -58,8 +59,10 @@ final class FeaturePane extends VBox {
     void show(FeaturePresentation selected) {
         feature = selected;
         boolean gear = selected.id().equals("F05") && inventory != null;
-        empty.setVisible(!gear); empty.setManaged(!gear);
-        actions.setVisible(!gear); actions.setManaged(!gear);
+        boolean calc = selected.id().equals("F08") && calculator != null;
+        if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); }
+        empty.setVisible(!gear && !calc); empty.setManaged(!gear && !calc);
+        actions.setVisible(!gear && !calc); actions.setManaged(!gear && !calc);
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         eyebrow.setText(selected.group() + "  /  " + selected.id());
         title.setText(selected.title());
@@ -89,8 +92,14 @@ final class FeaturePane extends VBox {
         getChildren().add(2, inventory);
     }
 
+    void connectCalculator(CalculatorPane calculator) {
+        this.calculator=calculator; calculator.setVisible(false); calculator.setManaged(false);
+        getChildren().add(2, calculator);
+    }
+
     void inspectStatus() {
         refreshStatus();
+        if (feature.id().equals("F08")) { showFeedback("F08 · " + feature.status().label() + ". See calc help or the calculator selector for available tools."); return; }
         if (feature.id().equals("F05") && inventory != null) { showFeedback("F05 · Implemented. Local inventory is available."); return; }
         showFeedback(feature.status() == FeaturePresentation.Status.SCAFFOLDED
             ? FeatureCatalog.unavailable(feature.id())

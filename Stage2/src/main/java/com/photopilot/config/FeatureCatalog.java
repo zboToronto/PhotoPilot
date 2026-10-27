@@ -19,7 +19,7 @@ public final class FeatureCatalog {
             "F09 Location, Time, and Environment-Aware Photography Planning",
             "F10 AI Shoot Plan Generation and Interactive Modification",
             "F11 AI Post-Shoot Analysis and Review"
-        ).stream().map(name -> name + (name.startsWith("F05 ") ? " - IMPLEMENTED" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
+        ).stream().map(name -> name + (name.startsWith("F05 ") ? " - IMPLEMENTED" : name.startsWith("F08 ") ? " - IN PROGRESS" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
     }
 
     public static String unavailable(String feature) {

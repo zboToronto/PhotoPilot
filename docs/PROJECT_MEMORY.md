@@ -41,7 +41,7 @@ These are confirmed gaps, not permission to implement or redesign them.
 
 | Issue | Evidence / required resolution |
 | --- | --- |
-| F01-F04 and F06-F11 remain scaffolded | F05 inventory is implemented and verified; see feature status and F05 evidence. No real provider integration has been verified. |
+| F01-F04, F06-F07 and F09-F11 remain scaffolded; F08 in progress | F05 inventory is implemented and verified; see feature status and F05 evidence. No real provider integration has been verified. |
 | F01 optional location/notes mutation route missing | SD01 and source-verification gap table. Resolve a narrow application API when implementing the feature and record the design change. |
 | F02 select/save/dismiss not exposed through Facade | DiscoveryService declares them, but Facade has no forwarding/accessor route. |
 | F07 selected-loadout persistence missing | SD03 has no application selection/attachment operation. Strategy configuration exists at bootstrap; user-facing selection wiring remains unspecified. |
@@ -107,3 +107,10 @@ Root AGENTS.md explicitly routes task start/end to these files. No nested AGENTS
 Setup verification: all three files decode as UTF-8, all Markdown local links resolve, F01-F11 appear exactly once in the status table, and Git ignores none of these files. `git diff --check` passed (existing Windows line-ending warnings only). A before/after SHA-256 comparison of tracked files found only AGENTS.md changed by this setup; implementation files and pre-existing edits were preserved.
 
 At task end, update affected status/issue entries and add only significant, dated history with evidence. Remove or supersede stale claims; retain historical outcomes as historical. Proposed decisions remain proposals until accepted and implemented as applicable. Keep secrets and unnecessary user data out of all memory.
+
+## F08 implementation (2026-10-26)
+
+- Stage A: TechnicalCalculator implements exposure/ND via the existing Facade.calculate route; CalculationInput validates an explicit operation schema and units, CalculationResult retains immutable evidence. CalculationForm shares parsing/formatting across CalculatorPane and CalculationCommands. No LLM or inventory data required; F05 code is unchanged.
+- Camera setting EV = log2(N^2/t); ISO-normalized EV100 = EV - log2(ISO/100). The prompt's EV100 example applies at ISO 100; the labels explicitly resolve the ISO ambiguity. ND time = t * 2^stops; factor/OD convert to stops. Internal doubles, half-up display to six decimals with scientific notation for extremes. Invalid/nonfinite values, unknown units/keys, ambiguous ND strengths and numerical overflow/underflow return errors.
+- GUI embeds in FeaturePane and reuses the F05 shared CSS/form pattern; CLI exposes `calc help`, `calc exposure`, `calc nd`, and F08 help. Stage 1's six-operation scope is preserved: DOF/hyperfocal/FOV/storage/battery and CalculationTool are scheduled for Stage B. F08 remains In progress.
+- Actual Stage A verification: JDK 21 `./mvnw.cmd -B -o test javafx:run '-Djavafx.args=--smoke-test'` passed 44/44 and GUI_SMOKE_OK, including real calculator controls and existing F05 tests. Initial sandbox compilation could not access the JavaFX cache; elevated execution used the existing cache. A duplicate field and initial form initialization/test fixture issues were fixed before this passing run.

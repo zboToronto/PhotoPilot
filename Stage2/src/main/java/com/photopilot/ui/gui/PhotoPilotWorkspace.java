@@ -119,6 +119,8 @@ final class PhotoPilotWorkspace extends BorderPane {
         return scroll;
     }
 
+    void connectCalculator(CalculatorPane calculator) { detail.connectCalculator(calculator); }
+
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
 
     void showFeedback(String message) { detail.showFeedback(message); }
@@ -133,11 +135,11 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(entry.getKey().equals("F05") ? "Implemented" : "Scaffolded") || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(entry.getKey().equals("F05") ? "Implemented" : entry.getKey().equals("F08") ? "In Progress" : "Scaffolded") || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
-            if (!detail.feedbackText().startsWith(entry.getKey().equals("F05") ? "F05 · Implemented" : "Not implemented: " + entry.getKey())) {
+            if (!detail.feedbackText().startsWith(entry.getKey().equals("F05") ? "F05 · Implemented" : entry.getKey().equals("F08") ? "F08 · In Progress" : "Not implemented: " + entry.getKey())) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());
             }
         }

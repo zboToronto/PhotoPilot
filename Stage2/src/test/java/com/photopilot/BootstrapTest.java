@@ -82,7 +82,7 @@ class BootstrapTest {
             assertTrue(output.contains("Unknown command"));
             assertTrue(output.endsWith("PhotoPilot closed." + System.lineSeparator()));
             assertFalse(output.contains("Not implemented: F02"));
-            for (int i = 1; i <= 11; i++) assertEquals(i == 5 ? 0 : 2, cli.execute("F%02d".formatted(i)));
+            for (int i = 1; i <= 11; i++) assertEquals(i == 5 || i == 8 ? 0 : 2, cli.execute("F%02d".formatted(i)));
             assertEquals(11, FeatureCatalog.lines().size());
             assertEquals(1, cli.execute("exit"));
         }

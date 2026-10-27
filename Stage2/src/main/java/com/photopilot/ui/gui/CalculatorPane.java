@@ -1,0 +1,58 @@
+package com.photopilot.ui.gui;
+
+import com.photopilot.application.*;
+import java.util.*;
+import javafx.beans.binding.Bindings;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+
+/** F08 form in the existing feature flow, using the inventory form styling. */
+final class CalculatorPane extends VBox {
+    private final PhotoPilotFacade app;
+    private final ComboBox<CalculationForm.Tool> tool=new ComboBox<>();
+    private final ComboBox<String> ndUnit=new ComboBox<>();
+    private final FlowPane fields=new FlowPane(16,14);
+    private final Map<String,TextField> inputs=new LinkedHashMap<>();
+    private final Label feedback=FeaturePane.label("", "feedback-text");
+    private final VBox feedbackBox=new VBox(8,FeaturePane.label("Calculation details","section-title"),feedback);
+    CalculatorPane(PhotoPilotFacade app) {
+        super(20);this.app=app;getStyleClass().add("inventory-content");
+        tool.getItems().setAll(CalculationForm.Tool.values());tool.setId("calc-tool");tool.setAccessibleText("Calculator");tool.setMaxWidth(Double.MAX_VALUE);
+        ndUnit.getItems().setAll("Stops", "ND factor", "Optical density");ndUnit.getSelectionModel().selectFirst();ndUnit.setId("calc-nd-unit");ndUnit.setAccessibleText("ND strength convention");
+        tool.valueProperty().addListener((o, old, value) -> buildFields());ndUnit.valueProperty().addListener((o, old, value) -> buildFields());
+        Button calculate=new Button("Calculate");calculate.getStyleClass().add("primary-button");calculate.setId("calc-run");calculate.setOnAction(e -> calculate());
+        feedbackBox.getStyleClass().add("feedback-box");
+        getChildren().addAll(new VBox(7,FeaturePane.label("Calculation","section-title"),tool),ndUnit,fields,calculate,feedbackBox);
+        tool.getSelectionModel().selectFirst();
+    }
+    private void buildFields() {
+        inputs.clear();fields.getChildren().clear();feedbackBox.setVisible(false);feedbackBox.setManaged(false);
+        boolean nd=tool.getValue()==CalculationForm.Tool.ND;ndUnit.setVisible(nd);ndUnit.setManaged(nd);
+        if (tool.getValue()==null) return;
+        for (var original:tool.getValue().fields) {
+            var f=original;
+            if (f.key().equals("ndStops")) f=switch(ndUnit.getSelectionModel().getSelectedIndex()) {
+                case 1 -> new CalculationForm.Field("ndFactor","ND factor","factor","e.g. 8 for ND8");
+                case 2 -> new CalculationForm.Field("opticalDensity","Optical density","OD","e.g. 3.0");
+                default -> f;
+            };
+            TextField input=new TextField();input.setId("calc-field-"+f.key());input.setPromptText(f.hint());input.setAccessibleText(f.label()+" ("+f.unit()+")");
+            input.textProperty().addListener((o,old,value) -> { feedbackBox.setVisible(false);feedbackBox.setManaged(false); });
+            Label caption=FeaturePane.label(f.label()+" ("+f.unit()+") *","section-title");caption.setLabelFor(input);
+            VBox field=new VBox(7,caption,input);field.setMinWidth(0);
+            field.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> fields.getWidth()<560 ? Math.max(160,fields.getWidth()) : (fields.getWidth()-16)/2,fields.widthProperty()));
+            fields.getChildren().add(field);inputs.put(f.key(),input);
+        }
+    }
+    private void calculate() {
+        Map<String,String> text=new LinkedHashMap<>();inputs.forEach((key,input) -> text.put(key,input.getText()));
+        var parsed=CalculationForm.parse(tool.getValue(),text);
+        if (!parsed.isSuccess()) message(String.join("; ",parsed.errors()));
+        else {
+            var result=app.calculate(parsed.value().orElseThrow());
+            message(result.isSuccess() ? CalculationForm.format(result.value().orElseThrow()) : String.join("; ",result.errors()));
+        }
+    }
+    private void message(String value) { feedback.setText(value);feedbackBox.setVisible(true);feedbackBox.setManaged(true); }
+    String feedbackText() { return feedback.getText(); }
+}
