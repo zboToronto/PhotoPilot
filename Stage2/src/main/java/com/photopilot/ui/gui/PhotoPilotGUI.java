@@ -40,6 +40,7 @@ public class PhotoPilotGUI extends Application {
     @Override
     public void start(Stage stage) {
         workspace = new PhotoPilotWorkspace();
+        workspace.connectInventory(new InventoryPane(app, operations));
         Scene scene = new Scene(workspace, 1120, 760);
         scene.getStylesheets().add(Objects.requireNonNull(
             PhotoPilotGUI.class.getResource("photopilot.css"), "Missing PhotoPilot stylesheet").toExternalForm());

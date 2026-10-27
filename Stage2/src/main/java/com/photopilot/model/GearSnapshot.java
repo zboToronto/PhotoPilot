@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Stage 1 UML element 64 (zero-based): {immutable historical value; no live inventory dependency}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Immutable inventory value; optional specifications retain unknown values.
  */
 public class GearSnapshot {
     private final UUID sourceGearId;
@@ -33,4 +33,13 @@ public class GearSnapshot {
         this.verifiedFields = Set.copyOf(verifiedFields);
         this.sources = Map.copyOf(sources);
     }
+    public UUID sourceGearId() { return sourceGearId; }
+    public String type() { return type; }
+    public String brand() { return brand; }
+    public String model() { return model; }
+    public int selectedQuantity() { return selectedQuantity; }
+    public Instant capturedAt() { return capturedAt; }
+    public Map<String, String> specs() { return specs; }
+    public Set<String> verifiedFields() { return verifiedFields; }
+    public Map<String, URI> sources() { return sources; }
 }

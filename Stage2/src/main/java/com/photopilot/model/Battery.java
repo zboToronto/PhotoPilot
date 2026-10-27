@@ -10,17 +10,28 @@ import java.util.UUID;
 
 /**
  * Stage 1 UML element 51 (zero-based): {F05}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Immutable inventory value; optional specifications retain unknown values.
  */
 public class Battery extends Equipment {
-    private String batteryType;
-    private double capacityMah;
-    private Optional<Integer> ratedShots;
+    private final String batteryType;
+    private final double capacityMah;
+    private final Optional<Integer> ratedShots;
 
     public Battery(UUID id, String brand, String model, int quantity, Optional<Double> weightGrams, Set<String> verifiedFields, Map<String, URI> sources, Optional<Instant> verifiedAt, String batteryType, double capacityMah, Optional<Integer> ratedShots) {
         super(id, brand, model, quantity, weightGrams, verifiedFields, sources, verifiedAt);
         this.batteryType = Objects.requireNonNull(batteryType, "batteryType");
         this.capacityMah = capacityMah;
         this.ratedShots = Objects.requireNonNull(ratedShots, "ratedShots");
+    }
+    public String batteryType() { return batteryType; }
+    public double capacityMah() { return capacityMah; }
+    public Optional<Integer> ratedShots() { return ratedShots; }
+
+    @Override public java.util.Map<String, String> specifications() {
+        var values = new java.util.LinkedHashMap<String, String>();
+        values.put("batteryType", String.valueOf(batteryType));
+        values.put("capacityMah", String.valueOf(capacityMah));
+        ratedShots.ifPresent(value -> values.put("ratedShots", value.toString()));
+        return java.util.Map.copyOf(values);
     }
 }

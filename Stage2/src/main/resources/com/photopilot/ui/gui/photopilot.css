@@ -102,3 +102,23 @@
 .scroll-bar:vertical .thumb { -fx-background-color: #cbd1da; -fx-background-radius: 6; }
 .scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-padding: 2; -fx-background-color: transparent; }
 .scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-shape: ""; -fx-padding: 0; }
+
+/* F05 forms and tables extend the same shared palette, spacing and focus treatment. */
+.inventory-content { -fx-padding: 24 0; }
+.inventory-content .text-field, .inventory-content .combo-box {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 6;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 6;
+    -fx-padding: 8 10;
+}
+.inventory-content .text-field:focused, .inventory-content .combo-box:focused { -fx-border-color: #2563eb; }
+.inventory-content .table-view { -fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-background-radius: 7; -fx-border-radius: 7; }
+.inventory-content .table-view .column-header, .inventory-content .table-view .filler { -fx-background-color: #f7f8fa; -fx-size: 38; }
+.inventory-content .table-row-cell { -fx-background-color: #ffffff; -fx-cell-size: 40; }
+.inventory-content .table-row-cell:filled:hover { -fx-background-color: #f7f8fa; }
+.inventory-content .table-row-cell:filled:selected { -fx-background-color: #edf3ff; }
+.inventory-content .table-cell { -fx-text-fill: #1f2937; -fx-alignment: center-left; -fx-border-color: transparent transparent #f3f4f6 transparent; -fx-padding: 9 12; }
+.inventory-content .table-row-cell:filled:selected .table-cell { -fx-text-fill: #1d4ed8; }
+.inventory-content .secondary-button:hover { -fx-background-color: #e5e7eb; }
+.inventory-content .secondary-button:focused { -fx-border-color: #2563eb; }

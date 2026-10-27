@@ -1,6 +1,6 @@
 # Feature to skeleton mapping
 
-Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. All feature behavior is **NOT IMPLEMENTED**; structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
+Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. F05 is implemented with [verified GUI/CLI evidence and additive design decisions](f05-inventory.md). Other feature behavior remains **NOT IMPLEMENTED**; its structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
 
 ## F01 Photography Session and History Management
 
@@ -100,7 +100,7 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [InventoryService](../src/main/java/com/photopilot/service/InventoryService.java), [SessionRepository](../src/main/java/com/photopilot/repository/SessionRepository.java), [GearInventory](../src/main/java/com/photopilot/model/GearInventory.java), [Equipment](../src/main/java/com/photopilot/model/Equipment.java), [Camera](../src/main/java/com/photopilot/model/Camera.java), [Lens](../src/main/java/com/photopilot/model/Lens.java), [Filter](../src/main/java/com/photopilot/model/Filter.java), [Battery](../src/main/java/com/photopilot/model/Battery.java), [StorageMedia](../src/main/java/com/photopilot/model/StorageMedia.java), [InventoryRepository](../src/main/java/com/photopilot/repository/InventoryRepository.java), [JsonInventoryRepository](../src/main/java/com/photopilot/repository/JsonInventoryRepository.java), [GearSnapshot](../src/main/java/com/photopilot/model/GearSnapshot.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** IMPLEMENTED / GUI + CLI VERIFIED (2026-10-26). InventoryPane and InventoryCommands use the existing Facade accessor and InventoryService; EquipmentForm maps shared inputs. EquipmentType/EquipmentData retain typed domain values and persistence metadata. Add/update and duplicate-acceptance overloads prevent ID collisions and stale edits; repository transactions serialize writes. InventoryTest, InventoryCliTest and InventoryGuiTest verify the workflow. F04 recognition and nonempty F01 session-reference storage remain outside this implementation; deletion fails safely if references cannot be checked. [Detailed traceability, tests and design decisions](f05-inventory.md).
 
 ## F06 AI Photography Equipment Capability Requirement Analysis
 

@@ -51,3 +51,7 @@ hs_err_pid*
 .settings/
 .DS_Store
 Thumbs.db
+
+# Local F05 inventory (including lock and temporary files)
+/Stage2/data/
+/data/

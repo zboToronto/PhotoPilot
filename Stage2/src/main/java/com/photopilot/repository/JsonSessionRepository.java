@@ -31,6 +31,16 @@ public class JsonSessionRepository implements SessionRepository {
     }
 
     public Result<List<UUID>> referencingGear(UUID id) {
-        return Result.failure("NOT IMPLEMENTED: JsonSessionRepository.referencingGear");
+        if (id == null) return Result.failure("Equipment ID is required.");
+        // F01 has no session file schema yet. An empty store is provably unreferenced;
+        // any existing content must be checked by F01 before gear can be deleted.
+        try (var entries = java.nio.file.Files.list(directory)) {
+            if (entries.findAny().isEmpty()) return Result.success(List.of());
+            return Result.failure("Cannot check saved-session references until session storage is implemented. Removal blocked; historical files preserved.");
+        } catch (java.nio.file.NoSuchFileException error) {
+            return Result.success(List.of());
+        } catch (java.io.IOException | SecurityException error) {
+            return Result.failure("Cannot check saved-session references. Removal blocked: " + error.getMessage());
+        }
     }
 }

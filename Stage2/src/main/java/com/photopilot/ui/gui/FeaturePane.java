@@ -20,6 +20,9 @@ final class FeaturePane extends VBox {
     private final Button checkStatus = new Button("Check status");
     private final Button workflow = new Button("Workflow unavailable");
     private FeaturePresentation feature;
+    private VBox empty;
+    private FlowPane actions;
+    private InventoryPane inventory;
 
     FeaturePane() {
         getStyleClass().add("feature-content");
@@ -36,14 +39,14 @@ final class FeaturePane extends VBox {
         workflow.getStyleClass().add("secondary-button");
         workflow.setDisable(true);
         workflow.setAccessibleHelp("This feature does not have an available GUI workflow.");
-        VBox empty = new VBox(14, placeholder, emptyDescription, workflow);
+        empty = new VBox(14, placeholder, emptyDescription, workflow);
         empty.getStyleClass().add("empty-state");
         empty.setAlignment(Pos.CENTER);
         checkStatus.getStyleClass().add("primary-button");
         checkStatus.setId("check-status");
         checkStatus.setOnAction(event -> inspectStatus());
         Label hint = label("Check availability for this feature.", "secondary-text");
-        FlowPane actions = new FlowPane(14, 10, checkStatus, hint);
+        actions = new FlowPane(14, 10, checkStatus, hint);
         actions.setAlignment(Pos.CENTER_LEFT);
         actions.getStyleClass().add("feature-actions");
         feedbackBox.getStyleClass().add("feedback-box");
@@ -54,6 +57,10 @@ final class FeaturePane extends VBox {
 
     void show(FeaturePresentation selected) {
         feature = selected;
+        boolean gear = selected.id().equals("F05") && inventory != null;
+        empty.setVisible(!gear); empty.setManaged(!gear);
+        actions.setVisible(!gear); actions.setManaged(!gear);
+        if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         eyebrow.setText(selected.group() + "  /  " + selected.id());
         title.setText(selected.title());
         description.setText(selected.description());
@@ -76,8 +83,15 @@ final class FeaturePane extends VBox {
         });
     }
 
+    void connectInventory(InventoryPane inventory) {
+        this.inventory = inventory;
+        inventory.setVisible(false); inventory.setManaged(false);
+        getChildren().add(2, inventory);
+    }
+
     void inspectStatus() {
         refreshStatus();
+        if (feature.id().equals("F05") && inventory != null) { showFeedback("F05 · Implemented. Local inventory is available."); return; }
         showFeedback(feature.status() == FeaturePresentation.Status.SCAFFOLDED
             ? FeatureCatalog.unavailable(feature.id())
             : feature.id() + " · " + feature.status().label() + ". No GUI workflow is available; no operation performed.");

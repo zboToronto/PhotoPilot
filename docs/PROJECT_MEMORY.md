@@ -24,7 +24,7 @@ Last reviewed: 2026-10-26 (America/Toronto). This is the current context index; 
 | Confirmation | F03 confirms requirements; F06 confirms a capability-only profile. F10 rechecks current state, constraints, session binding and revision before atomic save. Failed/cancelled operations preserve the persisted base. |
 | Privacy and evidence | Order-image bytes cross the AI boundary only as user-approved SanitizedImage; privacy helper and image type share a package. Device location requires permission with manual fallback. EXIF review must disclose missing data and cannot invent measurements or aesthetic scores. |
 
-Five pattern structures exist; their business operations are not yet five completed operational patterns. JSON repository names similarly do not prove persistence.
+Five pattern structures exist; their business operations are not yet five completed operational patterns. JsonInventoryRepository now has tested F05 persistence; the other JSON repository remains scaffolded.
 
 ## UI baseline to preserve
 
@@ -32,7 +32,7 @@ Five pattern structures exist; their business operations are not yet five comple
 
 - Workspace group: F01, F02, F03, F10. Equipment: F04-F07. Photography Tools: F08, F09, F11.
 - Preserve bounded content width, wrapping text, independent navigation/content scrolling, selected-item behavior, keyboard navigation and focus styles. Existing defaults are 1120 x 760 with minimum 880 x 600.
-- New forms/results belong in the existing feature content flow. A catalog marker must not enable an unconnected workflow. Currently the workflow button is disabled and Check status only reports availability.
+- New forms/results belong in the existing feature content flow. A catalog marker must not enable an unconnected workflow. F05 connects InventoryPane inside FeaturePane; other workflow buttons remain disabled and Check status reports availability.
 - JavaFX changes run on the UI thread. Follow the existing background Task callback pattern for slow work, stale-navigation completion checks and shutdown cancellation.
 
 ## Known gaps and outstanding work
@@ -41,16 +41,27 @@ These are confirmed gaps, not permission to implement or redesign them.
 
 | Issue | Evidence / required resolution |
 | --- | --- |
-| All F01-F11 business workflows are scaffolded | FeatureCatalog, service/repository placeholders and GUI disabled workflow; see feature status for scope. No real provider integration has been verified. |
+| F01-F04 and F06-F11 remain scaffolded | F05 inventory is implemented and verified; see feature status and F05 evidence. No real provider integration has been verified. |
 | F01 optional location/notes mutation route missing | SD01 and source-verification gap table. Resolve a narrow application API when implementing the feature and record the design change. |
 | F02 select/save/dismiss not exposed through Facade | DiscoveryService declares them, but Facade has no forwarding/accessor route. |
 | F07 selected-loadout persistence missing | SD03 has no application selection/attachment operation. Strategy configuration exists at bootstrap; user-facing selection wiring remains unspecified. |
 | Generic AI decoding unresolved | `Class<T>` cannot describe list element schemas; PlanCommand requires an explicit concrete subtype allowlist. |
 | Approval and ownership invariants pending | Deep copy, immutable approved revisions, atomic aggregate persistence, multiplicities and stale/foreign revision rejection are design requirements, not established runtime behavior. |
 | Integration choices pending | Concrete device-location adapter, equipment/weather providers and EXIF library remain unspecified; bootstrap has unconfigured endpoints and no active device provider. |
-| Verification limits | No business acceptance tests, live AI/provider results or feature demonstration videos established by this setup. macOS/Linux rendering and other display scales are not verified here. |
+| Verification limits | F05 has business and GUI/CLI acceptance tests. Live AI/provider results and submission demonstration videos are not established. macOS/Linux rendering and other display scales remain unverified. |
 
 The structural audit currently rejects any HTTP send call as a scaffold safeguard. When authorized integration work starts, revise that obsolete scaffold assumption deliberately and document why; do not treat it as a permanent prohibition on required LLM integration.
+
+## F05 implementation (2026-10-26)
+
+- F05/UC05/SD02 is operational through `PhotoPilotFacade.inventory()` and the retained `saveGear(item)` route. `InventoryService.list(query, type)`, add/update/save overloads, duplicates, affectedSessions and remove perform deterministic shared work. F04 recognition/confirmation and F06 analysis are still unavailable.
+- The five existing Equipment subtypes now expose immutable typed values; Equipment.validate and EquipmentType field definitions reject missing required details, invalid quantities, nonfinite/invalid dimensions and reversed focal ranges. EquipmentData explicitly maps typed values to storage; EquipmentForm maps GUI/CLI fields and invalidates evidence only when relevant values change. Unknown optional booleans remain distinct from false. GearSnapshot copies historical values/evidence.
+- JsonInventoryRepository stores UTF-8 `{schemaVersion: 1, items: [...]}` at `PHOTOPILOT_DATA_DIR/inventory.json` (default `data/inventory.json`, relative to working directory). `transact` loads fresh data under a sidecar OS file lock, validates, flushes a same-directory temporary file and atomically replaces the inventory. No non-atomic fallback. Corrupt/unsupported/oversized files are preserved and returned as failures. Full-store save uses SHA-256 revisions; UI edits compare the original item to reject stale overwrites. Atomic move and advisory locking require filesystem support.
+- InventoryPane reuses FeaturePane's content flow, labels, primary/secondary buttons, feedback cards and shared CSS. Forms wrap from two columns to one, tables use the existing palette, and asynchronous Task callbacks reject stale-navigation results. Navigation and window sizing remain unchanged. InventoryCommands supports quoted `gear` commands and F05 list alias; GUI and CLI share the same service and data root. Refresh/reopening F05 observes changes from another process.
+- F06/F07 integration: read `GearInventory.items()` and typed getters/specifications; preserve unknown values and verification metadata. F06 itself was not implemented.
+- `JsonSessionRepository.referencingGear` establishes no references only for a missing/empty session directory. Nonempty/unreadable stores fail safely and block deletion even after confirmation. The service's reference-warning contract is tested with a controlled repository, and snapshots remain unchanged. Actual saved-session scanning awaits F01's schema; no session contents are rewritten.
+- Latest tests: Windows/JDK 21 `./mvnw.cmd -B -o test` passed **36/36**, including JavaFX desktop acceptance. Earlier in this implementation `clean test` passed 34/34; two additional safety tests then passed with the full suite. Graphical smoke and native visual inspection passed. Baseline was freshly verified at 6/6. Structural audit passed unchanged 87 UML types / 267 fields / 184 operations / 20 source hashes; its old blanket business-unimplemented footer is historical and is not F05 status.
+- [F05 implementation evidence](../Stage2/docs/f05-inventory.md) owns detailed changed-file inventory, schema, Original design -> Implemented change -> Reason -> Impact decisions, tests, commands, limits and usage. Gson 2.11.0 is the only added direct runtime dependency. Stage1 artifacts and other feature workflows were preserved.
 
 ## Stage 2 delivery and traceability
 

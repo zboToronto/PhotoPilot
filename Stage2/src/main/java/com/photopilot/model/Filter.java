@@ -10,15 +10,24 @@ import java.util.UUID;
 
 /**
  * Stage 1 UML element 50 (zero-based): {F05}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Immutable inventory value; optional specifications retain unknown values.
  */
 public class Filter extends Equipment {
-    private double diameterMm;
-    private Optional<Double> ndStops;
+    private final double diameterMm;
+    private final Optional<Double> ndStops;
 
     public Filter(UUID id, String brand, String model, int quantity, Optional<Double> weightGrams, Set<String> verifiedFields, Map<String, URI> sources, Optional<Instant> verifiedAt, double diameterMm, Optional<Double> ndStops) {
         super(id, brand, model, quantity, weightGrams, verifiedFields, sources, verifiedAt);
         this.diameterMm = diameterMm;
         this.ndStops = Objects.requireNonNull(ndStops, "ndStops");
+    }
+    public double diameterMm() { return diameterMm; }
+    public Optional<Double> ndStops() { return ndStops; }
+
+    @Override public java.util.Map<String, String> specifications() {
+        var values = new java.util.LinkedHashMap<String, String>();
+        values.put("diameterMm", String.valueOf(diameterMm));
+        ndStops.ifPresent(value -> values.put("ndStops", value.toString()));
+        return java.util.Map.copyOf(values);
     }
 }

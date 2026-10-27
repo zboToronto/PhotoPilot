@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Scanner;
 
-/** Stage 1 UML element 4. Only help/status/exit and unavailable feedback work. */
+/** Stage 1 UML element 4. Shared application CLI including the deterministic F05 workflow. */
 public class PhotoPilotCLI {
     private PhotoPilotFacade app;
     private ImagePrivacyBoundary privacy;
@@ -48,8 +48,11 @@ public class PhotoPilotCLI {
     /** 0: handled; 1: exit requested; 2: unavailable or unknown command. */
     public int execute(String line) {
         String command = Objects.requireNonNull(line).strip().toLowerCase(Locale.ROOT);
+        if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
+            return new InventoryCommands(app, output).execute(command.equals("f05") ? "gear list" : line.strip());
+        }
         switch (command) {
-            case "help" -> output.println("help: commands | status: feature status | F01-F11: unavailable feature feedback | exit: close");
+            case "help" -> output.println("help: commands | status: feature status | gear help: inventory commands | F05: inventory | other F01-F11: availability | exit: close");
             case "status" -> FeatureCatalog.lines().forEach(output::println);
             case "exit", "quit" -> { output.println("PhotoPilot closed."); return 1; }
             case "" -> { return 0; }

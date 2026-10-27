@@ -56,7 +56,7 @@ class BootstrapTest {
     }
 
     @Test void facadeAndAdaptersNeverPretendFeaturesAreImplemented() throws Exception {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of())) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString()))) {
             PhotoPilotFacade facade = bootstrap.facade();
             Result<PhotographySession> created = facade.createSession("bootstrap test fixture", LocalDate.of(2026, 1, 1));
             assertFalse(created.isSuccess());
@@ -71,7 +71,7 @@ class BootstrapTest {
     }
 
     @Test void cliHandlesHelpStatusEveryUnavailableFeatureUnknownInputAndExit() {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of())) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString()))) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             PhotoPilotCLI cli = new PhotoPilotCLI(bootstrap.facade(), new ImagePrivacyBoundary(),
                 new Scanner("help\nstatus\nf01\nunknown\nexit\nf02\n"), new PrintStream(bytes, true, StandardCharsets.UTF_8));
@@ -82,7 +82,7 @@ class BootstrapTest {
             assertTrue(output.contains("Unknown command"));
             assertTrue(output.endsWith("PhotoPilot closed." + System.lineSeparator()));
             assertFalse(output.contains("Not implemented: F02"));
-            for (int i = 1; i <= 11; i++) assertEquals(2, cli.execute("F%02d".formatted(i)));
+            for (int i = 1; i <= 11; i++) assertEquals(i == 5 ? 0 : 2, cli.execute("F%02d".formatted(i)));
             assertEquals(11, FeatureCatalog.lines().size());
             assertEquals(1, cli.execute("exit"));
         }

@@ -27,6 +27,10 @@ public class Result<T> {
         return new Result<>(Optional.empty(), List.of(Objects.requireNonNull(message)), List.of());
     }
 
+    public static <T> Result<T> success(T value) {
+        return new Result<>(Optional.of(value), List.of(), List.of());
+    }
+
     public Optional<T> value() { return value; }
     public List<String> errors() { return errors; }
     public List<String> warnings() { return warnings; }
