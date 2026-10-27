@@ -48,3 +48,12 @@ Normal Maven and Maven Wrapper are configured equivalently; a globally installed
 After Git integration, `./mvnw.cmd -B clean verify` compiled 89 production Java files, ran 4 tests (0 failures, 0 errors, 0 skipped), and built the JAR successfully using JDK 21. The first offline attempt could not resolve the uncached Maven JAR plugin; allowing Maven Central downloads resolved it without source changes.
 
 The CLI smoke command with `help status F01 F11 unknown exit` passed. `./mvnw.cmd -B -o javafx:run '-Djavafx.args=--smoke-test'` reported `GUI_SMOKE_OK` and closed cleanly. These verify bootstrap behavior only; business features and real provider integration remain unimplemented. Build outputs and downloaded caches remain excluded from Git.
+
+
+## Repository relocation verification — October 26, 2026
+
+The repository now resides at `C:/Users/zbo/Desktop/EECS3311/ProjectGit`, with the Maven project in `Stage2/`. Git history, local identity, credential helper, origin URL, and main tracking origin/main were preserved. No commit or push was performed during relocation.
+
+From the new Stage2 directory, `./mvnw.cmd -B -o clean test` compiled 89 production Java files and passed all 4 tests (0 failures, 0 errors, 0 skipped). The CLI smoke command and JavaFX `--smoke-test` also passed. All relocated Git metadata, Stage1, and Stage2 contents matched pre-move hashes before path updates and build verification.
+
+Project, Labs, Slides, tmp, and .photopilot-integration stayed at the EECS3311 level and matched their pre-move file inventories and SHA-256 hashes. The course instruction PDF already resided at `Project/Project-Stage2-Instruction.pdf` before this operation; its manifest path was corrected while preserving its original hash. The development scripts resolve course evidence from EECS3311; Maven builds remain independent of those documents.

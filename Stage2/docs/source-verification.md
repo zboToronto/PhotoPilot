@@ -2,15 +2,17 @@
 
 > Historical record of the original scaffolding task before Git integration. Statements about no Git operations or publication apply to that task only.
 
-Inspection date: October 26, 2026 (Toronto). All project output is in the workspace-root `Stage2/`. Existing `Project/Stage2/` contains the course PDF and was read only. No Git operations were run.
+Inspection date: October 26, 2026 (Toronto). Project output was originally in workspace-root `Stage2/` and is now in `ProjectGit/Stage2/`. The course PDF was originally under `Project/Stage2/`; before repository relocation it was already at `Project/Project-Stage2-Instruction.pdf`, with the same SHA-256. Course materials were read only. No Git operations were run.
 
 ## Selected report and evidence
 
-Selected `../Project/Stage1/Stage1.docx`, internal revision 46, last modified by the report author at 2026-10-10 04:56 UTC, together with its corresponding 27-page export `../Project/Stage1/Stage1PPP.pdf`, created at 2026-10-10 00:56:55 -04:00. These are the latest complete local report artifacts found, not a selection based solely on filenames.
+Selected `../../Project/Stage1/Stage1.docx`, internal revision 46, last modified by the report author at 2026-10-10 04:56 UTC, together with its corresponding 27-page export `../../Project/Stage1/Stage1PPP.pdf`, created at 2026-10-10 00:56:55 -04:00. These are the latest complete local report artifacts found, not a selection based solely on filenames.
 
 The Word report and PDF contain sections 1–9: overview, F01–F11, diagram references, five pattern explanations, UC01–UC14, sequence references, traceability, and implementation explanations. A normalized full-text comparison found only generated numbering and repeated table-header additions in the PDF; no substantive text replacement/deletion. The Word document has no tracked insertions/deletions and no embedded media: sections 3, 5, and 7 explicitly reference the separately supplied UML files. The late F06 confirmation and F10 approval safeguards in the narrative agree with the current class/sequence source. `Section8.docx` contains only a traceability table, not an alternative complete report. No `Stage1(2).docx` or other complete report version was found in the workspace.
 
 This establishes the local design baseline. It does not prove submission/approval status on a course website; no external repository or submission platform was consulted.
+
+Paths in the following table and source-hash manifest are relative to the EECS3311 workspace, one level above the ProjectGit repository. Course materials remain outside Git.
 
 ## Sources read
 
@@ -25,7 +27,7 @@ This establishes the local design baseline. It does not prove submission/approva
 | `Project/Stage1/PhotoPilot-SD03.uxf` | F07–F09 deterministic compatibility/calculation, ranking and environment boundaries |
 | `Project/Stage1/PhotoPilot-SD04.uxf` | F10 tool loop, validated previews, commands, binding/revision/state/approval checks |
 | `Project/Stage1/PhotoPilot-SD05.uxf` | F11 distinct statistics/review/save requests and atomic state change |
-| `Project/Stage2/Project-Stage2-Instruction.pdf` | All 5 pages; final implementation, traceability, reporting, videos, weekly code activity, key protection |
+| `Project/Project-Stage2-Instruction.pdf` | All 5 pages; final implementation, traceability, reporting, videos, weekly code activity, key protection |
 | `Project/Project-Instruction.pdf` | All 17 pages; design, implementation, deterministic testing and KUMA boundaries |
 | `Project/Stage1/stage1.pdf` | Official course Stage 1 requirements, pp. 1–7; sample project appendix is not PhotoPilot design authority |
 | `Slides/EECS3311-03-UML.pdf` | pp. 15–26: visibility, omitted void returns, abstract/interface notation, relationships and multiplicities |

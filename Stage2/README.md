@@ -13,7 +13,7 @@ git clone --branch main https://github.com/zboToronto/PhotoPilot.git
 cd PhotoPilot/Stage2
 ```
 
-For the existing local checkout, use its Stage2 directory without cloning again. The repository's Stage1 directory retains the original report and UML artifacts; Project/ paths below refer to local design-preparation evidence and are not required for Maven builds.
+For the existing local checkout, use `C:/Users/zbo/Desktop/EECS3311/ProjectGit/Stage2` without cloning again. The Git repository root is `C:/Users/zbo/Desktop/EECS3311/ProjectGit`. The repository's Stage1 directory retains the original report and UML artifacts; `Project/` paths refer to local design-preparation evidence under the parent `EECS3311` directory (`../../Project/` from Stage2) and are not required for Maven builds.
 
 - JDK **21 LTS**, with `JAVA_HOME` pointing to the JDK directory. JavaFX dependencies are resolved by Maven; no separate JavaFX SDK is needed.
 - Internet access to Maven Central for the first build. Maven Wrapper 3.3.2 downloads pinned Maven 3.9.9. A system Maven 3.9.x installation is optional.
@@ -70,7 +70,7 @@ GUI startup smoke mode (opens and closes a real window):
 
 A successful run prints `GUI_SMOKE_OK` after showing the stage and navigating all 11 entries, checking status feedback, disabled scaffold workflows, and retained selection, including after requesting the minimum window size. It then closes. This is a graphical control check, not proof of implemented business features or comprehensive visual testing.
 
-The original six JUnit tests check bootstrap wiring identity, honest not-implemented results, CLI handling, configurable strategy and duplicate tool registration, plus complete GUI feature mapping and fail-closed status interpretation. They are not Stage 3 deterministic/KUMA coverage. `python tools/verify_sources.py` optionally checks all 87 UML types, 267 fields and 184 declared operations, source hashes and basic unwanted-output patterns; it requires Python 3 and the original local documents at their existing workspace paths. Maven builds do not require Python or those documents. Do not rerun `scaffold_from_uml.py` over this project: it is one-time generation evidence and intentionally refuses to overwrite files.
+The original six JUnit tests check bootstrap wiring identity, honest not-implemented results, CLI handling, configurable strategy and duplicate tool registration, plus complete GUI feature mapping and fail-closed status interpretation. They are not Stage 3 deterministic/KUMA coverage. `python tools/verify_sources.py` optionally checks all 87 UML types, 267 fields and 184 declared operations, source hashes and basic unwanted-output patterns; it requires Python 3 and the original local documents under `../../Project/` in the EECS3311 workspace. Paths recorded in the source-hash manifest resolve against EECS3311, outside the repository. Maven builds do not require Python or those documents. Do not rerun `scaffold_from_uml.py` over this project: it is one-time generation evidence and intentionally refuses to overwrite files.
 
 ## F05 gear inventory
 

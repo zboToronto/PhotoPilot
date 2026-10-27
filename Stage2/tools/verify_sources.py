@@ -9,6 +9,8 @@ import json
 import re
 
 root = Path(__file__).resolve().parents[1]
+# Original course evidence stays in EECS3311, outside the relocated repository.
+workspace = root.parent.parent
 baseline = json.loads((root / 'docs/uml-baseline.json').read_text(encoding='utf-8'))
 failures = []
 field_count = method_count = 0
@@ -41,7 +43,7 @@ for name, c in baseline['classes'].items():
 
 hashes=json.loads((root/'docs/source-hashes.json').read_text(encoding='utf-8'))
 for name, expected in hashes.items():
-    path=root.parent/name
+    path=workspace/name
     if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
         failures.append('Source missing or changed: '+name)
 

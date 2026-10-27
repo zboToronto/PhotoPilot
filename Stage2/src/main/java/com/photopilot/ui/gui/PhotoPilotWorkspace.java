@@ -44,7 +44,6 @@ final class PhotoPilotWorkspace extends BorderPane {
             button.setId("nav-" + feature.id());
             button.setMaxWidth(Double.MAX_VALUE);
             button.setMinHeight(38);
-            button.setGraphic(FeaturePane.label(feature.id().substring(1), "navigation-number"));
             button.setAccessibleText(feature.id() + " " + feature.title());
             button.setToggleGroup(selection);
             button.setOnAction(event -> {

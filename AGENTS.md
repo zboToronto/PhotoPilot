@@ -18,13 +18,13 @@
 - This file is at the Git root and applies to Stage2 and other descendants. Start PhotoPilot Codex chats in `ProjectGit` or `ProjectGit/Stage2`; a chat opened in parent `EECS3311` must explicitly read `ProjectGit/AGENTS.md` before repository work. The linked docs are loaded by this workflow, not automatically as instruction files.
 
 ## Repository and layout
-- Repository root: C:/Users/zbo/Desktop/EECS3311.
+- Repository root: C:/Users/zbo/Desktop/EECS3311/ProjectGit.
 - Existing remote: https://github.com/zboToronto/PhotoPilot.git (origin).
 - Work on the existing main branch, tracking origin/main.
-- The Java Maven project is Stage2/. Keep that existing local path.
+- The Java Maven project is Stage2/ (C:/Users/zbo/Desktop/EECS3311/ProjectGit/Stage2). Run Git operations from this repository root.
 - Preserve Stage1/ and all existing Git history. Do not modify Stage1 unless explicitly requested.
 - Never initialize or clone a repository inside Stage1 or Stage2. Do not create nested repositories.
-- Labs/, Project/, Slides/, tmp/ and .photopilot-integration/ are local-only workspace material.
+- ../Labs/, ../Project/, ../Slides/, ../tmp/ and ../.photopilot-integration/ remain outside this repository in EECS3311. Do not move, edit, or stage these course materials as part of routine Git operations.
 
 ## Authorization
 - Do not commit or push automatically. Setup, edits, reviews, and verification alone do not authorize a commit or push.
@@ -48,3 +48,8 @@
 - Use Git Credential Manager with Windows Credential Manager for HTTPS authentication.
 - Let the user complete required browser authorization. Never request tokens in chat, embed credentials in remote URLs, or write secrets into repository files.
 - If author identity is missing, ask for the user's intended Git name and email; do not invent them.
+
+## Local Windows launchers
+- Root-level PhotoPilot-GUI.bat and PhotoPilot-CLI.bat are local development utilities. Never stage, commit, or push them.
+- Respect .gitignore and verify excluded files are not staged before every authorized upload. Never use git add -f to include these ignored launchers.
+- When the user says "上传", retain the security checks, build verification, meaningful commit, and push workflow above. Ordinary development tasks never authorize automatic commits or pushes.

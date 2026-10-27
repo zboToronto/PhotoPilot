@@ -94,6 +94,12 @@ $env:MAVEN_USER_HOME = Join-Path $PWD '.mvn/user-home'
 
 Use `test` without `-o` when dependencies legitimately need resolution. For GUI changes, additionally run `./mvnw.cmd -B javafx:run '-Djavafx.args=--smoke-test'` and inspect the real affected screens; for business changes, add relevant service and GUI/CLI acceptance checks. Record commands, scope, failures and limitations. Do not relabel previous runs as fresh results.
 
+## Repository follow-up verification (2026-10-26)
+
+The post-F05 Git follow-up includes the previously uncommitted repository-relocation path fixes, local launcher ignore rules/instructions, and removal of sidebar number decorations. Source-audit scripts resolve external course evidence from EECS3311; the original document hashes remain unchanged. This changes no feature scope. Local GUI/CLI launchers remain ignored and are not published.
+
+Fresh `./mvnw.cmd -B -o test javafx:run '-Djavafx.args=--smoke-test'` passed 36 tests with zero failures/errors/skips and printed GUI_SMOKE_OK. This reused compiled classes; it was not a clean rebuild. The structural audit passed all 87 UML types / 267 fields / 184 operations and 20 source hashes. Both Python tooling files passed syntax parsing; the one-time scaffold generator was not executed. F05 remains verified and the other ten features remain scaffolded.
+
 ## Maintenance and discoverability
 
 Root AGENTS.md explicitly routes task start/end to these files. No nested AGENTS.md or AGENTS.override.md was found in this repository during setup. Run future PhotoPilot chats with working directory ProjectGit or Stage2; parent EECS3311 chats must explicitly read the repository instructions. Verified placement and links establish discovery eligibility, not proof of a future session's injected context. Official behavior: [Codex AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md).

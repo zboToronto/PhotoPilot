@@ -24,6 +24,8 @@ UC14 is included validation, not a twelfth user feature. Except F05, every row c
 
 ## Working infrastructure and test evidence
 
+- Git follow-up verification (2026-10-26): publishing the existing repository-path corrections and sidebar-number removal changes no feature status. Fresh `./mvnw.cmd -B -o test javafx:run '-Djavafx.args=--smoke-test'` passed 36/36 tests and GUI_SMOKE_OK; structural/source-hash checks also passed. This was not a clean rebuild.
+
 - Latest F05 verification (2026-10-26): `./mvnw.cmd -B -o test` passed **36 tests, 0 failures/errors/skips**, after a successful clean rebuild with 34 tests and two subsequent safety regression tests. Real GUI controls, separate application instances, failure paths and retained scaffold behavior are covered. JavaFX smoke mode passed; real desktop inspection covered inventory, two-column and narrow single-column forms, and validation feedback. Detailed commands and limitations: [F05 verification](../Stage2/docs/f05-inventory.md).
 
 - Shared application wiring, four-tool registration, strategy configuration, Result support and GUI/CLI bootstrap exist. JavaFX shell includes all feature navigation and conservative availability feedback.

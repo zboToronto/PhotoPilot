@@ -9,7 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKSPACE = ROOT.parent
+WORKSPACE = ROOT.parent.parent  # EECS3311; course evidence stays outside ProjectGit.
 SOURCE = WORKSPACE / 'Project/Stage1/PhotoPilot-ClassDiagram.uxf'
 elements = ET.parse(SOURCE).getroot().findall('element')
 classes = {}

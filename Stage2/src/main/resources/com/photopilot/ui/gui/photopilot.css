@@ -36,14 +36,11 @@
     -fx-border-radius: 7;
     -fx-padding: 9 10;
     -fx-text-fill: #4b5563;
-    -fx-graphic-text-gap: 12;
     -fx-alignment: center-left;
     -fx-cursor: hand;
 }
-.navigation-number { -fx-font-size: 11px; -fx-text-fill: #6b7280; }
 .navigation-item:hover { -fx-background-color: #f7f8fa; }
 .navigation-item:selected { -fx-background-color: #edf3ff; -fx-text-fill: #1d4ed8; }
-.navigation-item:selected .navigation-number { -fx-text-fill: #2563eb; }
 .navigation-item:focused { -fx-border-color: #2563eb; }
 .scroll-pane { -fx-background-insets: 0; -fx-padding: 0; }
 .navigation-scroll, .navigation-scroll > .viewport { -fx-background-color: #ffffff; }
