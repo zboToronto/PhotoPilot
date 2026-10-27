@@ -1,4 +1,21 @@
-# PhotoPilot Git workflow
+# PhotoPilot persistent development instructions
+
+## Task and memory workflow
+- At the beginning of every development task, read this file, [project memory](docs/PROJECT_MEMORY.md), and relevant rows of [feature status](docs/FEATURE_STATUS.md). Review applicable nested instructions and current source; memory is context, not proof.
+- At task end, update those docs with actual development status, confirmed decisions, important changes, remaining issues, and dated test commands/results. Record failures and unrun checks honestly; never mark unverified functionality complete.
+- Maintain one current entry per decision/issue/feature. Replace superseded status, resolve obsolete issues, and link existing detailed evidence rather than duplicating it. Label historical results and proposals clearly. Keep this file concise; detailed history belongs in docs/.
+
+## Development guardrails
+- Maintain strict UI consistency across every feature. Reuse the JavaFX `PhotoPilotWorkspace`, `FeaturePane`, `FeaturePresentation`, shared `photopilot.css`, sidebar groups, navigation, spacing, typography, feedback and layout conventions. See `Stage2/docs/gui-redesign.md` before GUI work.
+- Preserve the established Java 21 architecture and Facade, Strategy, Adapter, Command and State design. GUI and CLI must use shared business logic through `PhotoPilotFacade` and application services; do not duplicate business rules in presentation code.
+- Never introduce unrelated redesigns or unnecessary refactoring. Keep completed features and existing shell behavior working when adding new functionality. Review and merge existing instructions/docs; preserve unrelated working-tree edits.
+- Follow Stage 1 confirmation, privacy, deterministic-validation and persistence boundaries described in project memory. Record justified design changes and affected traceability; do not silently invent missing APIs.
+- Never commit API keys, credentials or other secrets, including in logs, screenshots and memory. Use ignored local configuration and placeholder-only examples; inspect proposed content, not just ignore rules.
+- Run relevant tests before declaring a feature complete, including regression coverage for affected existing behavior and GUI/CLI checks. A class, status label or passing bootstrap test does not establish a working business feature.
+- Follow Stage 2 meaningful code-commit periods and requirement-to-code-to-demo traceability in project memory. Documentation-only updates do not count as code activity. The authorization rules below still govern commits and pushes.
+
+## Codex discovery
+- This file is at the Git root and applies to Stage2 and other descendants. Start PhotoPilot Codex chats in `ProjectGit` or `ProjectGit/Stage2`; a chat opened in parent `EECS3311` must explicitly read `ProjectGit/AGENTS.md` before repository work. The linked docs are loaded by this workflow, not automatically as instruction files.
 
 ## Repository and layout
 - Repository root: C:/Users/zbo/Desktop/EECS3311.

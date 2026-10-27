@@ -1,0 +1,36 @@
+# Stage 1 feature status
+
+Last source/test review: 2026-10-26 (America/Toronto). **0 of 11 business features verified complete.** All eleven have structural scaffolds, GUI navigation/status display, and CLI unavailable responses. These are not working feature workflows.
+
+Source of names/scope: Stage1/Stage1PPP.pdf section 2. Full class/method/pattern mappings: [existing feature mapping](../Stage2/docs/feature-mapping.md). Current implementation evidence: `Stage2/src/main/java/com/photopilot/config/FeatureCatalog.java`, application/service/repository source, `ui/gui/FeaturePane.java`, and `ui/cli/PhotoPilotCLI.java`.
+
+Status vocabulary: **Scaffolded** = declarations/wiring with unavailable behavior; **In progress** = partial working behavior with explicit gaps; **Implemented, unverified** = code exists but acceptance evidence is missing; **Verified complete** = intended workflow and relevant errors work through required interfaces, with passing relevant tests and recorded evidence. Track GUI/CLI and provider verification separately. A blocked item retains its actual status with its blocker recorded.
+
+| ID / Stage 1 feature | UC / sequence | Actual status | Current evidence and work remaining |
+| --- | --- | --- | --- |
+| F01 Photography Session and History Management | UC01 / SD01 | Scaffolded | SessionService create/save/open/search/transition and JsonSessionRepository are placeholders. Implement retrievable sessions/history and lifecycle; resolve optional location/notes mutation route. |
+| F02 AI Photography Inspiration and Activity Recommendation | UC02 / SD01 | Scaffolded | DiscoveryService and feasibility/environment/agent collaborators exist without workflow behavior. Implement grounded suggestions and select/save/dismiss; Facade route for those actions is missing. |
+| F03 Natural-Language Photography Requirement Parsing | UC03 / SD01 | Scaffolded | PlanningService parse/confirm and RequirementService are placeholders. Implement structured parsing, clarification/manual fallback and explicit validated confirmation/persistence. Existing GUI submitBrief callback does not constitute a usable feature. |
+| F04 AI Gear Recognition and Automatic Import | UC04 / SD02 | Scaffolded | Recognition, privacy and catalog boundaries exist. Implement approved redaction, recognition/specification lookup, correction/confirmation and save; never import merely from a model guess. |
+| F05 Photography Gear Inventory Management | UC05; UC04 resulting entry / SD02 | Scaffolded | InventoryService and JsonInventoryRepository operations are unavailable. Implement validated CRUD, duplicates and affected-session handling while preserving historical gear snapshots. |
+| F06 AI Photography Equipment Capability Requirement Analysis | UC06 / SD02 | Scaffolded | PlanningService analyzeNeeds/confirmProfile are unavailable. Implement capability-only draft analysis and edited-profile validation/confirmation/atomic attachment/save. |
+| F07 Owned Gear Matching and Compatibility Validation | UC07 + included UC14 / SD03 | Scaffolded | GearMatchingService, CompatibilityValidator and two strategies exist; bootstrap strategy switching works, matching/ranking does not. Implement verified candidates before ranking and resolve selected-loadout attachment/persistence. |
+| F08 Photography Technical Calculation Tool Suite | UC08 / SD03 | Scaffolded | TechnicalCalculator calculate/depthOfField/hyperfocal/fieldOfView/exposureAndND/storage/batteryCapacity return failures. Implement deterministic formulas, inputs, units and estimate assumptions. |
+| F09 Location, Time, and Environment-Aware Photography Planning | UC09 / SD03 | Scaffolded | EnvironmentService and LocationService are placeholders; no active device provider. Implement permitted/manual location, timestamped factual weather/sun evidence and bounded guidance with stale/missing-data handling. |
+| F10 AI Shoot Plan Generation and Interactive Modification | UC10, UC11 + included UC14 / SD04 | Scaffolded | PlanningService generate/proposeChange/approve, PlanEditor and commands are structural. Implement bounded tool loop, validated previews, fixed-constraint preservation, guarded revision approval and atomic persistence. |
+| F11 AI Post-Shoot Analysis and Review | UC12, UC13 / SD05 | Scaffolded | ReviewService analyze/review/save, EXIF adapter and StatisticsCalculator are placeholders. Implement metadata extraction/statistics, evidence-based review and atomic review/state save with missing-data limits. |
+
+UC14 is included validation, not a twelfth user feature. Every row currently has **GUI workflow unavailable; CLI business operation unavailable; business acceptance unverified; real external integration unverified where applicable; demonstration not established**.
+
+## Working infrastructure and test evidence
+
+- Shared application wiring, four-tool registration, strategy configuration, Result support and GUI/CLI bootstrap exist. JavaFX shell includes all feature navigation and conservative availability feedback.
+- Fresh 2026-10-26 `./mvnw.cmd -B -o test` from Stage2 passed 6 tests, with 0 failures, errors or skips. BootstrapTest covers shared dependencies/no user-data creation, unavailable results, CLI help/status/all feature rejection/unknown input/exit, strategy replacement and duplicate-tool rejection. FeaturePresentationTest covers navigation IDs/grouping and conservative status interpretation.
+- Fresh structural audit passed 87 UML types / 267 fields / 184 operations and 20 original hashes. Neither check validates any full business feature.
+- Historical JavaFX smoke/manual visual and CLI checks are documented in [GUI verification](../Stage2/docs/gui-redesign.md); no GUI smoke, new desktop inspection or live provider call was run during this documentation setup.
+
+## Updating a feature
+
+Update its row in place with implemented behavior, remaining gaps, relevant classes/methods and affected UC/sequence/pattern links. Record dated test command and result, GUI and CLI acceptance evidence, provider mode (fake/offline/live), limitations and demonstration link when available. Keep application availability markers consistent with real connected behavior; never change a marker alone to claim completion. Re-run affected regression tests and retain existing completed behavior.
+
+When a feature changes scope, record Original design -> Implemented change -> Reason -> Impact in [project memory](PROJECT_MEMORY.md) and update the detailed mapping/affected diagrams as required. Do not silently delete an original feature or duplicate its history across these files.
