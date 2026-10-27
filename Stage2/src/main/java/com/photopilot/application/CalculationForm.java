@@ -15,7 +15,17 @@ public final class CalculationForm {
         EXPOSURE("exposure", "Exposure value", CalculationKind.EXPOSURE_ND, List.of(
             new Field("aperture", "Aperture", "f-number", "e.g. 8"), new Field("shutter", "Shutter", "s", "e.g. 1/125"), new Field("iso", "Sensitivity", "ISO", "e.g. 100"))),
         ND("nd", "ND exposure", CalculationKind.EXPOSURE_ND, List.of(
-            new Field("shutter", "Original shutter", "s", "e.g. 1/125"), new Field("ndStops", "ND strength", "stops", "e.g. 10")));
+            new Field("shutter", "Original shutter", "s", "e.g. 1/125"), new Field("ndStops", "ND strength", "stops", "e.g. 10"))),
+        DOF("dof", "Depth of field", CalculationKind.DEPTH_OF_FIELD, List.of(
+            new Field("focalLength","Focal length","mm","e.g. 50"),new Field("aperture","Aperture","f-number","e.g. 8"),new Field("distance","Subject distance","m","e.g. 3"),new Field("coc","Circle of confusion","mm","e.g. 0.03; choose your assumption"))),
+        HYPERFOCAL("hyperfocal", "Hyperfocal distance", CalculationKind.HYPERFOCAL, List.of(
+            new Field("focalLength","Focal length","mm","e.g. 50"),new Field("aperture","Aperture","f-number","e.g. 8"),new Field("coc","Circle of confusion","mm","e.g. 0.03; choose your assumption"))),
+        FOV("fov", "Field of view", CalculationKind.FIELD_OF_VIEW, List.of(
+            new Field("focalLength","Focal length","mm","e.g. 50"),new Field("sensorWidth","Active sensor width","mm","e.g. 36"),new Field("sensorHeight","Active sensor height","mm","e.g. 24"))),
+        STORAGE("storage", "Storage estimate", CalculationKind.STORAGE, List.of(
+            new Field("shotCount","Planned shots","shots","e.g. 1000"),new Field("fileSize","Average file size","MB","e.g. 25"),new Field("cardCapacity","Usable card capacity","GB","e.g. 64"))),
+        BATTERY("battery", "Battery / shooting capacity", CalculationKind.BATTERY_CAPACITY, List.of(
+            new Field("shotCount","Planned shots","shots","e.g. 1000"),new Field("ratedShots","Rated shots per battery","shots","e.g. 600")));
         public final String command;
         public final String label;
         public final CalculationKind kind;
@@ -39,6 +49,19 @@ public final class CalculationForm {
             }
             return new CalculationInput(tool.kind, values, units).validate();
         } catch (IllegalArgumentException e) { return Result.failure(e.getMessage()); }
+    }
+    /** Only copies known inventory values. Zoom focal length and taking aperture require manual choice. */
+    public static Map<String,String> fromGear(Tool tool, Equipment gear) {
+        Map<String,String> values=new LinkedHashMap<>();
+        var specs=gear.specifications();
+        if (gear instanceof Lens lens && lens.minFocalMm()==lens.maxFocalMm()) values.put("focalLength",Double.toString(lens.minFocalMm()));
+        copy(specs,values,"sensorWidthMm","sensorWidth");copy(specs,values,"sensorHeightMm","sensorHeight");
+        copy(specs,values,"ndStops","ndStops");copy(specs,values,"capacityGB","cardCapacity");copy(specs,values,"ratedShots","ratedShots");
+        values.keySet().removeIf(key -> tool.fields.stream().noneMatch(f -> f.key().equals(key)));
+        return Map.copyOf(values);
+    }
+    private static void copy(Map<String,String> from,Map<String,String> to,String source,String target) {
+        if (from.containsKey(source)) to.put(target,from.get(source));
     }
     private static double number(String text, boolean fraction) {
         if (text == null || text.isBlank()) throw new IllegalArgumentException("All displayed inputs are required.");

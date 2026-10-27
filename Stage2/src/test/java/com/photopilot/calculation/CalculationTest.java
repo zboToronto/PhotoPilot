@@ -62,4 +62,48 @@ class CalculationTest {
         assertEquals("1E-9",CalculationForm.formatNumber(1e-9));
         assertEquals("Infinity",CalculationForm.formatNumber(Double.POSITIVE_INFINITY));
     }
+    @Test void hyperfocalAndDofKnownValuesAndInfinity() {
+        var fields=new HashMap<>(Map.of("focalLength","50","aperture","8","coc",".03","distance","3"));
+        var result=calculate(CalculationForm.Tool.DOF,fields);
+        assertEquals(10.466666666666667,result.values().get("Hyperfocal distance"),1e-12);
+        assertEquals(9375.0/4010,result.values().get("Near focus limit"),1e-12);
+        assertEquals(9375.0/2240,result.values().get("Far focus limit"),1e-12);
+        assertEquals(9375.0/2240-9375.0/4010,result.values().get("Total depth of field"),1e-12);
+        assertTrue(result.estimated());
+        fields.put("distance",Double.toString(result.values().get("Hyperfocal distance")));
+        result=calculate(CalculationForm.Tool.DOF,fields);assertEquals(Double.POSITIVE_INFINITY,result.values().get("Far focus limit"));
+        assertTrue(CalculationForm.format(result).contains("Infinity m"));
+        fields.put("distance","20");assertEquals(Double.POSITIVE_INFINITY,calculate(CalculationForm.Tool.DOF,fields).values().get("Total depth of field"));
+        fields.remove("distance");assertEquals(10.466666666666667,calculate(CalculationForm.Tool.HYPERFOCAL,fields).values().get("Hyperfocal distance"),1e-12);
+    }
+    @Test void distanceAndOpticalUnitConversions() {
+        var units=Map.of("focalLength","cm","aperture","f-number","coc","mm","distance","ft");
+        var input=new CalculationInput(CalculationKind.DEPTH_OF_FIELD,Map.of("focalLength",5.,"aperture",8.,"coc",.03,"distance",3/.3048),units);
+        var result=service.calculate(input).value().orElseThrow();assertEquals(9375.0/4010,result.values().get("Near focus limit"),1e-12);
+        input=new CalculationInput(CalculationKind.STORAGE,Map.of("shotCount",1000.,"fileSize",25.,"cardCapacity",64.),Map.of("shotCount","shots","fileSize","MiB","cardCapacity","GiB"));
+        assertEquals(26.2144,service.calculate(input).value().orElseThrow().values().get("Required storage"),1e-10);
+    }
+    @Test void fovAndCapacityEstimates() {
+        var fov=calculate(CalculationForm.Tool.FOV,Map.of("focalLength","50","sensorWidth","36","sensorHeight","24"));
+        assertEquals(39.597752709049864,fov.values().get("Horizontal field of view"),1e-10);
+        assertEquals(26.991466561591622,fov.values().get("Vertical field of view"),1e-10);
+        assertEquals(46.79300334396557,fov.values().get("Diagonal field of view"),1e-10);
+        var storage=calculate(CalculationForm.Tool.STORAGE,Map.of("shotCount","1000","fileSize","25","cardCapacity","16"));
+        assertEquals(25,storage.values().get("Required storage"));assertEquals(2,storage.values().get("Cards required"));assertTrue(storage.estimated());
+        assertEquals(2,calculate(CalculationForm.Tool.BATTERY,Map.of("shotCount","1000","ratedShots","600")).values().get("Batteries required"));
+        assertEquals(1,calculate(CalculationForm.Tool.BATTERY,Map.of("shotCount","600","ratedShots","600")).values().get("Batteries required"));
+    }
+    @Test void focusAndCapacityInvalidRangesAndNumericalLimits() {
+        for (var key:List.of("focalLength","aperture","coc","distance")) for(var bad:List.of("0","-1","NaN","Infinity")) {
+            var fields=new HashMap<>(Map.of("focalLength","50","aperture","8","coc",".03","distance","3"));fields.put(key,bad);
+            assertFalse(CalculationForm.parse(CalculationForm.Tool.DOF,fields).isSuccess(),key+bad);
+        }
+        for(var distance:List.of(".05",".01")) assertFalse(CalculationForm.parse(CalculationForm.Tool.DOF,Map.of("focalLength","50","aperture","8","coc",".03","distance",distance)).isSuccess());
+        assertFalse(CalculationForm.parse(CalculationForm.Tool.HYPERFOCAL,Map.of("focalLength","50","aperture","8")).isSuccess());
+        var overflow=CalculationForm.parse(CalculationForm.Tool.HYPERFOCAL,Map.of("focalLength","1e308","aperture","1","coc","1e-300")).value().orElseThrow();assertFalse(service.calculate(overflow).isSuccess());
+        for(String bad:List.of("1.5","9007199254740992","0","NaN")) assertFalse(CalculationForm.parse(CalculationForm.Tool.BATTERY,Map.of("shotCount",bad,"ratedShots","600")).isSuccess());
+        assertEquals(7,calculate(CalculationForm.Tool.STORAGE,Map.of("shotCount","1000","fileSize",".07","cardCapacity",".01")).values().get("Cards required"));
+        var tiny=CalculationForm.parse(CalculationForm.Tool.STORAGE,Map.of("shotCount","1","fileSize","4.9e-324","cardCapacity","1e308")).value().orElseThrow();assertFalse(service.calculate(tiny).isSuccess());
+        var huge=CalculationForm.parse(CalculationForm.Tool.STORAGE,Map.of("shotCount","1","fileSize","1e300","cardCapacity","1")).value().orElseThrow();assertFalse(service.calculate(huge).isSuccess());
+    }
 }

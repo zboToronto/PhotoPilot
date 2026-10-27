@@ -20,7 +20,12 @@ class CalculationCliTest {
             assertEquals(2,cli.execute("calc nd shutter=0 ndStops=1"));
             assertEquals(2,cli.execute("calc nd shutter=1 shutter=2"));
             assertEquals(2,cli.execute("calc unknown"));
-            String output=bytes.toString();assertTrue(output.contains("11 EV100"));assertTrue(output.contains("8.192 s"));assertTrue(output.contains("positive"));
+            assertEquals(0,cli.execute("calc dof focalLength=50 aperture=8 coc=.03 distance=20"));
+            assertEquals(0,cli.execute("calc hyperfocal focalLength=50 aperture=8 coc=.03"));
+            assertEquals(0,cli.execute("calc fov focalLength=50 sensorWidth=36 sensorHeight=24"));
+            assertEquals(0,cli.execute("calc storage shotCount=1000 fileSize=25 cardCapacity=16"));
+            assertEquals(0,cli.execute("calc battery shotCount=1000 ratedShots=600"));
+            String output=bytes.toString();assertTrue(output.contains("11 EV100"));assertTrue(output.contains("8.192 s"));assertTrue(output.contains("positive"));assertTrue(output.contains("Infinity m"));assertTrue(output.contains("10.466667 m"));assertTrue(output.contains("39.597753 degrees"));assertTrue(output.contains("25 GB"));assertTrue(output.contains("2 batteries"));
         }
     }
 }

@@ -144,6 +144,8 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 ## F08 Photography Technical Calculation Tool Suite
 
+**Implementation update (2026-10-26):** All six deterministic operations are verified through the shared Facade, GUI and CLI; CalculationTool's strict JSON adapter is tested independently. Optional read-only F05 prefill, explicit units/assumptions, infinity and validation are operational. 53/53 regression tests and GUI smoke pass. F10 orchestration remains scaffolded. [Detailed formulas, source/test mapping, decisions and limits](f08-calculators.md).
+
 **Description:** Calculate depth of field, hyperfocal distance, field of view, exposure/ND, storage and battery estimates with units.
 
 **Type:** Deterministic

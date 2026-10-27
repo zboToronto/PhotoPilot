@@ -14,6 +14,7 @@ final class CalculationCommands {
         if (tokens.length==1 || tokens[1].equalsIgnoreCase("help")) {
             for (var tool:CalculationForm.Tool.values()) out.println("calc " + tool.command + " " + String.join(" ",tool.fields.stream().map(f -> f.key()+"=<"+f.unit()+">").toList()));
             out.println("Shutter accepts 1/125 or decimal seconds. For ND use exactly one: ndStops, ndFactor (ND8 = factor 8), opticalDensity (OD 3.0). All inputs required; units as listed.");
+            out.println("Optional gear=<inventory UUID> copies known relevant specifications; explicit key=value arguments override them. Zoom focal length/aperture and CoC require manual choice.");
             return 0;
         }
         try {
@@ -22,6 +23,17 @@ final class CalculationCommands {
             for (int i=2;i<tokens.length;i++) {
                 String[] pair=tokens[i].split("=",-1);
                 if (pair.length!=2 || fields.putIfAbsent(pair[0],pair[1])!=null) throw new IllegalArgumentException("Use unique key=value arguments. Type calc help.");
+            }
+            String gearId=fields.remove("gear");
+            if (gearId!=null) {
+                var listed=app.inventory().list("");
+                if (!listed.isSuccess()) { out.println(String.join("; ",listed.errors()));return 2; }
+                var id=UUID.fromString(gearId);
+                var gear=listed.value().orElseThrow().items().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow(() -> new IllegalArgumentException("Gear ID not found."));
+                Map<String,String> merged=new LinkedHashMap<>(CalculationForm.fromGear(tool,gear));
+                if (fields.containsKey("ndFactor") || fields.containsKey("opticalDensity")) merged.remove("ndStops");
+                merged.putAll(fields);fields=merged;
+                out.println("Inventory values (reviewed through command submission; specifications may be unverified): " + gear.brand()+" "+gear.model()+" "+fields);
             }
             var parsed=CalculationForm.parse(tool,fields);
             if (!parsed.isSuccess()) { out.println(String.join("; ",parsed.errors()));return 2; }

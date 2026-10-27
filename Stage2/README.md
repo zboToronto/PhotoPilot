@@ -1,6 +1,6 @@
 # PhotoPilot — EECS 3311 Stage 2
 
-PhotoPilot is an EECS3311 photography workflow agent planned around sessions, equipment, deterministic tools, AI planning and metadata-based review. F05 Gear Inventory is implemented and verified through GUI and CLI; the other ten business features remain **SCAFFOLDED / NOT IMPLEMENTED**. See [F05 usage, persistence, decisions and verification](docs/f05-inventory.md). It is not the completed Stage 2 submission.
+PhotoPilot is an EECS3311 photography workflow agent planned around sessions, equipment, deterministic tools, AI planning and metadata-based review. F05 Gear Inventory and F08 Technical Calculators are implemented and verified through GUI and CLI; the other nine business features remain **SCAFFOLDED / NOT IMPLEMENTED**. See [F05 usage, persistence, decisions and verification](docs/f05-inventory.md). It is not the completed Stage 2 submission.
 
 The selected local design is `Project/Stage1/Stage1.docx` revision 46 and its matching `Stage1PPP.pdf` export, with the seven supplied UMLet diagrams. See [verified sources and unresolved gaps](docs/source-verification.md), [feature mapping](docs/feature-mapping.md), [all 87 UML types and 83 relationships](docs/class-inventory.md), [additional decisions](docs/additional-decisions.md), and [actual verification results](docs/verification.md).
 
@@ -52,9 +52,9 @@ Wrapper distribution cache defaults to `.mvn/user-home`, and dependency cache to
 
 ## Try the bootstrap
 
-The JavaFX GUI uses a minimalist light workspace with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F05 opens the inventory list and forms; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
+The JavaFX GUI uses a minimalist light workspace with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F05 opens the inventory list and forms; F08 opens the shared calculator suite; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
 
-The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. Other feature commands report unavailable status. Unknown commands return a helpful message.
+The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. `F08` lists calculators; `calc help` documents their parameters. Other feature commands report unavailable status. Unknown commands return a helpful message.
 
 Noninteractive CLI example:
 
@@ -138,3 +138,9 @@ Outside F05, session persistence, recognition, EXIF extraction/statistics, calcu
 The approved design itself lacks F01 location/notes mutation routes, a Facade route for F02 select/save/dismiss, and F07 selected-loadout persistence. These remain explicit gaps, not silently redesigned operations. Provider/library selection, generic list schema validation and concrete PlanCommand decoding are also deferred. Source-verification.md records precise evidence and minimal future proposals.
 
 This build is preparation for Stage 2 implementation. It does not meet the final requirements for working features, operational design patterns, LLM behavior, implementation report, demonstration videos, weekly Git evidence or Stage 3 testing. The original scaffolding verification predates Git integration. Repository uploads do not imply completed features or final course deliverables.
+
+## F08 calculators
+
+Select Technical Calculator in the existing GUI, or enter `calc help` in the CLI. Supported tools: exposure, nd, dof, hyperfocal, fov, storage, battery. Example: `calc nd shutter=1/125 ndStops=10` returns 8.192 s. Optional inventory prefill never changes saved gear; manual input needs no inventory or API key. All results show units and assumptions; optical and capacity tools are labeled estimates.
+
+[F08 usage, formulas, source inventory, design decisions, tests and limitations](docs/f08-calculators.md). Final F08 suite: 53/53 tests and GUI_SMOKE_OK, Windows/JDK 21. A graphical desktop is needed for the real JavaFX acceptance tests. Close existing GUI instances before `clean` on Windows if the native cache DLL is locked.

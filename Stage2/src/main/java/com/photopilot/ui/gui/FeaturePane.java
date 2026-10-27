@@ -60,7 +60,7 @@ final class FeaturePane extends VBox {
         feature = selected;
         boolean gear = selected.id().equals("F05") && inventory != null;
         boolean calc = selected.id().equals("F08") && calculator != null;
-        if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); }
+        if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
         empty.setVisible(!gear && !calc); empty.setManaged(!gear && !calc);
         actions.setVisible(!gear && !calc); actions.setManaged(!gear && !calc);
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
