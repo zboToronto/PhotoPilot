@@ -9,7 +9,7 @@ import com.photopilot.repository.SessionRepository;
 
 /**
  * Stage 1 UML element 18 (zero-based): {F01, F02, F10, F11; application memory}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Deterministic history retrieval; agent context assembly remains scaffolded.
  */
 public class HistoryRetriever {
     private SessionRepository repository;
@@ -19,7 +19,7 @@ public class HistoryRetriever {
     }
 
     public Result<List<PhotographySession>> retrieve(String query) {
-        return Result.failureKey("error.notImplemented", "HistoryRetriever.retrieve");
+        return repository.search(query);
     }
 
     public Result<AgentContext> contextFor(UUID id) {

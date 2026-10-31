@@ -135,6 +135,8 @@ final class PhotoPilotWorkspace extends BorderPane {
     }
 
     void connectCalculator(CalculatorPane calculator) { detail.connectCalculator(calculator); }
+    void connectSessions(SessionPane sessions) { detail.connectSessions(sessions); }
+    void selectSessions() { navigation.get("F01").fire(); }
 
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
 
@@ -151,11 +153,11 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(localization.text("feature.status." + (entry.getKey().equals("F05") || entry.getKey().equals("F08") ? "IMPLEMENTED" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (entry.getKey().equals("F01") || entry.getKey().equals("F05") || entry.getKey().equals("F08") ? "IMPLEMENTED" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
-            String expected = entry.getKey().equals("F05")
+            String expected = entry.getKey().equals("F01") ? localization.text("session.ready") : entry.getKey().equals("F05")
                 ? detail.inventoryConnected() ? localization.text("feature.inventoryReady")
                     : localization.text("feature.noWorkflow", "F05", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F08") ? localization.text("feature.calculatorReady", localization.text("feature.status.IMPLEMENTED"))

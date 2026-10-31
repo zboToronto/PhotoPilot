@@ -28,6 +28,7 @@ final class FeaturePane extends VBox {
     private FlowPane actions;
     private InventoryPane inventory;
     private CalculatorPane calculator;
+    private SessionPane sessions;
 
     FeaturePane() { this(LocalizationService.english()); }
     FeaturePane(LocalizationService localization) {
@@ -70,9 +71,11 @@ final class FeaturePane extends VBox {
         feature = selected;
         boolean gear = selected.id().equals("F05") && inventory != null;
         boolean calc = selected.id().equals("F08") && calculator != null;
+        boolean session = selected.id().equals("F01") && sessions != null;
+        if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        empty.setVisible(!gear && !calc); empty.setManaged(!gear && !calc);
-        actions.setVisible(!gear && !calc); actions.setManaged(!gear && !calc);
+        empty.setVisible(!gear && !calc && !session); empty.setManaged(!gear && !calc && !session);
+        actions.setVisible(!gear && !calc && !session); actions.setManaged(!gear && !calc && !session);
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
         texts.bind(title.textProperty(), () -> selected.title(localization));
@@ -102,9 +105,15 @@ final class FeaturePane extends VBox {
         getChildren().add(2, calculator);
     }
 
+    void connectSessions(SessionPane sessions) {
+        this.sessions = sessions; sessions.setVisible(false); sessions.setManaged(false); getChildren().add(2, sessions);
+        if (feature != null) show(feature);
+    }
+
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
+        if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED

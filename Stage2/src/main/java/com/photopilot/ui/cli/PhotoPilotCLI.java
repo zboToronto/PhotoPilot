@@ -81,11 +81,14 @@ public class PhotoPilotCLI {
         if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
             return new InventoryCommands(app, output, localization).execute(command.equals("f05") ? "gear list" : line.strip());
         }
+        if (command.equals("f01") || command.equals("session") || command.startsWith("session ")) {
+            return new SessionCommands(app, output, localization).execute(command.equals("f01") ? "session list" : line.strip());
+        }
         if (command.equals("f08") || command.equals("calc") || command.startsWith("calc ")) {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); }
+            case "help" -> { output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }

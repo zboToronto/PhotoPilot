@@ -6,7 +6,7 @@ import com.photopilot.model.PhotographySession;
 
 /**
  * Stage 1 UML element 25 (zero-based): {State contract}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Guarded session lifecycle; plan/review production remains in F10/F11.
  */
 public interface SessionState {
 

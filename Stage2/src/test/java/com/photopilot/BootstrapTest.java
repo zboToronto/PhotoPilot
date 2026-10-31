@@ -59,14 +59,13 @@ class BootstrapTest {
         try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString()))) {
             PhotoPilotFacade facade = bootstrap.facade();
             Result<PhotographySession> created = facade.createSession("bootstrap test fixture", LocalDate.of(2026, 1, 1));
-            assertFalse(created.isSuccess());
-            assertTrue(created.value().isEmpty());
-            assertTrue(created.errors().getFirst().contains("NOT IMPLEMENTED: SessionService.create"));
+            assertTrue(created.isSuccess(), created.errors().toString());
+            assertEquals("DRAFT", created.value().orElseThrow().status());
             assertFalse(facade.generatePlan(UUID.randomUUID()).isSuccess());
             assertFalse(facade.calculate(null).isSuccess());
             LLMClient model = (LLMClient) field(field(facade.planning(), "agent"), "model");
             assertFalse(model.complete(null).isSuccess());
-            assertFalse(facade.sessions().search("anything").isSuccess());
+            assertTrue(facade.sessions().search("anything").isSuccess());
         }
     }
 
@@ -78,11 +77,11 @@ class BootstrapTest {
             cli.run(new String[0]);
             String output = bytes.toString(StandardCharsets.UTF_8);
             for (int i = 1; i <= 11; i++) assertTrue(output.contains("F%02d ".formatted(i)));
-            assertTrue(output.contains("Not implemented: F01"));
+            assertTrue(output.contains("0 session(s)"));
             assertTrue(output.contains("Unknown command"));
             assertTrue(output.endsWith("PhotoPilot closed." + System.lineSeparator()));
             assertFalse(output.contains("Not implemented: F02"));
-            for (int i = 1; i <= 11; i++) assertEquals(i == 5 || i == 8 ? 0 : 2, cli.execute("F%02d".formatted(i)));
+            for (int i = 1; i <= 11; i++) assertEquals(i == 1 || i == 5 || i == 8 ? 0 : 2, cli.execute("F%02d".formatted(i)));
             assertEquals(11, FeatureCatalog.lines().size());
             assertEquals(1, cli.execute("exit"));
         }

@@ -41,7 +41,7 @@ class LocalizedCliTest {
             cli.run(new String[]{"--lang", "zh-CN", "help", "gear help", "calc help", "status", "unknown", "F01"});
             String text = output(bytes);
             assertTrue(text.contains("器材命令")); assertTrue(text.contains("gear edit <UUID>"));
-            assertTrue(text.contains("ndStops")); assertTrue(text.contains("未知命令")); assertTrue(text.contains("尚未实现：F01"));
+            assertTrue(text.contains("ndStops")); assertTrue(text.contains("未知命令")); assertTrue(text.contains("0 个会话"));
             assertEquals(2, cli.execute("gear add camera brand=品牌 model=O'Brien")); // unmatched quote is localized
             assertTrue(output(bytes).contains("引号未闭合"));
             bytes.reset(); assertEquals(2, cli.execute("gear add camera brand=品牌 model=相机"));

@@ -1,6 +1,6 @@
 # PhotoPilot — EECS 3311 Stage 2
 
-PhotoPilot is an EECS3311 photography workflow agent planned around sessions, equipment, deterministic tools, AI planning and metadata-based review. F05 Gear Inventory and F08 Technical Calculators are implemented and verified through GUI and CLI; the other nine business features remain **SCAFFOLDED / NOT IMPLEMENTED**. See [F05 usage, persistence, decisions and verification](docs/f05-inventory.md). It is not the completed Stage 2 submission.
+PhotoPilot is an EECS3311 photography workflow agent planned around sessions, equipment, deterministic tools, AI planning and metadata-based review. F01 Sessions & History, F05 Gear Inventory and F08 Technical Calculators are implemented and verified through GUI and CLI; the other eight business features remain **SCAFFOLDED / NOT IMPLEMENTED**. See [F05 usage, persistence, decisions and verification](docs/f05-inventory.md). It is not the completed Stage 2 submission.
 
 The selected local design is `Project/Stage1/Stage1.docx` revision 46 and its matching `Stage1PPP.pdf` export, with the seven supplied UMLet diagrams. See [verified sources and unresolved gaps](docs/source-verification.md), [feature mapping](docs/feature-mapping.md), [all 87 UML types and 83 relationships](docs/class-inventory.md), [additional decisions](docs/additional-decisions.md), and [actual verification results](docs/verification.md).
 
@@ -52,9 +52,9 @@ Wrapper distribution cache defaults to `.mvn/user-home`, and dependency cache to
 
 ## Try the bootstrap
 
-The JavaFX GUI uses a minimalist light workspace with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F05 opens the inventory list and forms; F08 opens the shared calculator suite; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
+The JavaFX GUI uses a minimalist light workspace with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F01 opens session history and its editor; F05 opens the inventory list and forms; F08 opens the shared calculator suite; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
 
-The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. `F08` lists calculators; `calc help` documents their parameters. Other feature commands report unavailable status. Unknown commands return a helpful message.
+The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F01` lists saved sessions and `session help` documents session commands. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. `F08` lists calculators; `calc help` documents their parameters. Other feature commands report unavailable status. Unknown commands return a helpful message.
 
 Noninteractive CLI example:
 
@@ -83,11 +83,25 @@ In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a 
 ./mvnw.cmd test '-Dtest=LocalizationTest,LocalizedCliTest,TranslationResourcesTest,AgentLanguageTest,LocalizationGuiTest'
 ```
 
-The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **71 passing tests** (2026-10-27); GUI smoke and JAR packaging also passed. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
+The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **95 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [F01 evidence](docs/f01-sessions.md) records the current verification; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
 The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. **Actual AI responses remain unavailable:** `PhotoPilotAgent.run` and `GeminiAdapter.complete` are still scaffolds. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
+
+## F01 sessions and history
+
+Open **Workspace > Sessions & History** or use `session help` in the CLI. Create with title/date and optional manual location or notes/goals; open a history row to edit. Search/filter by text, date and state. Delete requires confirmation; drafts survive navigation, language switching and save errors. Both interfaces persist to the same data root and protect against stale overwrites. Lifecycle events retain the Stage1 F10/F11 approval/review prerequisites.
+
+```text
+session create title="Evening portrait" date=2026-11-01 location="Park" notes="Soft light"
+session list status=DRAFT
+session open <generated-id>
+session edit <generated-id> notes="Bring reflector"
+session delete <generated-id> --confirm
+```
+
+[F01 schema, usage, classes, design diagrams, 95-test verification and limitations](docs/f01-sessions.md).
 
 ## F05 gear inventory
 
@@ -108,7 +122,7 @@ The historical F05 verification contained **36 passing tests** (Windows, JDK 21,
 
 | ID | Stage 1 feature | Type | Status |
 | --- | --- | --- | --- |
-| F01 | Photography Session and History Management | Deterministic | SCAFFOLDED / NOT IMPLEMENTED |
+| F01 | Photography Session and History Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED; F10/F11 prerequisites retained |
 | F02 | AI Photography Inspiration and Activity Recommendation | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F03 | Natural-Language Photography Requirement Parsing | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F04 | AI Gear Recognition and Automatic Import | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
@@ -122,7 +136,7 @@ The historical F05 verification contained **36 passing tests** (Windows, JDK 21,
 
 ## Architecture and patterns
 
-GUI and CLI both construct the same application composition and access `PhotoPilotFacade`. Session, inventory, discovery, planning, review and calculation services retain their approved dependencies. The agent retains its LLM port, history retriever and tool registry. Repository ports use portable `Path` fields; JsonInventoryRepository implements real atomic inventory persistence. Session persistence remains scaffolded; bootstrap construction creates no user data.
+GUI and CLI both construct the same application composition and access `PhotoPilotFacade`. Session, inventory, discovery, planning, review and calculation services retain their approved dependencies. The agent retains its LLM port, history retriever and tool registry. Repository ports use portable `Path` fields; JsonInventoryRepository implements real atomic inventory persistence. JsonSessionRepository implements strict atomic session persistence with optimistic revisions; bootstrap construction creates no user data.
 
 - **Facade:** PhotoPilotFacade delegates to six subsystem services.
 - **Strategy:** GearMatchingService retains LoadoutRankingStrategy; PortabilityRanking and CoverageRanking remain distinct from CompatibilityValidator.
@@ -130,7 +144,7 @@ GUI and CLI both construct the same application composition and access `PhotoPil
 - **Command:** PlanEditor, PlanCommand and its three concrete commands retain ShootPlan and PlanValidator collaboration; no undo/redo added.
 - **State:** PhotographySession retains SessionState and four lifecycle state types with the three approved SessionEvent values.
 
-F05 exercises the Facade and repository port/implementation separation. Strategy, external Adapter, Command and State workflows remain scaffolded; this does not establish five completed patterns. Business operations outside F05 return `Result.failure("NOT IMPLEMENTED: ...")`, or throw `UnsupportedOperationException` when the approved signature cannot return Result. F05 returns real saved records and real empty searches; no fake AI responses or measurements are returned.
+F01 exercises Facade and State; F05/F08 retain the shared Facade and service architecture. Strategy, external Adapter and Command workflows remain scaffolded; this does not establish five completed patterns. Unimplemented workflows continue to return unavailable errors. Working features return real saved records, calculated results and real empty searches; no fake AI responses or measurements are returned.
 
 ## Configuration and future integrations
 
@@ -140,7 +154,7 @@ Current environment-variable configuration:
 
 | Variable | Effect/default |
 | --- | --- |
-| `PHOTOPILOT_DATA_DIR` | Repository path root, default `data`; F05 writes `inventory.json` here |
+| `PHOTOPILOT_DATA_DIR` | Repository path root, default `data`; F05 writes `inventory.json`, F01 writes `sessions/sessions.json` here |
 | `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` selects the approved strategy object; ranking remains unimplemented |
 | `GEMINI_MODEL` | Stored model name, default `UNCONFIGURED`; no API call |
 | `GEMINI_ENDPOINT` | Stored URI, default reserved `https://unconfigured.invalid/gemini`; no API call |
@@ -150,9 +164,9 @@ For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOP
 
 ## Known limits and next implementation boundaries
 
-Outside F05, session persistence, recognition, EXIF extraction/statistics, calculations, location access, compatibility checks, AI reasoning, plan changes or session transitions work yet. F05 behavior has dedicated tests; other domain methods and ownership invariants must not be treated as validated because their classes compile. Until F01 defines saved-session storage, nonempty session directories block gear deletion; historical files are preserved. No actual Gemini/provider connection or credential handling was tested. No external runtime API was invoked; network access during preparation was limited to tooling documentation and dependency/tool downloads.
+F01 session/history persistence, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI reasoning and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. No actual Gemini/provider connection was tested.
 
-The approved design itself lacks F01 location/notes mutation routes, a Facade route for F02 select/save/dismiss, and F07 selected-loadout persistence. These remain explicit gaps, not silently redesigned operations. Provider/library selection, generic list schema validation and concrete PlanCommand decoding are also deferred. Source-verification.md records precise evidence and minimal future proposals.
+The original F01 optional-location/notes gap is resolved by documented SessionService overloads. F02 selection/save/dismiss routing and F07 selected-loadout persistence remain explicit gaps. Provider/library selection, generic AI list schema validation and PlanCommand decoding remain deferred. See [F01 design changes](docs/f01-sessions.md) and the historical source-verification gap record.
 
 This build is preparation for Stage 2 implementation. It does not meet the final requirements for working features, operational design patterns, LLM behavior, implementation report, demonstration videos, weekly Git evidence or Stage 3 testing. The original scaffolding verification predates Git integration. Repository uploads do not imply completed features or final course deliverables.
 

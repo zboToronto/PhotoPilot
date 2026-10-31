@@ -6,7 +6,7 @@ import com.photopilot.model.PhotographySession;
 
 /**
  * Stage 1 UML element 29 (zero-based): {Concrete State; historical plan read-only}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Guarded session lifecycle; plan/review production remains in F10/F11.
  */
 public class ReviewedState implements SessionState {
 
@@ -14,10 +14,10 @@ public class ReviewedState implements SessionState {
     }
 
     public Result<SessionState> next(PhotographySession session, SessionEvent event) {
-        return Result.failureKey("error.notImplemented", "ReviewedState.next");
+        return Result.failureKey("error.session.transition", "REVIEWED", event);
     }
 
     public boolean canEditPlan() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: ReviewedState.canEditPlan");
+        return false;
     }
 }

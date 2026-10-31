@@ -1,47 +1,156 @@
 package com.photopilot.repository;
 
-import com.photopilot.i18n.*;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import com.google.gson.*;
+import com.google.gson.stream.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.PhotographySession;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.security.*;
+import java.util.*;
+import java.util.function.Function;
+import static java.nio.file.StandardOpenOption.*;
 
-/**
- * Stage 1 UML element 32 (zero-based): {data implementation; storage choice provisional}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
- */
+/** Atomic aggregate store with per-record optimistic revisions and a cross-process writer lock. */
 public class JsonSessionRepository implements SessionRepository {
-    private Path directory;
+    private final Path directory;
+    private static final int MAX_BYTES = 20 * 1024 * 1024;
+    public JsonSessionRepository(Path directory) { this.directory = Objects.requireNonNull(directory).toAbsolutePath().normalize(); }
+    private Path file() { return directory.resolve("sessions.json"); }
 
-    public JsonSessionRepository(Path directory) {
-        this.directory = Objects.requireNonNull(directory, "directory");
+    private List<PhotographySession> read() throws IOException {
+        if (Files.notExists(directory)) return new ArrayList<>();
+        // An older/unrecognized store must not be mistaken for empty history.
+        try (var entries = Files.list(directory)) {
+            for (Path entry : entries.toList()) {
+                String name = entry.getFileName().toString();
+                if (!Set.of("sessions.json", "sessions.lock").contains(name) && !name.matches("sessions-.*\\.tmp"))
+                    throw new IOException("Unrecognized session storage entry: " + name);
+            }
+        }
+        byte[] bytes;
+        try (var input = Files.newInputStream(file())) { bytes = input.readNBytes(MAX_BYTES + 1); }
+        catch (NoSuchFileException missing) { return new ArrayList<>(); }
+        if (bytes.length > MAX_BYTES) throw new IOException("Session store exceeds 20 MiB.");
+        String source = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+        try (JsonReader reader = new JsonReader(new StringReader(source))) {
+            reader.setStrictness(Strictness.STRICT);
+            JsonObject root = JsonInventoryRepository.readElement(reader, 0).getAsJsonObject();
+            if (reader.peek() != JsonToken.END_DOCUMENT || !root.keySet().equals(Set.of("schemaVersion", "sessions"))
+                    || !root.get("schemaVersion").toString().equals("1")) throw new IOException("Unsupported session schema.");
+            List<PhotographySession> sessions = new ArrayList<>(); Set<UUID> ids = new HashSet<>();
+            for (JsonElement entry : root.getAsJsonArray("sessions")) {
+                var session = SessionJson.decode(entry.getAsJsonObject());
+                if (!ids.add(session.id())) throw new IOException("Duplicate session ID.");
+                sessions.add(session.withRevision(digest(entry.toString())));
+            }
+            return sessions;
+        }
     }
-
-    public Result<PhotographySession> save(PhotographySession session) {
-        return Result.failureKey("error.notImplemented", "JsonSessionRepository.save");
-    }
-
     public Result<PhotographySession> find(UUID id) {
-        return Result.failureKey("error.notImplemented", "JsonSessionRepository.find");
+        if (id == null) return Result.failureKey("error.session.id");
+        try { return read().stream().filter(s -> s.id().equals(id)).findFirst()
+            .map(Result::success).orElseGet(() -> Result.failureKey("error.session.missing", id)); }
+        catch (IOException | RuntimeException error) { return failure(error); }
     }
-
     public Result<List<PhotographySession>> search(String query) {
-        return Result.failureKey("error.notImplemented", "JsonSessionRepository.search");
+        String term = Objects.toString(query, "").strip().toLowerCase(Locale.ROOT);
+        try { return Result.success(read().stream().filter(s -> (s.title() + " " + s.date() + " " + s.notes() + " "
+                + s.status() + " " + s.location().map(l -> l.label()).orElse("") + " " + s.id()).toLowerCase(Locale.ROOT).contains(term))
+            .sorted(Comparator.comparing(PhotographySession::date).reversed().thenComparing(s -> s.id().toString())).toList()); }
+        catch (IOException | RuntimeException error) { return failure(error); }
     }
-
+    public Result<PhotographySession> insert(PhotographySession session) {
+        if (session == null) return Result.failureKey("error.session.details");
+        return change(items -> {
+            if (items.stream().anyMatch(s -> s.id().equals(session.id()))) return Result.failureKey("error.session.duplicate", session.id());
+            if (!session.revision().isEmpty()) return Result.failureKey("error.session.changed");
+            var stored = validatedCopy(session); items.add(stored); return Result.success(stored);
+        });
+    }
+    public Result<PhotographySession> save(PhotographySession session) {
+        if (session == null) return Result.failureKey("error.session.details");
+        return change(items -> {
+            int index = index(items, session.id());
+            if (index < 0) return Result.failureKey("error.session.missing", session.id());
+            var current = items.get(index);
+            if (!current.revision().equals(session.revision())) return Result.failureKey("error.session.changed");
+            if (!current.createdAt().equals(session.createdAt()) || session.updatedAt().isBefore(current.updatedAt()))
+                return Result.failureKey("error.session.details");
+            if (!current.status().equals(session.status())) {
+                boolean allowed = Arrays.stream(com.photopilot.state.SessionEvent.values()).anyMatch(event -> {
+                    var next = current.state().next(session, event);
+                    return next.isSuccess() && next.value().orElseThrow().getClass().equals(session.state().getClass());
+                });
+                if (!allowed) return Result.failureKey("error.session.transition", current.status(), session.status());
+            }
+            if (!current.state().canEditPlan() && !SessionJson.encode(current).get("plans").equals(SessionJson.encode(session).get("plans")))
+                return Result.failureKey("error.session.historicalPlans");
+            var stored = validatedCopy(session); items.set(index, stored); return Result.success(stored);
+        });
+    }
+    public Result<Boolean> delete(UUID id, String revision) {
+        if (id == null) return Result.failureKey("error.session.id");
+        return change(items -> {
+            int index = index(items, id);
+            if (index < 0) return Result.failureKey("error.session.missing", id);
+            if (!items.get(index).revision().equals(revision)) return Result.failureKey("error.session.changed");
+            items.remove(index); return Result.success(true);
+        });
+    }
     public Result<List<UUID>> referencingGear(UUID id) {
         if (id == null) return Result.failureKey("error.gear.idRequired");
-        // F01 has no session file schema yet. An empty store is provably unreferenced;
-        // any existing content must be checked by F01 before gear can be deleted.
-        try (var entries = java.nio.file.Files.list(directory)) {
-            if (entries.findAny().isEmpty()) return Result.success(List.of());
-            return Result.failureKey("error.session.referencesUnavailable");
-        } catch (java.nio.file.NoSuchFileException error) {
-            return Result.success(List.of());
-        } catch (java.io.IOException | SecurityException error) {
-            return Result.failureKey("error.session.references", Objects.toString(error.getMessage(), error.getClass().getSimpleName()));
-        }
+        var sessions = search(""); if (!sessions.isSuccess()) return Result.failure(sessions);
+        return Result.success(sessions.value().orElseThrow().stream().filter(s -> s.plans().stream()
+            .flatMap(p -> p.loadout().stream()).flatMap(l -> l.gear().stream()).anyMatch(g -> g.sourceGearId().equals(id)))
+            .map(PhotographySession::id).toList());
+    }
+    private static int index(List<PhotographySession> items, UUID id) {
+        for (int i = 0; i < items.size(); i++) if (items.get(i).id().equals(id)) return i;
+        return -1;
+    }
+    private static PhotographySession validatedCopy(PhotographySession session) {
+        JsonObject tree = SessionJson.encode(session);
+        return SessionJson.decode(tree).withRevision(digest(tree.toString()));
+    }
+    private <T> Result<T> change(Function<List<PhotographySession>, Result<T>> operation) {
+        try {
+            Files.createDirectories(directory);
+            try (var channel = FileChannel.open(directory.resolve("sessions.lock"), CREATE, WRITE); var lock = channel.tryLock()) {
+                if (lock == null) return Result.failureKey("error.session.busy");
+                List<PhotographySession> items = read();
+                var result = operation.apply(items);
+                if (result.isSuccess()) write(items);
+                return result;
+            }
+        } catch (OverlappingFileLockException busy) { return Result.failureKey("error.session.busy"); }
+        catch (IOException | RuntimeException error) { return failure(error); }
+    }
+    private void write(List<PhotographySession> items) throws IOException {
+        JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); JsonArray sessions = new JsonArray();
+        items.forEach(s -> sessions.add(SessionJson.encode(s))); root.add("sessions", sessions);
+        byte[] bytes = SessionJson.JSON.toJson(root).getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > MAX_BYTES) throw new IOException("Session store exceeds 20 MiB.");
+        Path temporary = Files.createTempFile(directory, "sessions-", ".tmp");
+        try {
+            try (var channel = FileChannel.open(temporary, WRITE, TRUNCATE_EXISTING)) {
+                ByteBuffer buffer = ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
+            }
+            replace(temporary);
+        } finally { Files.deleteIfExists(temporary); }
+    }
+    /** Fault-injection seam. Unsupported atomic replacement fails without a destructive fallback. */
+    protected void replace(Path temporary) throws IOException {
+        Files.move(temporary, file(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+    }
+    private static String digest(String text) {
+        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8))); }
+        catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+    private static <T> Result<T> failure(Exception error) {
+        return Result.failureKey("error.session.storage", Objects.toString(error.getMessage(), error.getClass().getSimpleName()));
     }
 }

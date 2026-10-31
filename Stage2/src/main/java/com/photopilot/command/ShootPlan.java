@@ -46,6 +46,12 @@ public class ShootPlan {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: ShootPlan.copyForRevision");
     }
 
+    /** Read-only history access. Approval/validation remains the responsibility of F10. */
+    public UUID id() { return id; }
+    public int revision() { return revision; }
+    public boolean approved() { return approved && provisionalReasons.isEmpty(); }
+    public Optional<Loadout> loadout() { return loadout; }
+
     void replaceLoadout(Loadout loadout) {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: ShootPlan.replaceLoadout");
     }

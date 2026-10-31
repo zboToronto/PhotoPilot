@@ -21,6 +21,7 @@ public class PhotoPilotGUI extends Application {
     private ImagePrivacyBoundary privacy;
     private ApplicationBootstrap bootstrap;
     private PhotoPilotWorkspace workspace;
+    private SessionPane sessions;
     private FxLocalizer texts;
     private Throwable smokeFailure;
     private final ExecutorService operations = Executors.newSingleThreadExecutor(runnable -> {
@@ -41,6 +42,8 @@ public class PhotoPilotGUI extends Application {
     @Override
     public void start(Stage stage) {
         workspace = new PhotoPilotWorkspace(bootstrap.localization());
+        sessions = new SessionPane(app, operations, bootstrap.localization());
+        workspace.connectSessions(sessions);
         workspace.connectInventory(new InventoryPane(app, operations, bootstrap.localization()));
         workspace.connectCalculator(new CalculatorPane(app, operations, bootstrap.localization()));
         texts = new FxLocalizer(workspace, bootstrap.localization());
@@ -51,6 +54,9 @@ public class PhotoPilotGUI extends Application {
         stage.setMinWidth(880);
         stage.setMinHeight(600);
         stage.setScene(scene);
+        stage.setOnCloseRequest(event -> {
+            if (sessions.preventClose(stage::close)) { event.consume(); workspace.selectSessions(); }
+        });
         stage.show();
         if (getParameters().getRaw().contains("--smoke-test")) {
             Platform.runLater(() -> {
@@ -75,7 +81,7 @@ public class PhotoPilotGUI extends Application {
         }
     }
 
-    public void showSession(UUID id) { onFxThread(() -> workspace.showFeedback(() -> bootstrap.localization().text("feature.unavailable", "F01"))); }
+    public void showSession(UUID id) { onFxThread(() -> { workspace.selectSessions(); sessions.open(id); }); }
 
     public void submitBrief(UUID id, String text) {
         onFxThread(() -> {

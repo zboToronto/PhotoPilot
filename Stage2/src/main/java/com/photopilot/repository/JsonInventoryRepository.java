@@ -71,7 +71,7 @@ public class JsonInventoryRepository implements InventoryRepository {
     private static void string(JsonElement value) throws IOException {
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) throw new IOException("Expected a JSON string in equipment data.");
     }
-    private static JsonElement readElement(JsonReader reader, int depth) throws IOException {
+    static JsonElement readElement(JsonReader reader, int depth) throws IOException {
         if (depth > 20) throw new IOException("JSON nesting is too deep.");
         switch (reader.peek()) {
             case BEGIN_OBJECT: {

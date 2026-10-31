@@ -1,6 +1,6 @@
 # PhotoPilot project memory
 
-Last reviewed: 2026-10-27 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
+Last reviewed: 2026-10-31 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
 
 ## Evidence and repository layout
 
@@ -19,12 +19,12 @@ Last reviewed: 2026-10-27 (America/Toronto). This is the current context index; 
 | Strategy | `GearMatchingService` uses `LoadoutRankingStrategy`, with `PortabilityRanking` and `CoverageRanking`; configuration chooses portability or coverage. Deterministic compatibility must precede ranking; returned candidate IDs must remain valid. |
 | Adapter | `GeminiAdapter`, `EnvironmentApiAdapter`, `EquipmentCatalogAdapter`, `ExifLibraryAdapter` implement project ports. External failures must be explicit Result errors, never fabricated facts. Provider behavior remains unimplemented. |
 | Command | `PlanCommand`, three concrete revision commands, `PlanEditor` and `ShootPlan` model revisions. ShootPlan and commands are co-located to preserve package-private mutation access. Generate/change returns a validated preview; approval must not reapply the command. |
-| State | `PhotographySession` uses Draft, Planned, Completed and Reviewed state classes. Explicit events drive transitions; approval/save constraints are required but not implemented. |
+| State | `PhotographySession` uses Draft, Planned, Completed and Reviewed state classes. Explicit events, approved-plan/review prerequisites, state adjacency and historical-plan immutability are enforced by F01; F10/F11 producer validation/approval workflows remain scaffolded. |
 | Agent boundary | Bounded model/tool/evidence loop, allowlisted read-only tools, schema checks followed by deterministic domain validation. No autonomous save, inventory mutation or approval. Inventory persistence, calculations and EXIF statistics bypass the LLM. |
 | Confirmation | F03 confirms requirements; F06 confirms a capability-only profile. F10 rechecks current state, constraints, session binding and revision before atomic save. Failed/cancelled operations preserve the persisted base. |
 | Privacy and evidence | Order-image bytes cross the AI boundary only as user-approved SanitizedImage; privacy helper and image type share a package. Device location requires permission with manual fallback. EXIF review must disclose missing data and cannot invent measurements or aesthetic scores. |
 
-Five pattern structures exist; their business operations are not yet five completed operational patterns. JsonInventoryRepository now has tested F05 persistence; the other JSON repository remains scaffolded.
+Five pattern structures exist; their business operations are not yet five completed operational patterns. JsonInventoryRepository and JsonSessionRepository have tested atomic persistence. F01 now exercises Facade and State; this does not establish five completed operational patterns.
 
 ## UI baseline to preserve
 
@@ -32,7 +32,7 @@ Five pattern structures exist; their business operations are not yet five comple
 
 - Workspace group: F01, F02, F03, F10. Equipment: F04-F07. Photography Tools: F08, F09, F11.
 - Preserve bounded content width, wrapping text, independent navigation/content scrolling, selected-item behavior, keyboard navigation and focus styles. Existing defaults are 1120 x 760 with minimum 880 x 600.
-- New forms/results belong in the existing feature content flow. A catalog marker must not enable an unconnected workflow. F05 connects InventoryPane and F08 connects CalculatorPane inside FeaturePane; other workflow buttons remain disabled and Check status reports availability.
+- New forms/results belong in the existing feature content flow. A catalog marker must not enable an unconnected workflow. F01 connects SessionPane, F05 InventoryPane and F08 CalculatorPane inside FeaturePane; other workflow buttons remain disabled and Check status reports availability.
 - JavaFX changes run on the UI thread. Follow the existing background Task callback pattern for slow work, stale-navigation completion checks and shutdown cancellation.
 
 ## Known gaps and outstanding work
@@ -43,16 +43,25 @@ These are confirmed gaps, not permission to implement or redesign them.
 
 | Issue | Evidence / required resolution |
 | --- | --- |
-| F01-F04, F06-F07 and F09-F11 remain scaffolded; F08 verified | F05 inventory is implemented and verified; see feature status and F05 evidence. No real provider integration has been verified. |
-| F01 optional location/notes mutation route missing | SD01 and source-verification gap table. Resolve a narrow application API when implementing the feature and record the design change. |
+| F02-F04, F06-F07 and F09-F11 remain scaffolded | F01 sessions, F05 inventory and F08 calculators are implemented and verified; see feature status. No real provider integration has been verified. |
 | F02 select/save/dismiss not exposed through Facade | DiscoveryService declares them, but Facade has no forwarding/accessor route. |
 | F07 selected-loadout persistence missing | SD03 has no application selection/attachment operation. Strategy configuration exists at bootstrap; user-facing selection wiring remains unspecified. |
 | Generic AI decoding unresolved | `Class<T>` cannot describe list element schemas; PlanCommand requires an explicit concrete subtype allowlist. |
 | Approval and ownership invariants pending | Deep copy, immutable approved revisions, atomic aggregate persistence, multiplicities and stale/foreign revision rejection are design requirements, not established runtime behavior. |
 | Integration choices pending | Concrete device-location adapter, equipment/weather providers and EXIF library remain unspecified; bootstrap has unconfigured endpoints and no active device provider. |
-| Verification limits | F05 has business and GUI/CLI acceptance tests. Live AI/provider results and submission demonstration videos are not established. macOS/Linux rendering and other display scales remain unverified. |
+| Verification limits | F01/F05/F08 have business and GUI/CLI acceptance tests. Live AI/provider results and submission demonstration videos are not established. macOS/Linux rendering and other display scales remain unverified. |
 
 The structural audit currently rejects any HTTP send call as a scaffold safeguard. When authorized integration work starts, revise that obsolete scaffold assumption deliberately and document why; do not treat it as a permanent prohibition on required LLM integration.
+
+## F01 implementation (2026-10-31)
+
+- F01/UC01/SD01 is verified through `PhotoPilotFacade.sessions()` and retained `createSession(title,date)`. SessionService create/save/open/search/transition now work; overloads expose optional location/notes, date/state filtering, revision-aware update and confirmed delete. SessionForm shares strict ISO date/UUID/input parsing between GUI and CLI. No category, mandatory time/coordinates, cancellation, separate gear inventory or AI work was added.
+- PhotographySession retains its original aggregate fields, exposes context getters and returns copies from edit/apply. States are Draft -> Planned (approved non-provisional plan), Planned -> Completed (explicit shoot event), Completed -> Reviewed (saved review). Wrong/skipped/reverse events fail. Repository saves also enforce adjacency and immutable historical plans. F10/F11 production/approval remains unavailable: a new bare Draft cannot be manually promoted. Tests of later transitions use controlled linked fixtures and do not establish F10/F11 implementation.
+- `PHOTOPILOT_DATA_DIR/sessions/sessions.json` (default `data/sessions/sessions.json`) stores UTF-8 schemaVersion 1 and complete session/linked aggregates. SessionJson handles ISO temporal values, Optionals, allowlisted states and F08 Infinity strings. Per-record SHA-256 revisions, cross-process lock, flushed temp file and atomic replacement protect saves/deletes; no non-atomic fallback. Strict parsing rejects corrupt/unknown/oversized (20 MiB)/incomplete data rather than silently replacing it. An invalid aggregate blocks writes and F05 reference checks. No automatic recovery/migration is claimed.
+- GUI SessionPane reuses FeaturePane, workspace navigation, shared CSS, feedback/confirmation cards, background Tasks and FxLocalizer. Drafts survive navigation/language changes; replacement/close requires discard confirmation; failures preserve input. CLI `session` supports create/list/open/view/restore/edit/transition/delete; F01 aliases list. Both share services/storage and observe external changes on refresh. showSession(id) now opens the real pane.
+- F05 integration scans actual plan/loadout GearSnapshots and preserves copied history after confirmed gear removal. No standalone session equipment selector was added because Stage1 places selection in F07/F10. Read-only ShootPlan/Loadout accessors and immutable restored snapshot collections support this boundary. F08 formulas/services are unchanged; linked calculation results round-trip including infinity. HistoryRetriever.retrieve now reads real sessions; contextFor/agent execution remain scaffolded.
+- Original design -> create/update overloads, manual-location coordinatesPresent flag, revision-aware repository insert/delete and typed codec -> resolve the documented optional-field gap and provide reliable persistent CRUD -> F01/UC01/SD01 with F05 historical-reference integration, original Facade/State preserved. Detailed changes and updated class/sequence diagrams: [F01 evidence](../Stage2/docs/f01-sessions.md). Stage1 and AGENTS.md unchanged; no new dependencies.
+- Actual verification: baseline 71/71; final `./mvnw.cmd -B -o test package javafx:run '-Djavafx.args=--smoke-test'` passed **95/95** (24 added), zero failures/errors/skips, packaged JAR and GUI_SMOKE_OK. All 115 main/19 test sources recompiled; not a Maven clean build. Real JavaFX CRUD/restart/draft/conflict/lifecycle tests and separate CLI JVM UTF-8 restarts passed; F05/F08/localization regressions passed. Wide/narrow rendered JavaFX scenes inspected; source/UML audit retains 87 types/267 fields/184 operations/20 original hashes. Initial sandbox cache-access, fixture compilation and EXIF numeric-map decoding issues were fixed before final success. Windows only; no live providers, power-loss simulation, other platforms/scales or submission video.
 
 ## F05 implementation (2026-10-26)
 
@@ -61,7 +70,7 @@ The structural audit currently rejects any HTTP send call as a scaffold safeguar
 - JsonInventoryRepository stores UTF-8 `{schemaVersion: 1, items: [...]}` at `PHOTOPILOT_DATA_DIR/inventory.json` (default `data/inventory.json`, relative to working directory). `transact` loads fresh data under a sidecar OS file lock, validates, flushes a same-directory temporary file and atomically replaces the inventory. No non-atomic fallback. Corrupt/unsupported/oversized files are preserved and returned as failures. Full-store save uses SHA-256 revisions; UI edits compare the original item to reject stale overwrites. Atomic move and advisory locking require filesystem support.
 - InventoryPane reuses FeaturePane's content flow, labels, primary/secondary buttons, feedback cards and shared CSS. Forms wrap from two columns to one, tables use the existing palette, and asynchronous Task callbacks reject stale-navigation results. Navigation and window sizing remain unchanged. InventoryCommands supports quoted `gear` commands and F05 list alias; GUI and CLI share the same service and data root. Refresh/reopening F05 observes changes from another process.
 - F06/F07 integration: read `GearInventory.items()` and typed getters/specifications; preserve unknown values and verification metadata. F06 itself was not implemented.
-- `JsonSessionRepository.referencingGear` establishes no references only for a missing/empty session directory. Nonempty/unreadable stores fail safely and block deletion even after confirmation. The service's reference-warning contract is tested with a controlled repository, and snapshots remain unchanged. Actual saved-session scanning awaits F01's schema; no session contents are rewritten.
+- Updated by F01 (2026-10-31): `JsonSessionRepository.referencingGear` scans actual saved plan/loadout GearSnapshots. Affected-session warnings and confirmed removal are tested against real storage; historical snapshots remain unchanged after live inventory deletion. Corrupt/unknown/unreadable stores still block deletion even after confirmation.
 - Latest tests: Windows/JDK 21 `./mvnw.cmd -B -o test` passed **36/36**, including JavaFX desktop acceptance. Earlier in this implementation `clean test` passed 34/34; two additional safety tests then passed with the full suite. Graphical smoke and native visual inspection passed. Baseline was freshly verified at 6/6. Structural audit passed unchanged 87 UML types / 267 fields / 184 operations / 20 source hashes; its old blanket business-unimplemented footer is historical and is not F05 status.
 - [F05 implementation evidence](../Stage2/docs/f05-inventory.md) owns detailed changed-file inventory, schema, Original design -> Implemented change -> Reason -> Impact decisions, tests, commands, limits and usage. Gson 2.11.0 is the only added direct runtime dependency. Stage1 artifacts and other feature workflows were preserved.
 

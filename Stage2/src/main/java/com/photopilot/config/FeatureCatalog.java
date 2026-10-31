@@ -20,14 +20,14 @@ public final class FeatureCatalog {
             "F09 " + EnglishMessages.text("catalog.F09"),
             "F10 " + EnglishMessages.text("catalog.F10"),
             "F11 " + EnglishMessages.text("catalog.F11")
-        ).stream().map(name -> name + (name.startsWith("F05 ") ? " - IMPLEMENTED" : name.startsWith("F08 ") ? " - IMPLEMENTED" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
+        ).stream().map(name -> name + (name.startsWith("F01 ") || name.startsWith("F05 ") || name.startsWith("F08 ") ? " - IMPLEMENTED" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
     }
 
     public static List<String> lines(LocalizationService localization) {
         return java.util.stream.IntStream.rangeClosed(1, 11).mapToObj(number -> {
             String id = "F%02d".formatted(number);
             return id + " " + localization.text("catalog." + id) + " - "
-                + localization.text(number == 5 || number == 8 ? "catalog.implemented" : "catalog.scaffolded");
+                + localization.text(number == 1 || number == 5 || number == 8 ? "catalog.implemented" : "catalog.scaffolded");
         }).toList();
     }
     public static String unavailable(String feature) {

@@ -13,7 +13,7 @@ import com.photopilot.state.SessionState;
 
 /**
  * Stage 1 UML element 24 (zero-based): {F01; State context}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Session metadata and guarded lifecycle; linked feature workflows retain their own approval boundaries.
  */
 public class PhotographySession {
     private UUID id;
@@ -30,6 +30,7 @@ public class PhotographySession {
     private Optional<EquipmentRequirementProfile> profile;
     private Optional<ExifStatistics> statistics;
     private List<ActivitySuggestion> savedIdeas;
+    private transient String revision = "";
 
     public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas) {
         this.id = Objects.requireNonNull(id, "id");
@@ -49,7 +50,57 @@ public class PhotographySession {
     }
 
     public Result<PhotographySession> apply(SessionEvent event) {
-        return Result.failureKey("error.notImplemented", "PhotographySession.apply");
+        if (event == null) return Result.failureKey("error.session.state");
+        var next = state.next(this, event);
+        if (!next.isSuccess()) return Result.failure(next);
+        PhotographySession changed = copy(title, date, location, notes, next.value().orElseThrow());
+        return Result.success(changed);
+    }
+
+    public UUID id() { return id; }
+    public String title() { return title; }
+    public LocalDate date() { return date; }
+    public Optional<GeoLocation> location() { return location; }
+    public String notes() { return notes; }
+    public Instant createdAt() { return createdAt; }
+    public Instant updatedAt() { return updatedAt; }
+    public SessionState state() { return state; }
+    public String status() { return state.getClass().getSimpleName().replace("State", "").toUpperCase(java.util.Locale.ROOT); }
+    public Optional<ShootRequirement> requirements() { return requirements; }
+    public List<ShootPlan> plans() { return List.copyOf(plans); }
+    public List<PostShootReview> reviews() { return List.copyOf(reviews); }
+    public Optional<EquipmentRequirementProfile> profile() { return profile; }
+    public Optional<ExifStatistics> statistics() { return statistics; }
+    public List<ActivitySuggestion> savedIdeas() { return List.copyOf(savedIdeas); }
+    public String revision() { return revision == null ? "" : revision; }
+    /** Repository revision token; callers cannot bypass the persisted-content comparison. */
+    public PhotographySession withRevision(String revision) {
+        var copy = new PhotographySession(id, title, date, location, notes, createdAt, updatedAt,
+            state, requirements, plans, reviews, profile, statistics, savedIdeas);
+        copy.revision = Objects.requireNonNull(revision);
+        return copy;
+    }
+    public PhotographySession edit(String title, LocalDate date, Optional<GeoLocation> location, String notes) {
+        return copy(title, date, location, notes, state);
+    }
+    private PhotographySession copy(String title, LocalDate date, Optional<GeoLocation> location, String notes, SessionState state) {
+        Instant now = Instant.now();
+        if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
+        return new PhotographySession(id, title, date, location, notes, createdAt, now, state,
+            requirements, plans, reviews, profile, statistics, savedIdeas).withRevision(revision());
+    }
+    public Result<PhotographySession> validate() {
+        if (id == null || title == null || title.isBlank() || title.length() > 200 || date == null
+                || notes == null || notes.length() > 20000 || location == null || state == null
+                || createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt))
+            return Result.failureKey("error.session.details");
+        if (location.isPresent() && !location.get().validate().isSuccess()) return Result.failure(location.get().validate());
+        if (!java.util.Set.of("DRAFT", "PLANNED", "COMPLETED", "REVIEWED").contains(status()))
+            return Result.failureKey("error.session.state");
+        if (!status().equals("DRAFT") && plans.stream().noneMatch(ShootPlan::approved))
+            return Result.failureKey("error.session.planRequired");
+        if (status().equals("REVIEWED") && reviews.isEmpty()) return Result.failureKey("error.session.reviewRequired");
+        return Result.success(this);
     }
 
     public void attachRequirement(ShootRequirement requirement) {

@@ -1,6 +1,6 @@
 # Feature to skeleton mapping
 
-Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. F05 is implemented with [verified GUI/CLI evidence and additive design decisions](f05-inventory.md); F08 has [verified calculator evidence](f08-calculators.md). Other feature behavior remains **NOT IMPLEMENTED**; its structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
+Authoritative source: Stage1.docx section 8, checked against corresponding report PDF pp. 18–22 and UXF. F05 is implemented with [verified GUI/CLI evidence and additive design decisions](f05-inventory.md); F08 has [verified calculator evidence](f08-calculators.md). F01 has [verified session evidence and implementation diagrams](f01-sessions.md). Other feature behavior remains **NOT IMPLEMENTED**; its structural status is **SCAFFOLDED**. Bootstrap status is separate. UC14 is included validation, not a new GUI feature.
 
 ## Cross-cutting addition: bilingual localization (2026-10-27)
 
@@ -22,13 +22,13 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Relevant methods:** PhotoPilotFacade:; createSession(title, date); sessions(); SessionService:; create(title, date); save(session); search(query); open(id); transition(id, event); PhotographySession:; apply(event); SessionRepository:; save(session); find(id); search(query)
 
-**Sequence and gaps:** SD01: creation, history and completion.; Gap: optional location/notes have no exposed mutation route.
+**Sequence and changes:** SD01 creation, history and completion are implemented. Optional location/notes use SessionService create/update overloads; separate insert/delete and expected revisions protect CRUD. [Updated implementation diagrams and design rationale](f01-sessions.md#design-change-record-and-implementation-diagrams).
 
 **Patterns:** Facade: shared access.; State: session lifecycle.
 
 **Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [SessionService](../src/main/java/com/photopilot/service/SessionService.java), [PhotographySession](../src/main/java/com/photopilot/model/PhotographySession.java), [SessionState](../src/main/java/com/photopilot/state/SessionState.java), [DraftState](../src/main/java/com/photopilot/state/DraftState.java), [PlannedState](../src/main/java/com/photopilot/state/PlannedState.java), [CompletedState](../src/main/java/com/photopilot/state/CompletedState.java), [ReviewedState](../src/main/java/com/photopilot/state/ReviewedState.java), [SessionRepository](../src/main/java/com/photopilot/repository/SessionRepository.java), [JsonSessionRepository](../src/main/java/com/photopilot/repository/JsonSessionRepository.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** F01 verified through GUI/CLI with atomic JSON, retained drafts, search/filter, guarded lifecycle and F05 history references. Final full suite 95/95, packaged build and GUI_SMOKE_OK (2026-10-31). F10 approval and F11 review creation remain unavailable; valid linked-record transitions use controlled fixtures in tests. See [F01 evidence](f01-sessions.md).
 
 ## F02 AI Photography Inspiration and Activity Recommendation
 

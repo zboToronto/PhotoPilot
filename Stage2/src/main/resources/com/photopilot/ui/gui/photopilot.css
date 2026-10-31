@@ -119,3 +119,8 @@
 .inventory-content .table-row-cell:filled:selected .table-cell { -fx-text-fill: #1d4ed8; }
 .inventory-content .secondary-button:hover { -fx-background-color: #e5e7eb; }
 .inventory-content .secondary-button:focused { -fx-border-color: #2563eb; }
+
+/* F01 multiline goals use the same input treatment as the shared inventory forms. */
+.inventory-content .session-notes { -fx-background-color: #ffffff; -fx-background-radius: 6; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-padding: 8 10; }
+.inventory-content .session-notes .content { -fx-background-color: #ffffff; }
+.inventory-content .session-notes:focused { -fx-border-color: #2563eb; }

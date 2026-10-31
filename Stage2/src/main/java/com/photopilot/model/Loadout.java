@@ -30,4 +30,5 @@ public class Loadout {
     public Optional<Double> totalWeightGrams() {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: Loadout.totalWeightGrams");
     }
+    public List<GearSnapshot> gear() { return List.copyOf(gear); }
 }

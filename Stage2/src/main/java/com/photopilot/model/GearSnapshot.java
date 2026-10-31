@@ -39,7 +39,7 @@ public class GearSnapshot {
     public String model() { return model; }
     public int selectedQuantity() { return selectedQuantity; }
     public Instant capturedAt() { return capturedAt; }
-    public Map<String, String> specs() { return specs; }
-    public Set<String> verifiedFields() { return verifiedFields; }
-    public Map<String, URI> sources() { return sources; }
+    public Map<String, String> specs() { return Map.copyOf(specs); }
+    public Set<String> verifiedFields() { return Set.copyOf(verifiedFields); }
+    public Map<String, URI> sources() { return Map.copyOf(sources); }
 }

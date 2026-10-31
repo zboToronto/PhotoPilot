@@ -7,7 +7,7 @@ import com.photopilot.model.PhotographySession;
 
 /**
  * Stage 1 UML element 31 (zero-based): {persistence port; atomic aggregate save}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Session persistence port; save/delete reject stale revisions.
  */
 public interface SessionRepository {
 
@@ -18,4 +18,7 @@ public interface SessionRepository {
     public Result<List<PhotographySession>> search(String query);
 
     public Result<List<UUID>> referencingGear(UUID id);
+
+    default Result<PhotographySession> insert(PhotographySession session) { return Result.failureKey("error.session.repositoryOperation"); }
+    default Result<Boolean> delete(UUID id, String revision) { return Result.failureKey("error.session.repositoryOperation"); }
 }
