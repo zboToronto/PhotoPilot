@@ -40,6 +40,9 @@ public class ShootPlan {
         this.shotPriorities = List.copyOf(shotPriorities);
         this.fixedConstraints = Map.copyOf(fixedConstraints);
         this.calculations = List.copyOf(calculations);
+        if (revision < 1) throw new IllegalArgumentException("Plan revision must be positive.");
+        if (approved && !this.provisionalReasons.isEmpty())
+            throw new IllegalArgumentException("An approved plan cannot be provisional.");
     }
 
     public ShootPlan copyForRevision() {
@@ -51,6 +54,7 @@ public class ShootPlan {
     public int revision() { return revision; }
     public boolean approved() { return approved && provisionalReasons.isEmpty(); }
     public Optional<Loadout> loadout() { return loadout; }
+    public List<CalculationResult> calculations() { return List.copyOf(calculations); }
 
     void replaceLoadout(Loadout loadout) {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: ShootPlan.replaceLoadout");

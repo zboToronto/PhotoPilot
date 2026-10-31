@@ -7,12 +7,13 @@ import com.photopilot.model.GearInventory;
 
 /**
  * Stage 1 UML element 53 (zero-based): {persistence port}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Implementations return detached aggregates and preserve data on failed transactions.
  */
 public interface InventoryRepository {
 
     public Result<GearInventory> load();
 
+    /** Compare the input revision and return the saved aggregate with its new revision. */
     public Result<GearInventory> save(GearInventory inventory);
 
     /** One read/validate/write operation; storage implementations must serialize writers. */

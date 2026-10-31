@@ -83,7 +83,7 @@ In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a 
 ./mvnw.cmd test '-Dtest=LocalizationTest,LocalizedCliTest,TranslationResourcesTest,AgentLanguageTest,LocalizationGuiTest'
 ```
 
-The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **95 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [F01 evidence](docs/f01-sessions.md) records the current verification; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
+The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **106 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [Phase 1 evidence](docs/phase1-persistence-readiness.md) records the current verification; [F01 evidence](docs/f01-sessions.md) records its earlier 95-test snapshot; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
@@ -175,3 +175,7 @@ This build is preparation for Stage 2 implementation. It does not meet the final
 Select Technical Calculator in the existing GUI, or enter `calc help` in the CLI. Supported tools: exposure, nd, dof, hyperfocal, fov, storage, battery. Example: `calc nd shutter=1/125 ndStops=10` returns 8.192 s. Optional inventory prefill never changes saved gear; manual input needs no inventory or API key. All results show units and assumptions; optical and capacity tools are labeled estimates.
 
 [F08 usage, formulas, source inventory, design decisions, tests and limitations](docs/f08-calculators.md). Final F08 suite: 53/53 tests and GUI_SMOKE_OK, Windows/JDK 21. A graphical desktop is needed for the real JavaFX acceptance tests. Close existing GUI instances before `clean` on Windows if the native cache DLL is locked.
+
+## Persistent profile storage preparation (Phase 1)
+
+Existing JSON storage remains operational with unchanged v1 schemas and default paths. Session restoration now calls domain constructors and preserves immutable evidence; linked plan/review identities and basic stored-value invariants are checked. Inventory save returns the committed revision. A fixed StorageScope is shared by all business repositories at bootstrap; normal GUI/CLI launches still use legacy storage. Profile creation, switching and migration are deferred. Language preferences remain application-wide. [Architecture audit, changed files, implementation diagram, 106-test verification and Phase 2 handoff](docs/phase1-persistence-readiness.md).

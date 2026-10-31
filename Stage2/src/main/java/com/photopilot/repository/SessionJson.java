@@ -14,7 +14,7 @@ import java.util.function.Function;
 /** Version-one aggregate codec. No class names from disk are instantiated. */
 final class SessionJson {
     private SessionJson() { }
-    static final Gson JSON = new GsonBuilder().serializeNulls().setPrettyPrinting().setStrictness(Strictness.STRICT)
+    static final Gson JSON = SessionDomainAdapters.register(new GsonBuilder().disableJdkUnsafe()).serializeNulls().setPrettyPrinting().setStrictness(Strictness.STRICT)
         .registerTypeAdapter(Instant.class, text(Instant::parse))
         .registerTypeAdapter(LocalDate.class, text(LocalDate::parse))
         .registerTypeAdapter(ZonedDateTime.class, text(ZonedDateTime::parse))

@@ -25,6 +25,10 @@ public class CapabilityNeed {
         this.priority = priority;
         this.hardConstraint = hardConstraint;
         this.rationale = Objects.requireNonNull(rationale, "rationale");
+        if (minimum.filter(value -> !Double.isFinite(value)).isPresent()
+                || maximum.filter(value -> !Double.isFinite(value)).isPresent()
+                || (minimum.isPresent() && maximum.isPresent() && minimum.get() > maximum.get()))
+            throw new IllegalArgumentException("Invalid capability bounds.");
     }
 
     public Result<CapabilityNeed> validate() {

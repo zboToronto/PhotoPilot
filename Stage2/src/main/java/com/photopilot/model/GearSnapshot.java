@@ -32,6 +32,9 @@ public class GearSnapshot {
         this.specs = Map.copyOf(specs);
         this.verifiedFields = Set.copyOf(verifiedFields);
         this.sources = Map.copyOf(sources);
+        if (selectedQuantity < 1 || brand.isBlank() || model.isBlank())
+            throw new IllegalArgumentException("Invalid historical gear identity or quantity.");
+        EquipmentType.valueOf(type);
     }
     public UUID sourceGearId() { return sourceGearId; }
     public String type() { return type; }

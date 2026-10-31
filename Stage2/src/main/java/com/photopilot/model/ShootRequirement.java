@@ -43,6 +43,11 @@ public class ShootRequirement {
         this.fixedConstraints = Map.copyOf(fixedConstraints);
         this.clarificationQuestions = List.copyOf(clarificationQuestions);
         this.confirmed = confirmed;
+        if (duration.isNegative() || cameraCount < 1)
+            throw new IllegalArgumentException("Invalid requirement duration or camera count.");
+        maxWeightGrams.ifPresent(value -> {
+            if (!Double.isFinite(value) || value <= 0) throw new IllegalArgumentException("Invalid weight constraint.");
+        });
     }
 
     public Result<ShootRequirement> validate() {

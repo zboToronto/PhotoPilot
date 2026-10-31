@@ -38,7 +38,7 @@ public class JsonInventoryRepository implements InventoryRepository {
         // Inspect tokens first: reject duplicate keys, unknown fields and trailing content.
         JsonReader reader = new JsonReader(new StringReader(source));
         reader.setStrictness(Strictness.STRICT);
-        JsonElement tree = readElement(reader, 0);
+        JsonElement tree = StrictJson.readElement(reader, 0);
         if (reader.peek() != JsonToken.END_DOCUMENT) throw new IOException("Trailing JSON content.");
         JsonObject root = tree.getAsJsonObject();
         keys(root, Set.of("schemaVersion", "items"));
@@ -71,37 +71,12 @@ public class JsonInventoryRepository implements InventoryRepository {
     private static void string(JsonElement value) throws IOException {
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) throw new IOException("Expected a JSON string in equipment data.");
     }
-    static JsonElement readElement(JsonReader reader, int depth) throws IOException {
-        if (depth > 20) throw new IOException("JSON nesting is too deep.");
-        switch (reader.peek()) {
-            case BEGIN_OBJECT: {
-                JsonObject object = new JsonObject(); reader.beginObject();
-                while (reader.hasNext()) {
-                    String key = reader.nextName();
-                    if (object.has(key)) throw new IOException("Duplicate JSON field: " + key);
-                    object.add(key, readElement(reader, depth + 1));
-                }
-                reader.endObject(); return object;
-            }
-            case BEGIN_ARRAY: {
-                JsonArray array = new JsonArray(); reader.beginArray();
-                while (reader.hasNext()) array.add(readElement(reader, depth + 1));
-                reader.endArray(); return array;
-            }
-            case STRING: return new JsonPrimitive(reader.nextString());
-            case NUMBER: return new JsonPrimitive(new java.math.BigDecimal(reader.nextString()));
-            case BOOLEAN: return new JsonPrimitive(reader.nextBoolean());
-            case NULL: reader.nextNull(); return JsonNull.INSTANCE;
-            default: throw new IOException("Malformed inventory JSON.");
-        }
-    }
     @Override public Result<GearInventory> save(GearInventory inventory) {
         if (inventory == null) return Result.failureKey("error.inventory.required");
         return locked(() -> {
             var current = read();
             if (!current.revision().equals(inventory.revision())) return Result.failureKey("error.inventory.changed");
-            write(inventory);
-            return Result.success(inventory);
+            return Result.success(write(inventory));
         });
     }
     @Override public <T> Result<T> transact(Function<GearInventory, Result<T>> change) {
@@ -124,7 +99,7 @@ public class JsonInventoryRepository implements InventoryRepository {
         } catch (OverlappingFileLockException error) { return Result.failureKey("error.inventory.busy"); }
         catch (IOException | RuntimeException error) { return Result.failureKey("error.inventory.write", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
-    private void write(GearInventory inventory) throws IOException {
+    private GearInventory write(GearInventory inventory) throws IOException {
         // Revalidate even when called directly through the persistence port.
         new GearInventory(inventory.items());
         byte[] bytes = JSON.toJson(new Document(1, inventory.items().stream().map(EquipmentData::from).toList())).getBytes(StandardCharsets.UTF_8);
@@ -138,6 +113,7 @@ public class JsonInventoryRepository implements InventoryRepository {
             }
             replace(temporary);
         } finally { Files.deleteIfExists(temporary); }
+        return new GearInventory(inventory.items(), digest(bytes));
     }
     /** Protected seam for deterministic disk-failure tests. No non-atomic fallback. */
     protected void replace(Path temporary) throws IOException {

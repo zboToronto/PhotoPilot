@@ -7,7 +7,9 @@ import com.photopilot.model.PhotographySession;
 
 /**
  * Stage 1 UML element 31 (zero-based): {persistence port; atomic aggregate save}
- * Session persistence port; save/delete reject stale revisions.
+ * Session persistence port; save/delete reject stale revisions. Each instance addresses
+ * one fixed storage scope; linked records inherit their session's scope. Reads return
+ * detached aggregates, and failures must preserve existing stored data.
  */
 public interface SessionRepository {
 

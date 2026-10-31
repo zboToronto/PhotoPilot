@@ -92,7 +92,9 @@ public class PhotographySession {
     public Result<PhotographySession> validate() {
         if (id == null || title == null || title.isBlank() || title.length() > 200 || date == null
                 || notes == null || notes.length() > 20000 || location == null || state == null
-                || createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt))
+                || createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt)
+                || requirements == null || plans == null || reviews == null || profile == null
+                || statistics == null || savedIdeas == null)
             return Result.failureKey("error.session.details");
         if (location.isPresent() && !location.get().validate().isSuccess()) return Result.failure(location.get().validate());
         if (!java.util.Set.of("DRAFT", "PLANNED", "COMPLETED", "REVIEWED").contains(status()))
@@ -100,6 +102,16 @@ public class PhotographySession {
         if (!status().equals("DRAFT") && plans.stream().noneMatch(ShootPlan::approved))
             return Result.failureKey("error.session.planRequired");
         if (status().equals("REVIEWED") && reviews.isEmpty()) return Result.failureKey("error.session.reviewRequired");
+        var planKeys = new java.util.HashSet<String>();
+        for (ShootPlan plan : plans) {
+            if (!planKeys.add(plan.id() + ":" + plan.revision())) return Result.failureKey("error.session.links");
+        }
+        var reviewIds = new java.util.HashSet<UUID>();
+        for (PostShootReview review : reviews) {
+            if (!reviewIds.add(review.id()) || plans.stream().noneMatch(plan -> plan.approved()
+                    && plan.id().equals(review.comparedPlanId()) && plan.revision() == review.comparedRevision()))
+                return Result.failureKey("error.session.links");
+        }
         return Result.success(this);
     }
 

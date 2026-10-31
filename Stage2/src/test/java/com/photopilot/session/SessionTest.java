@@ -157,7 +157,9 @@ class SessionTest {
         assertFalse(service().save(forged).isSuccess()); assertEquals("DRAFT", service().open(initial.id()).value().orElseThrow().status());
         service().transition(initial.id(), SessionEvent.PLAN_APPROVED);
         var completed = service().transition(initial.id(), SessionEvent.SHOOT_COMPLETED).value().orElseThrow();
-        var replacementPlans = SessionFixtures.linked(new DraftState(), List.of(), true).plans();
+        // Keep review references valid so this specifically exercises the historical-plan guard.
+        var replacementPlans = new ArrayList<>(completed.plans());
+        replacementPlans.addAll(SessionFixtures.linked(new DraftState(), List.of(), false).plans());
         var rewritten = new PhotographySession(completed.id(), completed.title(), completed.date(), completed.location(), completed.notes(), completed.createdAt(), completed.updatedAt(),
             completed.state(), completed.requirements(), replacementPlans, completed.reviews(), completed.profile(), completed.statistics(), completed.savedIdeas()).withRevision(completed.revision());
         assertTrue(service().save(rewritten).hasError("error.session.historicalPlans"));

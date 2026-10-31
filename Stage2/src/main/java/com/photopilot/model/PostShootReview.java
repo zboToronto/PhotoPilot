@@ -28,5 +28,10 @@ public class PostShootReview {
         this.planDifferences = List.copyOf(planDifferences);
         this.lessons = List.copyOf(lessons);
         this.limitations = List.copyOf(limitations);
+        if (comparedRevision < 1) throw new IllegalArgumentException("Compared plan revision must be positive.");
     }
+
+    public UUID id() { return id; }
+    public UUID comparedPlanId() { return comparedPlanId; }
+    public int comparedRevision() { return comparedRevision; }
 }

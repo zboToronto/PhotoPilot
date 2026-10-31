@@ -24,6 +24,9 @@ UC14 is included validation, not a twelfth user feature. Except F01, F05 and F08
 
 ## Working infrastructure and test evidence
 
+- Persistence preparation Phase 1 (2026-10-31): **106/106** tests, zero failures/errors/skips; all 118 main/21 test sources recompiled, JAR packaging and GUI_SMOKE_OK. F01/F05 domain restoration/revisions hardened; fixed StorageScope and explicit constructor codec added. Existing GUI and independent CLI restarts pass. Business feature count remains 3/11; no profile creation/switching or live AI enabled. [Audit, decisions, changed files and Phase 2 handoff](../Stage2/docs/phase1-persistence-readiness.md).
+
+
 - F01 verification (2026-10-31): baseline 71/71; final JDK 21 `./mvnw.cmd -B -o test package javafx:run '-Djavafx.args=--smoke-test'` passed **95/95**, zero failures/errors/skips, packaged JAR and GUI_SMOKE_OK. All main/test sources recompiled (not Maven clean). Actual GUI CRUD/restart/draft/conflict tests, isolated CLI JVM restart, linked-record/F05 reference checks and F05/F08 regressions passed. Shared wide/narrow JavaFX renders inspected; original-source audit passed. [Evidence and limits](../Stage2/docs/f01-sessions.md).
 
 - Authorized localization upload recheck (2026-10-27): fresh `test javafx:run --smoke-test` passed **71/71** and GUI_SMOKE_OK; source/UML hash audit passed. This reused compiled classes and does not establish additional business features or live provider verification. Publication includes the bilingual implementation, tests and documentation; runtime preferences/build files/local launchers remain excluded.

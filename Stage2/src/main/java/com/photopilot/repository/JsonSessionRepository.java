@@ -38,7 +38,7 @@ public class JsonSessionRepository implements SessionRepository {
         String source = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
         try (JsonReader reader = new JsonReader(new StringReader(source))) {
             reader.setStrictness(Strictness.STRICT);
-            JsonObject root = JsonInventoryRepository.readElement(reader, 0).getAsJsonObject();
+            JsonObject root = StrictJson.readElement(reader, 0).getAsJsonObject();
             if (reader.peek() != JsonToken.END_DOCUMENT || !root.keySet().equals(Set.of("schemaVersion", "sessions"))
                     || !root.get("schemaVersion").toString().equals("1")) throw new IOException("Unsupported session schema.");
             List<PhotographySession> sessions = new ArrayList<>(); Set<UUID> ids = new HashSet<>();
@@ -114,7 +114,8 @@ public class JsonSessionRepository implements SessionRepository {
     }
     private static PhotographySession validatedCopy(PhotographySession session) {
         JsonObject tree = SessionJson.encode(session);
-        return SessionJson.decode(tree).withRevision(digest(tree.toString()));
+        var restored = SessionJson.decode(tree);
+        return restored.withRevision(digest(SessionJson.encode(restored).toString()));
     }
     private <T> Result<T> change(Function<List<PhotographySession>, Result<T>> operation) {
         try {

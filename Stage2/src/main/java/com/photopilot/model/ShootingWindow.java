@@ -21,6 +21,8 @@ public class ShootingWindow {
         this.arrival = Objects.requireNonNull(arrival, "arrival");
         this.conditions = Objects.requireNonNull(conditions, "conditions");
         this.estimated = estimated;
+        if (end.isBefore(start) || arrival.isAfter(start))
+            throw new IllegalArgumentException("Invalid shooting-window chronology.");
     }
 
     public Result<ShootingWindow> validate() {

@@ -47,11 +47,19 @@ These are confirmed gaps, not permission to implement or redesign them.
 | F02 select/save/dismiss not exposed through Facade | DiscoveryService declares them, but Facade has no forwarding/accessor route. |
 | F07 selected-loadout persistence missing | SD03 has no application selection/attachment operation. Strategy configuration exists at bootstrap; user-facing selection wiring remains unspecified. |
 | Generic AI decoding unresolved | `Class<T>` cannot describe list element schemas; PlanCommand requires an explicit concrete subtype allowlist. |
-| Approval and ownership invariants pending | Deep copy, immutable approved revisions, atomic aggregate persistence, multiplicities and stale/foreign revision rejection are design requirements, not established runtime behavior. |
+| Approval and ownership invariants partially established | F01/Phase 1 enforce atomic aggregate persistence, constructor-restored collections, historical-plan immutability, stale saves and same-session plan/review references. F10 approval/current-constraint and foreign preview validation, and local profile ownership/switching remain pending. |
 | Integration choices pending | Concrete device-location adapter, equipment/weather providers and EXIF library remain unspecified; bootstrap has unconfigured endpoints and no active device provider. |
 | Verification limits | F01/F05/F08 have business and GUI/CLI acceptance tests. Live AI/provider results and submission demonstration videos are not established. macOS/Linux rendering and other display scales remain unverified. |
 
 The structural audit currently rejects any HTTP send call as a scaffold safeguard. When authorized integration work starts, revise that obsolete scaffold assumption deliberately and document why; do not treat it as a permanent prohibition on required LLM integration.
+
+## Persistence preparation Phase 1 (2026-10-31)
+
+- Existing F01/F05 JSON repositories were retained. `StorageScope` centralizes normalized legacy and future UUID profile paths; the default bootstrap uses legacy paths, while its explicit-scope overload shares one fixed scope across all services/agent repository consumers. No ProfileManager, profile catalogue, switching, ownership migration or new user entity is implemented. Language preferences remain global; `EquipmentRequirementProfile` still means photography capabilities.
+- `SessionDomainAdapters` reconstructs all 15 saved domain types through constructors; Gson Unsafe allocation is disabled. Existing v1 fields, Optional/time/Infinity formats and historical localized text are preserved. Domain checks cover plan/review identity/references, revisions, EXIF counts, loadout references and basic temporal/numeric sanity. This does not implement scaffolded confirmation, matching or AI workflows.
+- `StrictJson` removes the concrete session-to-inventory parser dependency. Inventory save returns its new committed revision; session revision hashing uses the restored representation written to disk. Original public constructors remain compatible; new restoration overloads/read accessors support the codec and aggregate validation.
+- Verification: fresh baseline 95/95; all 118 main/21 test sources explicitly recompiled, final `./mvnw.cmd -B -o test package javafx:run '-Djavafx.args=--smoke-test'` passed **106/106**, zero failures/errors/skips, JAR and GUI_SMOKE_OK. Existing GUI controls and independent CLI restarts passed. Pristine Git HEAD synthetic v1 fixture, immutable evidence, malformed-data preservation, revisions and scope paths are covered. Source/UML audit passed; Stage1 unchanged. Cache-access and intermediate fixture issues were resolved. No Maven clean, live provider calls or complete multi-profile verification claimed.
+- [Architecture audit, domain assessment, exact file inventory, design changes and Phase 2 boundaries](../Stage2/docs/phase1-persistence-readiness.md). Phase 2 should extend the working IO/codec/repository foundation; Phases 3-5 own profile management, UI integration and comprehensive isolation tests.
 
 ## F01 implementation (2026-10-31)
 

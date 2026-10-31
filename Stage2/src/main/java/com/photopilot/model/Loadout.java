@@ -25,6 +25,12 @@ public class Loadout {
         this.compatibility = Objects.requireNonNull(compatibility, "compatibility");
         this.tradeOffs = List.copyOf(tradeOffs);
         this.unmetNeeds = List.copyOf(unmetNeeds);
+        var ids = new java.util.HashSet<UUID>();
+        for (GearSnapshot item : this.gear) {
+            if (!ids.add(item.sourceGearId())) throw new IllegalArgumentException("Duplicate gear in loadout.");
+        }
+        if (!ids.containsAll(this.cameraLensAssignments.keySet()) || !ids.containsAll(this.cameraLensAssignments.values()))
+            throw new IllegalArgumentException("Assignment refers to gear outside the loadout.");
     }
 
     public Optional<Double> totalWeightGrams() {

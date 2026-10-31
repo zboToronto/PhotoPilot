@@ -19,20 +19,24 @@ public class GeoLocation {
     private boolean coordinatesPresent;
 
     public GeoLocation(String label, double latitude, double longitude, boolean approximate, boolean fromDevice, Optional<Instant> consentGrantedAt) {
+        this(label, latitude, longitude, approximate, fromDevice, consentGrantedAt, true);
+    }
+
+    /** Explicit restoration of coordinate presence; no implicit device consent. */
+    public GeoLocation(String label, double latitude, double longitude, boolean approximate, boolean fromDevice,
+            Optional<Instant> consentGrantedAt, boolean coordinatesPresent) {
         this.label = Objects.requireNonNull(label, "label");
         this.latitude = latitude;
         this.longitude = longitude;
         this.approximate = approximate;
         this.fromDevice = fromDevice;
         this.consentGrantedAt = Objects.requireNonNull(consentGrantedAt, "consentGrantedAt");
-        this.coordinatesPresent = true;
+        this.coordinatesPresent = coordinatesPresent;
     }
 
     /** A manual place description does not invent coordinates or request device access. */
     public static GeoLocation manual(String label) {
-        var location = new GeoLocation(label, 0, 0, true, false, Optional.empty());
-        location.coordinatesPresent = false;
-        return location;
+        return new GeoLocation(label, 0, 0, true, false, Optional.empty(), false);
     }
     public String label() { return label; }
     public Optional<Double> latitude() { return coordinatesPresent ? Optional.of(latitude) : Optional.empty(); }

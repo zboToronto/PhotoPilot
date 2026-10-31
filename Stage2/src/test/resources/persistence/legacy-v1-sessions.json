@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "sessions": [
+    {
+      "id": "b11ae5b8-4e2c-471f-a7fb-fdb1f4ef1536",
+      "title": "Linked shoot",
+      "date": "2026-11-01",
+      "location": {
+        "label": "Park",
+        "latitude": 0.0,
+        "longitude": 0.0,
+        "approximate": true,
+        "fromDevice": false,
+        "consentGrantedAt": null,
+        "coordinatesPresent": false
+      },
+      "notes": "Goals",
+      "createdAt": "2026-10-31T10:00:00Z",
+      "updatedAt": "2026-10-31T10:00:00Z",
+      "state": "REVIEWED",
+      "requirements": {
+        "originalText": "Brief",
+        "subject": "Portrait",
+        "goals": [
+          "Light"
+        ],
+        "time": null,
+        "location": null,
+        "duration": "PT1H",
+        "cameraCount": 1,
+        "lensChangesAllowed": true,
+        "maxWeightGrams": null,
+        "gearConstraints": [],
+        "priorities": {},
+        "fixedConstraints": {},
+        "clarificationQuestions": [],
+        "confirmed": true
+      },
+      "plans": [
+        {
+          "id": "4f195422-0044-4ab4-aa10-df7bb0fa5073",
+          "revision": 1,
+          "approved": true,
+          "provisionalReasons": [],
+          "loadout": {
+            "id": "74f8f9b3-ca62-416c-874a-c254f534b73a",
+            "gear": [],
+            "cameraLensAssignments": {},
+            "compatibility": {
+              "compatible": true,
+              "unverified": [],
+              "violations": [],
+              "unmetNeeds": []
+            },
+            "tradeOffs": [],
+            "unmetNeeds": []
+          },
+          "settings": {
+            "iso": "100"
+          },
+          "windows": [
+            {
+              "start": "2026-11-01T10:00-05:00[America/Toronto]",
+              "end": "2026-11-01T11:00-05:00[America/Toronto]",
+              "arrival": "2026-11-01T09:00-05:00[America/Toronto]",
+              "conditions": "Manual",
+              "estimated": true
+            }
+          ],
+          "checklist": [
+            "Charge"
+          ],
+          "preparation": [],
+          "shotPriorities": [
+            "Light"
+          ],
+          "fixedConstraints": {},
+          "calculations": [
+            {
+              "values": {
+                "far": "Infinity"
+              },
+              "units": {
+                "far": "m"
+              },
+              "estimated": true,
+              "assumptions": [
+                "Fixture"
+              ],
+              "input": {
+                "operation": "DEPTH_OF_FIELD",
+                "parameters": {},
+                "units": {}
+              },
+              "localizedAssumptions": [
+                {
+                  "key": "common.literal",
+                  "arguments": [
+                    "Fixture"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "reviews": [
+        {
+          "id": "1f2c1c4c-894b-424a-915c-9b33e6cec1bd",
+          "createdAt": "2026-10-31T10:00:00Z",
+          "statistics": {
+            "importedCount": 1,
+            "usableCount": 1,
+            "missingCounts": {},
+            "focalLengthCounts": {
+              "50.0": 1
+            },
+            "shutterCounts": {},
+            "apertureCounts": {},
+            "isoCounts": {
+              "100": 1
+            },
+            "cameraCounts": {},
+            "lensCounts": {},
+            "limitations": [
+              "Fixture evidence"
+            ]
+          },
+          "comparedPlanId": "4f195422-0044-4ab4-aa10-df7bb0fa5073",
+          "comparedRevision": 1,
+          "planDifferences": [],
+          "lessons": [
+            "Lesson"
+          ],
+          "limitations": [
+            "Fixture"
+          ]
+        }
+      ],
+      "profile": {
+        "needs": [],
+        "reviewed": true
+      },
+      "statistics": {
+        "importedCount": 1,
+        "usableCount": 1,
+        "missingCounts": {},
+        "focalLengthCounts": {
+          "50.0": 1
+        },
+        "shutterCounts": {},
+        "apertureCounts": {},
+        "isoCounts": {
+          "100": 1
+        },
+        "cameraCounts": {},
+        "lensCounts": {},
+        "limitations": [
+          "Fixture evidence"
+        ]
+      },
+      "savedIdeas": [
+        {
+          "subject": "Portrait",
+          "setting": "Park",
+          "estimatedDuration": "PT1H",
+          "estimatedTravelKm": null,
+          "rationale": "Light",
+          "limitations": []
+        }
+      ]
+    }
+  ]
+}

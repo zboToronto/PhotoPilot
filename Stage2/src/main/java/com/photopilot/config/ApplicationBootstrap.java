@@ -22,9 +22,15 @@ public final class ApplicationBootstrap implements AutoCloseable {
     private final PhotoPilotFacade facade;
     private final HttpClient http;
     private final LocalizationService localization;
+    private final StorageScope storageScope;
 
     public ApplicationBootstrap(Map<String, String> environment) {
-        Path directory = Path.of(environment.getOrDefault("PHOTOPILOT_DATA_DIR", "data"));
+        this(environment, StorageScope.legacy(Path.of(environment.getOrDefault("PHOTOPILOT_DATA_DIR", "data"))));
+    }
+
+    /** One fixed scope for every business repository and agent dependency in this application. */
+    public ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope) {
+        this.storageScope = java.util.Objects.requireNonNull(storageScope, "storageScope");
         Path configuration = Path.of(environment.getOrDefault("PHOTOPILOT_CONFIG_DIR",
             Path.of(System.getProperty("user.home"), ".photopilot").toString()));
         localization = new LocalizationService(new FileLocalePreferenceRepository(configuration.resolve("settings.properties")));
@@ -34,8 +40,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
         }
         URI geminiEndpoint = URI.create(environment.getOrDefault("GEMINI_ENDPOINT", "https://unconfigured.invalid/gemini"));
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        SessionRepository sessions = new JsonSessionRepository(directory.resolve("sessions"));
-        InventoryRepository inventory = new JsonInventoryRepository(directory.resolve("inventory.json"));
+        SessionRepository sessions = new JsonSessionRepository(storageScope.sessionsDirectory());
+        InventoryRepository inventory = new JsonInventoryRepository(storageScope.inventoryFile());
         ToolRegistry tools = new ToolRegistry(Map.of());
         LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
             environment.getOrDefault("GEMINI_MODEL", "UNCONFIGURED"), http, Duration.ofSeconds(30)), localization);
@@ -70,6 +76,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
 
     public PhotoPilotFacade facade() { return facade; }
     public LocalizationService localization() { return localization; }
+    public StorageScope storageScope() { return storageScope; }
 
     @Override
     public void close() { http.close(); }

@@ -24,6 +24,10 @@ public class ActivitySuggestion {
         this.estimatedTravelKm = Objects.requireNonNull(estimatedTravelKm, "estimatedTravelKm");
         this.rationale = Objects.requireNonNull(rationale, "rationale");
         this.limitations = List.copyOf(limitations);
+        if (estimatedDuration.isNegative()) throw new IllegalArgumentException("Negative activity duration.");
+        estimatedTravelKm.ifPresent(value -> {
+            if (!Double.isFinite(value) || value < 0) throw new IllegalArgumentException("Invalid travel estimate.");
+        });
     }
 
     public ShootRequirement toRequirement() {
