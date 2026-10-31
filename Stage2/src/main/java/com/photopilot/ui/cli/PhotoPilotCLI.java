@@ -38,6 +38,8 @@ public class PhotoPilotCLI {
 
     public static void main(String[] args) {
         try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(System.getenv())) {
+            bootstrap.storageNotice().ifPresent(note -> new PrintStream(System.err, true, StandardCharsets.UTF_8)
+                .println(note.render(bootstrap.localization())));
             new PhotoPilotCLI(bootstrap.facade(), new ImagePrivacyBoundary(), new Scanner(System.in, StandardCharsets.UTF_8),
                 new PrintStream(System.out, true, StandardCharsets.UTF_8), bootstrap.localization()).run(args);
         } catch (IllegalArgumentException error) {

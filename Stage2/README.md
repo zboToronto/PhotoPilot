@@ -74,7 +74,7 @@ The original six JUnit tests check bootstrap wiring identity, honest not-impleme
 
 ## Language settings (English / 简体中文)
 
-English (`en`) is the fresh-user default and fallback. Open **Settings / 设置** in the GUI and select **English** or **简体中文**; labels, open settings windows, validation and displayed calculation results update immediately while preserving unsaved inputs and selection. The preference is saved at `${user.home}/.photopilot/settings.properties`, shared with the CLI. Set the actual environment variable `PHOTOPILOT_CONFIG_DIR` to override that directory. Save failures retain the session language and show retry feedback.
+English (`en`) is the fresh-user default and fallback. Open **Settings / 设置** in the GUI and select **English** or **简体中文**; labels, open settings windows, validation and displayed calculation results update immediately while preserving unsaved inputs and selection. The preference is saved at `${user.home}/.photopilot/preferences.json`, shared with the CLI. Set the actual environment variable `PHOTOPILOT_CONFIG_DIR` to override that directory. If JSON is absent, existing settings.properties is read without modification; an explicit save writes JSON and retains the original properties file. Save failures retain the session language and show retry feedback.
 
 In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a preference. `--lang zh-CN` (or `--lang=en`) overrides only the current invocation. Existing command identifiers/options and structured tool data stay unchanged. UTF-8 terminal input/output is used.
 
@@ -83,7 +83,7 @@ In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a 
 ./mvnw.cmd test '-Dtest=LocalizationTest,LocalizedCliTest,TranslationResourcesTest,AgentLanguageTest,LocalizationGuiTest'
 ```
 
-The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **106 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [Phase 1 evidence](docs/phase1-persistence-readiness.md) records the current verification; [F01 evidence](docs/f01-sessions.md) records its earlier 95-test snapshot; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, 327-key coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
+The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **124 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [Phase 2 evidence](docs/phase2-json-persistence.md) records the current verification; [F01 evidence](docs/f01-sessions.md) records its earlier 95-test snapshot; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, resource coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
@@ -114,7 +114,7 @@ gear edit <UUID printed by add> quantity=2
 gear remove <UUID printed by add>
 ```
 
-Data is stored in `data/inventory.json` relative to the application working directory, or under `PHOTOPILOT_DATA_DIR`. Start GUI and CLI from the same directory or set the same absolute data root. Use Search / Refresh or reopen F05 to see changes made by the other interface. Duplicate model entries need explicit review; duplicate IDs are rejected by add. The desktop editor also rejects stale edits/removals. Corrupt files are preserved and reported; they are never silently replaced with an empty inventory.
+Data is stored in `${user.home}/.photopilot/data/inventory.json`, or under `PHOTOPILOT_DATA_DIR`. GUI and CLI share the default regardless of launch directory; use the same absolute override for custom storage. Use Search / Refresh or reopen F05 to see changes made by the other interface. Duplicate model entries need explicit review; duplicate IDs are rejected by add. The desktop editor also rejects stale edits/removals. Corrupt files are preserved and reported; they are never silently replaced with an empty inventory.
 
 The historical F05 verification contained **36 passing tests** (Windows, JDK 21, 2026-10-26), including real JavaFX controls; the current full-suite count is listed in Language settings above. A graphical desktop is required for the full suite. Headless service/CLI runs may use `-Dtest=BootstrapTest,FeaturePresentationTest,InventoryTest,InventoryCliTest`; this excludes GUI acceptance and must not be reported as full verification. See [F05 evidence and known limits](docs/f05-inventory.md).
 
@@ -154,7 +154,8 @@ Current environment-variable configuration:
 
 | Variable | Effect/default |
 | --- | --- |
-| `PHOTOPILOT_DATA_DIR` | Repository path root, default `data`; F05 writes `inventory.json`, F01 writes `sessions/sessions.json` here |
+| `PHOTOPILOT_DATA_DIR` | Repository path root, default `${user.home}/.photopilot/data`; F05 writes `inventory.json`, F01 writes `sessions/sessions.json` here |
+| `PHOTOPILOT_CONFIG_DIR` | Preference directory, default `${user.home}/.photopilot`; JSON preferences with read-only legacy properties compatibility |
 | `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` selects the approved strategy object; ranking remains unimplemented |
 | `GEMINI_MODEL` | Stored model name, default `UNCONFIGURED`; no API call |
 | `GEMINI_ENDPOINT` | Stored URI, default reserved `https://unconfigured.invalid/gemini`; no API call |
@@ -176,6 +177,14 @@ Select Technical Calculator in the existing GUI, or enter `calc help` in the CLI
 
 [F08 usage, formulas, source inventory, design decisions, tests and limitations](docs/f08-calculators.md). Final F08 suite: 53/53 tests and GUI_SMOKE_OK, Windows/JDK 21. A graphical desktop is needed for the real JavaFX acceptance tests. Close existing GUI instances before `clean` on Windows if the native cache DLL is locked.
 
+## Integrated JSON persistence (Phase 2)
+
+StorageConfiguration centralizes stable default and configured paths. Session/inventory repositories and JsonLocalePreferenceRepository share bounded UTF-8 IO, OS locks and atomic replacement. Existing schema v1 domain data remains compatible; unsupported atomic moves fail without overwriting the original. Canonical session revisions prevent false conflicts caused by another JVM changing object-key order.
+
+Default business files are `${user.home}/.photopilot/data/inventory.json` and `data/sessions/sessions.json` beneath the same `.photopilot` directory. When launch-directory `data/` contains legacy records, GUI and CLI show an explicit notice; files are never relocated or deleted. To keep using old storage, set `PHOTOPILOT_DATA_DIR` to its absolute directory before launching both interfaces. Legacy data outside the launch directory must also be selected explicitly. Relative overrides remain supported but depend on the launch directory.
+
+See [Phase 2 architecture, formats, safety, file inventory, 124-test verification and Phase 3 handoff](docs/phase2-json-persistence.md). Full profile creation/switching is deferred.
+
 ## Persistent profile storage preparation (Phase 1)
 
-Existing JSON storage remains operational with unchanged v1 schemas and default paths. Session restoration now calls domain constructors and preserves immutable evidence; linked plan/review identities and basic stored-value invariants are checked. Inventory save returns the committed revision. A fixed StorageScope is shared by all business repositories at bootstrap; normal GUI/CLI launches still use legacy storage. Profile creation, switching and migration are deferred. Language preferences remain application-wide. [Architecture audit, changed files, implementation diagram, 106-test verification and Phase 2 handoff](docs/phase1-persistence-readiness.md).
+Historical Phase 1 snapshot (default paths superseded by Phase 2 above): existing JSON storage retained v1 schemas and then-current paths. Session restoration now calls domain constructors and preserves immutable evidence; linked plan/review identities and basic stored-value invariants are checked. Inventory save returns the committed revision. A fixed StorageScope is shared by all business repositories at bootstrap; at that stage normal GUI/CLI launches still used legacy storage. Profile creation, switching and migration are deferred. Language preferences remain application-wide. [Architecture audit, changed files, implementation diagram, 106-test verification and Phase 2 handoff](docs/phase1-persistence-readiness.md).

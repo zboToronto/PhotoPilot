@@ -2,6 +2,8 @@
 
 This supplements the unchanged Stage 1 diagrams with implemented localization participants. It does not claim that the original AI business workflows are operational.
 
+Phase 2 bootstrap supplies JsonLocalePreferenceRepository; the properties implementation remains for legacy callers. See [current storage policy and relationships](phase2-json-persistence.md).
+
 ```mermaid
 classDiagram
     class ApplicationBootstrap {
@@ -20,6 +22,7 @@ classDiagram
         +load() String
         +save(tag)
     }
+    class JsonLocalePreferenceRepository
     class FileLocalePreferenceRepository
     class FxLocalizer {
         ~bind(property, supplier)
@@ -60,6 +63,8 @@ classDiagram
     ApplicationBootstrap ..> LanguageAwareLLMClient : constructs
     LocalizationService --> LocalePreferenceRepository
     FileLocalePreferenceRepository ..|> LocalePreferenceRepository
+    JsonLocalePreferenceRepository ..|> LocalePreferenceRepository
+    ApplicationBootstrap ..> JsonLocalePreferenceRepository : constructs
     SettingsDialog --> LocalizationService : select and persist
     SettingsDialog *-- FxLocalizer
     PhotoPilotWorkspace *-- FxLocalizer

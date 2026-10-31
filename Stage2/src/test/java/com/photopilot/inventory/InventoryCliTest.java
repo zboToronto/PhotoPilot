@@ -15,7 +15,7 @@ class InventoryCliTest {
     @TempDir Path directory;
     @Test void commandsSharePersistentServiceAndHandleQuotedInputsAndErrors() {
         UUID id=UUID.randomUUID(); var bytes=new ByteArrayOutputStream();
-        try (var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
+        try (var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             var cli=new PhotoPilotCLI(bootstrap.facade(),new ImagePrivacyBoundary(),new Scanner(""),new PrintStream(bytes,true,StandardCharsets.UTF_8));
             assertEquals(0,cli.execute("gear help"));
             assertEquals(0,cli.execute("gear add camera id="+id+" brand=\"Test Brand\" model=\"Test Camera\" mount=E quantity=2"));
@@ -30,7 +30,7 @@ class InventoryCliTest {
             assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("Test Brand Test Camera"));
             assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("mount*"));
         }
-        try (var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
+        try (var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             var cli=new PhotoPilotCLI(bootstrap.facade(),new ImagePrivacyBoundary(),new Scanner(""),new PrintStream(bytes));
             assertEquals("Updated Camera",bootstrap.facade().inventory().list("").value().orElseThrow().items().getFirst().model());
             assertEquals(0,cli.execute("gear remove "+id));

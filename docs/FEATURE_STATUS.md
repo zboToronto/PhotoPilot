@@ -24,6 +24,8 @@ UC14 is included validation, not a twelfth user feature. Except F01, F05 and F08
 
 ## Working infrastructure and test evidence
 
+- JSON persistence Phase 2 (2026-10-31): **124/124** tests, zero failures/errors/skips; full compilation, JAR packaging and GUI_SMOKE_OK. Stable home-based default, JSON settings with non-destructive legacy support, shared bounded atomic IO and canonical revisions integrated into existing services. Actual CLI JVM and packaged-JAR cross-directory restart, GUI/CLI exchange, cross-process lock/interruption/read-only/unsupported-atomic checks passed. Business count remains 3/11; profiles and live AI remain deferred. [Architecture, file inventory, verification and Phase 3 handoff](../Stage2/docs/phase2-json-persistence.md).
+
 - Persistence preparation Phase 1 (2026-10-31): **106/106** tests, zero failures/errors/skips; all 118 main/21 test sources recompiled, JAR packaging and GUI_SMOKE_OK. F01/F05 domain restoration/revisions hardened; fixed StorageScope and explicit constructor codec added. Existing GUI and independent CLI restarts pass. Business feature count remains 3/11; no profile creation/switching or live AI enabled. [Audit, decisions, changed files and Phase 2 handoff](../Stage2/docs/phase1-persistence-readiness.md).
 
 

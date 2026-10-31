@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class CalculationInventoryTest {
     @TempDir Path directory;
     @Test void optionalGearPrefillsOnlyKnownRelevantValuesAndNeverMutatesInventory() throws Exception {
-        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
+        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             var filter=EquipmentForm.parse(EquipmentType.FILTER,UUID.randomUUID(),Map.of("brand","Test","model","ND","diameterMm","77","ndStops","10"),null).value().orElseThrow();
             assertTrue(bootstrap.facade().inventory().add(filter,false).isSuccess());
             var stored=Files.readAllBytes(directory.resolve("inventory.json"));

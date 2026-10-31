@@ -1,6 +1,6 @@
 # Bilingual localization implementation
 
-Status: implemented and verified for the current GUI, CLI, F05 and F08. Languages: **English (`en`, default/fallback)** and **Simplified Chinese (`zh-CN`)**. This is additional usability infrastructure, not one of the ten required substantial business features. The project still has two implemented business features (F05/F08); nine remain scaffolded. No live LLM response is claimed.
+Status: implemented and verified for the current GUI, CLI, F05 and F08. Languages: **English (`en`, default/fallback)** and **Simplified Chinese (`zh-CN`)**. This is additional usability infrastructure, not one of the ten required substantial business features. Updated through Phase 2: three business features (F01/F05/F08) are implemented; eight remain scaffolded. Test counts below are the historical localization snapshot; current persistence evidence is in [Phase 2](phase2-json-persistence.md). No live LLM response is claimed.
 
 ## Usage and preference storage
 
@@ -21,7 +21,7 @@ lang en
 ./mvnw.cmd exec:java '-Dexec.mainClass=com.photopilot.ui.cli.PhotoPilotCLI' '-Dexec.args=--lang zh-CN help "calc nd shutter=1/125 ndStops=10" exit'
 ```
 
-GUI and CLI share `${user.home}/.photopilot/settings.properties`, independently of the business-data working directory. `PHOTOPILOT_CONFIG_DIR` overrides the configuration directory; `PHOTOPILOT_DATA_DIR` continues to control inventory separately. Constructors read preferences but do not create directories or files. The only preference written is `language`; unrelated properties are merged under a sidecar file lock and persisted by atomic replacement. A missing file or unsupported value uses English. Read/write/lock failures are diagnosed once per service; a failed write preserves the old file, keeps the new language for this process, and displays a retryable failure. Malformed files are preserved rather than silently overwritten. Filesystems without atomic replacement cannot persist the selection and report failure. No credentials belong in this file.
+GUI and CLI share `${user.home}/.photopilot/preferences.json`. `PHOTOPILOT_CONFIG_DIR` overrides that directory; `PHOTOPILOT_DATA_DIR` controls business records separately. Constructors read but create no files. Phase 2 uses JsonLocalePreferenceRepository: schemaVersion 1 with a string-valued `values` object. If JSON is missing, settings.properties is read without modification; explicit saving merges legacy values into JSON and retains the original file. JSON, once present, is authoritative; malformed JSON never silently falls back to properties. Missing preferences and unsupported legacy language tags use English; invalid JSON language values are diagnosed. The same LocalizationService keeps the selected language for this process on failure and displays retry feedback. Writes hold JSON and legacy sidecar locks, reload values and atomically replace JSON. Unsupported atomic moves preserve the original and fail. `--lang` never migrates or saves preferences. No credentials belong in these files. [Formats, bounds, tests and compatibility](phase2-json-persistence.md).
 
 CLI stdin/stdout use UTF-8 in the main entry point, including redirected pipes. Use a UTF-8-capable terminal/font. Commands, enum constants, UUIDs, paths, `key=value` fields, units consumed by commands, JSON keys and user values remain unchanged. Separate already-running processes do not watch each other's preferences; a new launch restores the latest saved preference.
 
@@ -31,7 +31,7 @@ CLI stdin/stdout use UTF-8 in the main entry point, including redirected pipes. 
 | --- | --- |
 | `Language` | Allowlist of stable `en` / `zh-CN` identifiers, locales and native display names. Invalid persisted/API values normalize to English. |
 | `LocalizationService` | Per-application ResourceBundle facade: UTF-8 decoding, English fallback, MessageFormat, locale selection, preference failure state, Observer subscriptions and once-per-key diagnostics. Never changes `Locale.setDefault`. |
-| `LocalePreferenceRepository` / `FileLocalePreferenceRepository` | Storage port and UTF-8, locked, atomic properties implementation. Transient implementation isolates legacy constructors and tests. |
+| `LocalePreferenceRepository` / `JsonLocalePreferenceRepository` | Storage port and current UTF-8, locked, atomic JSON implementation. FileLocalePreferenceRepository remains for legacy callers/tests; bootstrap uses JSON with legacy read compatibility. |
 | `LocalizedMessage` / `LocalizedException` / `EnglishMessages` | Stable key and arguments survive domain/service boundaries. Nested descriptors localize field names. Fixed English rendering preserves diagnostic compatibility without a mutable global application locale. |
 | `Result` | Additive `failureKey`, descriptor/exception/Result propagation, `errors(localization)` and `hasError(key)`. Existing `errors()` remains English. Duplicate detection now uses a key, not translated text. |
 | `ApplicationBootstrap` | Constructs one localization instance before presentation; injects it into GUI/CLI and the model-port decorator. No business preferences or data are reset. |

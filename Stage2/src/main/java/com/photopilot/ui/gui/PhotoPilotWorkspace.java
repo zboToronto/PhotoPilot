@@ -22,6 +22,7 @@ final class PhotoPilotWorkspace extends BorderPane {
     private final FxLocalizer texts;
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
     private final Label footer = FeaturePane.label("", "footer-text");
+    private final Label storageNotice = FeaturePane.label("", "feedback-text");
     private final ScrollPane contentScroll;
     private String selectedId;
     private long selectionVersion;
@@ -33,7 +34,11 @@ final class PhotoPilotWorkspace extends BorderPane {
         texts.useReadableFont(this);
         detail = new FeaturePane(localization);
         getStyleClass().add("workspace");
-        setTop(header());
+        storageNotice.setId("storage-notice");
+        storageNotice.getStyleClass().add("feedback-box");
+        storageNotice.setMaxWidth(Double.MAX_VALUE);
+        storageNotice.setVisible(false); storageNotice.setManaged(false);
+        setTop(new VBox(header(), storageNotice));
         VBox content = new VBox(detail);
         content.setAlignment(Pos.TOP_CENTER);
         content.getStyleClass().add("content-surface");
@@ -142,6 +147,10 @@ final class PhotoPilotWorkspace extends BorderPane {
 
     void showFeedback(String message) { detail.showFeedback(message); }
     void showFeedback(java.util.function.Supplier<String> message) { detail.showFeedback(message); }
+    void showStorageNotice(LocalizedMessage notice) {
+        texts.bind(storageNotice.textProperty(), () -> notice.render(localization));
+        storageNotice.setVisible(true); storageNotice.setManaged(true);
+    }
     long selectionVersion() { return selectionVersion; }
 
     /** Exercises real controls in the existing opt-in graphical smoke mode. */

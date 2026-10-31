@@ -14,7 +14,7 @@ class CalculatorGuiTest {
     @Test void realControlsCalculateValidateAndResize() throws Exception {
         try { Platform.startup(() -> Platform.setImplicitExit(false)); } catch(IllegalStateException alreadyStarted) { }
         var executor=java.util.concurrent.Executors.newSingleThreadExecutor();
-        try(var bootstrap=new ApplicationBootstrap(Map.of())) {
+        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", directory.resolve("data").toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             InventoryGuiTest.fx(() -> {
                 var pane=new CalculatorPane(bootstrap.facade(),executor);var workspace=new PhotoPilotWorkspace();workspace.connectCalculator(pane);
                 var stage=new Stage();var scene=new Scene(workspace,1120,760);scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());stage.setScene(scene);stage.show();
@@ -48,7 +48,7 @@ class CalculatorGuiTest {
         try { Platform.startup(() -> Platform.setImplicitExit(false)); } catch(IllegalStateException alreadyStarted) { }
         var executor=java.util.concurrent.Executors.newSingleThreadExecutor();
         Stage[] stages=new Stage[1];CalculatorPane[] panes=new CalculatorPane[1];PhotoPilotWorkspace[] workspaces=new PhotoPilotWorkspace[1];
-        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
+        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             var filter=com.photopilot.application.EquipmentForm.parse(com.photopilot.model.EquipmentType.FILTER,UUID.randomUUID(),Map.of("brand","Test","model","ND","diameterMm","77","ndStops","10"),null).value().orElseThrow();
             assertTrue(bootstrap.facade().inventory().add(filter,false).isSuccess());
             InventoryGuiTest.fx(() -> {

@@ -58,6 +58,7 @@ public class PhotoPilotGUI extends Application {
             if (sessions.preventClose(stage::close)) { event.consume(); workspace.selectSessions(); }
         });
         stage.show();
+        bootstrap.storageNotice().ifPresent(workspace::showStorageNotice);
         if (getParameters().getRaw().contains("--smoke-test")) {
             Platform.runLater(() -> {
                 try {

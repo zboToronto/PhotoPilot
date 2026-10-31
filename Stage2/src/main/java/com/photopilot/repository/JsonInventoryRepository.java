@@ -6,19 +6,16 @@ import com.google.gson.stream.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.*;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.*;
 import java.util.*;
 import java.util.function.Function;
-import static java.nio.file.StandardOpenOption.*;
 
 /** Versioned JSON storage with a process lock, optimistic revisions and atomic replacement. */
 public class JsonInventoryRepository implements InventoryRepository {
     private final Path file;
-    private static final long MAX_BYTES = 10 * 1024 * 1024;
+    private static final int MAX_BYTES = 10 * 1024 * 1024;
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().serializeNulls().setStrictness(Strictness.STRICT).create();
     private record Document(int schemaVersion, List<EquipmentData> items) { }
 
@@ -29,12 +26,10 @@ public class JsonInventoryRepository implements InventoryRepository {
         catch (IOException | RuntimeException error) { return Result.failureKey("error.inventory.read", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
     private GearInventory read() throws IOException {
-        byte[] bytes;
-        try (InputStream input = Files.newInputStream(file)) {
-            bytes = input.readNBytes((int) MAX_BYTES + 1);
-        } catch (NoSuchFileException error) { return new GearInventory(List.of()); }
-        if (bytes.length > MAX_BYTES) throw new IOException("Inventory exceeds the 10 MiB limit.");
-        String source = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+        var stored = AtomicFiles.read(file, MAX_BYTES);
+        if (stored.isEmpty()) return new GearInventory(List.of());
+        byte[] bytes = stored.get();
+        String source = AtomicFiles.utf8(bytes);
         // Inspect tokens first: reject duplicate keys, unknown fields and trailing content.
         JsonReader reader = new JsonReader(new StringReader(source));
         reader.setStrictness(Strictness.STRICT);
@@ -90,34 +85,20 @@ public class JsonInventoryRepository implements InventoryRepository {
     @FunctionalInterface private interface Operation<T> { Result<T> run() throws IOException; }
     private <T> Result<T> locked(Operation<T> operation) {
         try {
-            Files.createDirectories(file.getParent());
-            try (FileChannel channel = FileChannel.open(file.resolveSibling(file.getFileName() + ".lock"), CREATE, WRITE);
-                 FileLock lock = channel.tryLock()) {
-                if (lock == null) return Result.failureKey("error.inventory.busy");
-                return operation.run();
-            }
-        } catch (OverlappingFileLockException error) { return Result.failureKey("error.inventory.busy"); }
+            return AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), operation::run);
+        } catch (AtomicFiles.Busy error) { return Result.failureKey("error.inventory.busy"); }
         catch (IOException | RuntimeException error) { return Result.failureKey("error.inventory.write", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
     private GearInventory write(GearInventory inventory) throws IOException {
         // Revalidate even when called directly through the persistence port.
         new GearInventory(inventory.items());
         byte[] bytes = JSON.toJson(new Document(1, inventory.items().stream().map(EquipmentData::from).toList())).getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > MAX_BYTES) throw new IOException("Inventory exceeds the 10 MiB limit.");
-        Path temporary = Files.createTempFile(file.getParent(), "inventory-", ".tmp");
-        try {
-            try (FileChannel channel = FileChannel.open(temporary, WRITE, TRUNCATE_EXISTING)) {
-                ByteBuffer buffer = ByteBuffer.wrap(bytes);
-                while (buffer.hasRemaining()) channel.write(buffer);
-                channel.force(true);
-            }
-            replace(temporary);
-        } finally { Files.deleteIfExists(temporary); }
+        AtomicFiles.write(file, "inventory-", bytes, MAX_BYTES, this::replace);
         return new GearInventory(inventory.items(), digest(bytes));
     }
     /** Protected seam for deterministic disk-failure tests. No non-atomic fallback. */
     protected void replace(Path temporary) throws IOException {
-        Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        AtomicFiles.replace(temporary, file);
     }
     private static String digest(byte[] bytes) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }

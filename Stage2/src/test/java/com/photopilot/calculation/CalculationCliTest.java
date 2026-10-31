@@ -9,8 +9,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CalculationCliTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory;
     @Test void actualDispatcherHandlesCalculationsAndErrors() {
-        try(var bootstrap=new ApplicationBootstrap(Map.of())) {
+        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", directory.resolve("data").toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             var bytes=new ByteArrayOutputStream();var cli=new PhotoPilotCLI(bootstrap.facade(),new ImagePrivacyBoundary(),new Scanner(""),new PrintStream(bytes));
             assertEquals(0,cli.execute("F08"));
             assertEquals(0,cli.execute("calc exposure aperture=8 shutter=1/128 iso=400"));

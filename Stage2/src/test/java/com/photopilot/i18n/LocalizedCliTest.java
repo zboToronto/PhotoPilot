@@ -65,6 +65,7 @@ class LocalizedCliTest {
             assertTrue(output(bytes).endsWith("PhotoPilot 已关闭。" + System.lineSeparator()));
             assertFalse(output(bytes).contains("未知命令"));
             assertFalse(Files.exists(directory.resolve("config/settings.properties")));
+            assertFalse(Files.exists(directory.resolve("config/preferences.json")));
             bytes.reset(); cli(app, bytes, "").run(new String[]{"--lang"});
             assertTrue(output(bytes).contains("Unsupported or missing language"));
         }

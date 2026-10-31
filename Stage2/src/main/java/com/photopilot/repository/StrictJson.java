@@ -7,6 +7,19 @@ import java.io.IOException;
 /** Shared bounded parser that rejects duplicate keys before domain decoding. */
 final class StrictJson {
     private StrictJson() { }
+    /** Object order is not content; array order remains significant for history and evidence. */
+    static JsonElement canonical(JsonElement value) {
+        if (value.isJsonObject()) {
+            var object = new JsonObject();
+            for (String key : new java.util.TreeSet<>(value.getAsJsonObject().keySet()))
+                object.add(key, canonical(value.getAsJsonObject().get(key)));
+            return object;
+        }
+        if (value.isJsonArray()) {
+            var array = new JsonArray(); value.getAsJsonArray().forEach(item -> array.add(canonical(item))); return array;
+        }
+        return value;
+    }
     static JsonElement readElement(JsonReader reader, int depth) throws IOException {
         if (depth > 20) throw new IOException("JSON nesting is too deep.");
         switch (reader.peek()) {

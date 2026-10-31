@@ -24,16 +24,23 @@ public final class ApplicationBootstrap implements AutoCloseable {
     private final LocalizationService localization;
     private final StorageScope storageScope;
 
-    public ApplicationBootstrap(Map<String, String> environment) {
-        this(environment, StorageScope.legacy(Path.of(environment.getOrDefault("PHOTOPILOT_DATA_DIR", "data"))));
-    }
+    private final Optional<LocalizedMessage> storageNotice;
 
+    public ApplicationBootstrap(Map<String, String> environment) {
+        this(environment, StorageConfiguration.resolve(environment));
+    }
+    private ApplicationBootstrap(Map<String, String> environment, StorageConfiguration configuration) {
+        this(environment, configuration.scope(), configuration.configurationDirectory(), configuration.legacyDirectory());
+    }
     /** One fixed scope for every business repository and agent dependency in this application. */
     public ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope) {
+        this(environment, storageScope, StorageConfiguration.resolve(environment).configurationDirectory(), Optional.empty());
+    }
+    private ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope, Path configuration, Optional<Path> legacy) {
         this.storageScope = java.util.Objects.requireNonNull(storageScope, "storageScope");
-        Path configuration = Path.of(environment.getOrDefault("PHOTOPILOT_CONFIG_DIR",
-            Path.of(System.getProperty("user.home"), ".photopilot").toString()));
-        localization = new LocalizationService(new FileLocalePreferenceRepository(configuration.resolve("settings.properties")));
+        storageNotice = legacy.map(path -> LocalizedMessage.of("storage.legacyFound", path.toString(), storageScope.directory().toString()));
+        localization = new LocalizationService(new JsonLocalePreferenceRepository(configuration.resolve("preferences.json"),
+            configuration.resolve("settings.properties")));
         String preference = environment.getOrDefault("PHOTOPILOT_RANKING", "portability");
         if (!Set.of("portability", "coverage").contains(preference)) {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
@@ -76,6 +83,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
 
     public PhotoPilotFacade facade() { return facade; }
     public LocalizationService localization() { return localization; }
+    public Optional<LocalizedMessage> storageNotice() { return storageNotice; }
     public StorageScope storageScope() { return storageScope; }
 
     @Override

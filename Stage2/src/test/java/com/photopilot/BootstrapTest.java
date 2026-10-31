@@ -34,7 +34,7 @@ class BootstrapTest {
 
     @Test void compositionSharesDependenciesAndDoesNotCreateUserData() throws Exception {
         Path data = temporary.resolve("no-user-data");
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", data.toString()))) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", data.toString(), "PHOTOPILOT_CONFIG_DIR", data.resolve("config").toString()))) {
             PhotoPilotFacade facade = bootstrap.facade();
             assertSame(facade, bootstrap.facade());
             Object planning = facade.planning();
@@ -56,7 +56,7 @@ class BootstrapTest {
     }
 
     @Test void facadeAndAdaptersNeverPretendFeaturesAreImplemented() throws Exception {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString()))) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString(), "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString()))) {
             PhotoPilotFacade facade = bootstrap.facade();
             Result<PhotographySession> created = facade.createSession("bootstrap test fixture", LocalDate.of(2026, 1, 1));
             assertTrue(created.isSuccess(), created.errors().toString());
@@ -70,7 +70,7 @@ class BootstrapTest {
     }
 
     @Test void cliHandlesHelpStatusEveryUnavailableFeatureUnknownInputAndExit() {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString()))) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", temporary.toString(), "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString()))) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             PhotoPilotCLI cli = new PhotoPilotCLI(bootstrap.facade(), new ImagePrivacyBoundary(),
                 new Scanner("help\nstatus\nf01\nunknown\nexit\nf02\n"), new PrintStream(bytes, true, StandardCharsets.UTF_8));
@@ -88,7 +88,7 @@ class BootstrapTest {
     }
 
     @Test void configuredStrategyIsReplaceableAndDuplicateToolsAreRejected() throws Exception {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_RANKING", "coverage"))) {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_RANKING", "coverage", "PHOTOPILOT_DATA_DIR", temporary.resolve("data").toString(), "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString()))) {
             GearMatchingService matching = (GearMatchingService) field(bootstrap.facade().planning(), "matching");
             assertInstanceOf(com.photopilot.strategy.CoverageRanking.class, field(matching, "ranking"));
             var strategy = new com.photopilot.strategy.PortabilityRanking((PhotoPilotAgent) field(bootstrap.facade().planning(), "agent"));
@@ -98,6 +98,6 @@ class BootstrapTest {
             registry.register(new CalculationTool(new TechnicalCalculator()));
             assertThrows(IllegalArgumentException.class, () -> registry.register(new CalculationTool(new TechnicalCalculator())));
         }
-        assertThrows(IllegalArgumentException.class, () -> new ApplicationBootstrap(Map.of("PHOTOPILOT_RANKING", "invalid")));
+        assertThrows(IllegalArgumentException.class, () -> new ApplicationBootstrap(Map.of("PHOTOPILOT_RANKING", "invalid", "PHOTOPILOT_DATA_DIR", temporary.resolve("data").toString(), "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString())));
     }
 }

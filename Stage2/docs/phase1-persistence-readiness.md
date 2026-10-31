@@ -1,5 +1,7 @@
 # Phase 1: architecture audit and persistence readiness
 
+Historical Phase 1 snapshot. [Phase 2](phase2-json-persistence.md) supersedes the CWD-relative default, bootstrap preference adapter and session revision canonicalization described here; Phase 1 audit/results remain historical.
+
 Verified 2026-10-31, America/Toronto. Baseline commit: `e097e9d`. This phase improves the existing application; it does not deliver profile management or additional business features.
 
 ## Architecture findings

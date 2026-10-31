@@ -6,6 +6,10 @@
 /local-config/
 settings.properties
 settings.properties.lock
+preferences.json
+preferences.json.lock
+preferences-*.tmp
+.photopilot/
 .env
 .env.*
 !.env.example

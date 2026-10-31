@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class InventoryTest {
     @TempDir Path directory;
     Path file() { return directory.resolve("inventory.json"); }
-    ApplicationBootstrap bootstrap() { return new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", directory.toString())); }
+    ApplicationBootstrap bootstrap() { return new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString())); }
     static <T> T ok(Result<T> result) { assertTrue(result.isSuccess(), () -> result.errors().toString()); return result.value().orElseThrow(); }
     static Equipment camera(UUID id, String model) {
         return ok(EquipmentForm.parse(EquipmentType.CAMERA, id, Map.of("brand","Test Brand","model",model,"mount","Test Mount"), null));

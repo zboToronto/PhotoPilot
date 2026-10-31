@@ -5,14 +5,11 @@ import com.google.gson.stream.*;
 import com.photopilot.common.Result;
 import com.photopilot.model.PhotographySession;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.*;
 import java.util.*;
 import java.util.function.Function;
-import static java.nio.file.StandardOpenOption.*;
 
 /** Atomic aggregate store with per-record optimistic revisions and a cross-process writer lock. */
 public class JsonSessionRepository implements SessionRepository {
@@ -31,11 +28,9 @@ public class JsonSessionRepository implements SessionRepository {
                     throw new IOException("Unrecognized session storage entry: " + name);
             }
         }
-        byte[] bytes;
-        try (var input = Files.newInputStream(file())) { bytes = input.readNBytes(MAX_BYTES + 1); }
-        catch (NoSuchFileException missing) { return new ArrayList<>(); }
-        if (bytes.length > MAX_BYTES) throw new IOException("Session store exceeds 20 MiB.");
-        String source = StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+        var stored = AtomicFiles.read(file(), MAX_BYTES);
+        if (stored.isEmpty()) return new ArrayList<>();
+        String source = AtomicFiles.utf8(stored.get());
         try (JsonReader reader = new JsonReader(new StringReader(source))) {
             reader.setStrictness(Strictness.STRICT);
             JsonObject root = StrictJson.readElement(reader, 0).getAsJsonObject();
@@ -45,7 +40,7 @@ public class JsonSessionRepository implements SessionRepository {
             for (JsonElement entry : root.getAsJsonArray("sessions")) {
                 var session = SessionJson.decode(entry.getAsJsonObject());
                 if (!ids.add(session.id())) throw new IOException("Duplicate session ID.");
-                sessions.add(session.withRevision(digest(entry.toString())));
+                sessions.add(session.withRevision(digest(entry)));
             }
             return sessions;
         }
@@ -115,39 +110,31 @@ public class JsonSessionRepository implements SessionRepository {
     private static PhotographySession validatedCopy(PhotographySession session) {
         JsonObject tree = SessionJson.encode(session);
         var restored = SessionJson.decode(tree);
-        return restored.withRevision(digest(SessionJson.encode(restored).toString()));
+        return restored.withRevision(digest(SessionJson.encode(restored)));
     }
     private <T> Result<T> change(Function<List<PhotographySession>, Result<T>> operation) {
         try {
-            Files.createDirectories(directory);
-            try (var channel = FileChannel.open(directory.resolve("sessions.lock"), CREATE, WRITE); var lock = channel.tryLock()) {
-                if (lock == null) return Result.failureKey("error.session.busy");
+            return AtomicFiles.locked(directory.resolve("sessions.lock"), () -> {
                 List<PhotographySession> items = read();
                 var result = operation.apply(items);
                 if (result.isSuccess()) write(items);
                 return result;
-            }
-        } catch (OverlappingFileLockException busy) { return Result.failureKey("error.session.busy"); }
+            });
+        } catch (AtomicFiles.Busy busy) { return Result.failureKey("error.session.busy"); }
         catch (IOException | RuntimeException error) { return failure(error); }
     }
     private void write(List<PhotographySession> items) throws IOException {
         JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); JsonArray sessions = new JsonArray();
         items.forEach(s -> sessions.add(SessionJson.encode(s))); root.add("sessions", sessions);
         byte[] bytes = SessionJson.JSON.toJson(root).getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > MAX_BYTES) throw new IOException("Session store exceeds 20 MiB.");
-        Path temporary = Files.createTempFile(directory, "sessions-", ".tmp");
-        try {
-            try (var channel = FileChannel.open(temporary, WRITE, TRUNCATE_EXISTING)) {
-                ByteBuffer buffer = ByteBuffer.wrap(bytes); while (buffer.hasRemaining()) channel.write(buffer); channel.force(true);
-            }
-            replace(temporary);
-        } finally { Files.deleteIfExists(temporary); }
+        AtomicFiles.write(file(), "sessions-", bytes, MAX_BYTES, this::replace);
     }
     /** Fault-injection seam. Unsupported atomic replacement fails without a destructive fallback. */
     protected void replace(Path temporary) throws IOException {
-        Files.move(temporary, file(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        AtomicFiles.replace(temporary, file());
     }
-    private static String digest(String text) {
+    private static String digest(JsonElement tree) {
+        String text = StrictJson.canonical(tree).toString();
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8))); }
         catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }

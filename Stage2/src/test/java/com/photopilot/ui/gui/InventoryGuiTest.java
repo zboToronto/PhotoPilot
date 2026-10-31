@@ -35,7 +35,7 @@ class InventoryGuiTest {
     @Test void desktopCrudSearchDuplicateReviewCancellationAndCliRefresh() throws Exception {
         try { Platform.startup(() -> Platform.setImplicitExit(false)); } catch(IllegalStateException alreadyStarted) { }
         var executor=Executors.newSingleThreadExecutor();
-        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
+        try(var bootstrap=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
             action(() -> {
                 pane=new InventoryPane(bootstrap.facade(),executor); workspace=new PhotoPilotWorkspace();workspace.connectInventory(pane);
                 stage=new Stage();var scene=new Scene(workspace,1120,760);scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());stage.setScene(scene);stage.show();
@@ -55,8 +55,11 @@ class InventoryGuiTest {
             action(() -> pane.table().getSelectionModel().selectFirst());click("gear-remove");ready();click("gear-cancel-remove");assertEquals(2,bootstrap.facade().inventory().list("").value().orElseThrow().items().size());
             click("gear-remove");ready();click("gear-confirm-remove");ready();assertEquals(1,fx(() -> pane.table().getItems().size()));
             // Independent application instance simulates the other interface/process.
-            try(var other=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString()))) {
-                var cli=new PhotoPilotCLI(other.facade(),new ImagePrivacyBoundary(),new Scanner(""),new PrintStream(new ByteArrayOutputStream()));
+            try(var other=new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR",directory.toString(), "PHOTOPILOT_CONFIG_DIR", directory.resolve("config").toString()))) {
+                var output = new ByteArrayOutputStream();
+                var cli=new PhotoPilotCLI(other.facade(),new ImagePrivacyBoundary(),new Scanner(""),new PrintStream(output));
+                assertEquals(0, cli.execute("gear list"));
+                assertTrue(output.toString().contains("Edited Camera"), "CLI must retrieve the GUI's saved edit");
                 assertEquals(0,cli.execute("gear add lens brand=CLI model=Zoom mount=E minFocalMm=24 maxFocalMm=70 maxAperture=2.8"));
             }
             click("gear-refresh");ready();assertEquals(2,fx(() -> pane.table().getItems().size()));
