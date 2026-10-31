@@ -1,7 +1,7 @@
 package com.photopilot.ui.cli;
 
 import com.photopilot.application.PhotoPilotFacade;
-import com.photopilot.config.ApplicationBootstrap;
+import com.photopilot.application.ProfileManager;
 import com.photopilot.config.FeatureCatalog;
 import com.photopilot.ui.privacy.ImagePrivacyBoundary;
 import com.photopilot.i18n.*;
@@ -18,7 +18,9 @@ public class PhotoPilotCLI {
     private ImagePrivacyBoundary privacy;
     private final Scanner input;
     private final PrintStream output;
-    private final LocalizationService localization;
+    private LocalizationService localization;
+    private ProfileManager profiles;
+    private int exitCode;
 
     public PhotoPilotCLI(PhotoPilotFacade app, ImagePrivacyBoundary privacy) {
         this(app, privacy, new Scanner(System.in), System.out);
@@ -36,43 +38,77 @@ public class PhotoPilotCLI {
         this.localization = Objects.requireNonNull(localization);
     }
 
+    public PhotoPilotCLI(ProfileManager profiles, Scanner input, PrintStream output) {
+        this(profiles.activeContext().facade(), new ImagePrivacyBoundary(), input, output, profiles.activeContext().localization());
+        this.profiles = profiles;
+    }
+    private void refreshContext() {
+        String language = localization.language().tag();
+        app = profiles.activeContext().facade(); localization = profiles.activeContext().localization();
+        localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
+    }
+    public int exitCode() { return exitCode; }
+
     public static void main(String[] args) {
-        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(System.getenv())) {
+        int status;
+        try (ProfileManager profiles = new ProfileManager(System.getenv())) {
+            var bootstrap = profiles.activeContext();
             bootstrap.storageNotice().ifPresent(note -> new PrintStream(System.err, true, StandardCharsets.UTF_8)
                 .println(note.render(bootstrap.localization())));
-            new PhotoPilotCLI(bootstrap.facade(), new ImagePrivacyBoundary(), new Scanner(System.in, StandardCharsets.UTF_8),
-                new PrintStream(System.out, true, StandardCharsets.UTF_8), bootstrap.localization()).run(args);
+            var cli = new PhotoPilotCLI(profiles, new Scanner(System.in, StandardCharsets.UTF_8), new PrintStream(System.out, true, StandardCharsets.UTF_8));
+            cli.run(args); status = cli.exitCode();
         } catch (IllegalArgumentException error) {
             new PrintStream(System.err, true, StandardCharsets.UTF_8).println(EnglishMessages.text("cli.configuration", error.getMessage()));
             System.exit(2);
+            return;
         }
+        if (status != 0) System.exit(status);
     }
 
     public void run(String[] args) {
         var commands = new ArrayList<String>();
         boolean invalid = false;
+        String selectedProfile = null; boolean profileOptionInvalid = false;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if (arg.equals("--lang") || arg.startsWith("--lang=")) {
                 String tag = arg.startsWith("--lang=") ? arg.substring(7) : i + 1 < args.length ? args[++i] : "";
                 invalid |= !Language.supports(tag);
                 localization.useLanguage(tag);
+            } else if (arg.equals("--profile") || arg.startsWith("--profile=")) {
+                String value = arg.startsWith("--profile=") ? arg.substring(10) : i + 1 < args.length ? args[++i] : "";
+                if (selectedProfile != null || value.isBlank()) profileOptionInvalid = true;
+                selectedProfile = value;
             } else commands.add(arg);
         }
-        if (invalid) output.println(localization.text("cli.invalidLanguage"));
+        if (invalid) { output.println(localization.text("cli.invalidLanguage")); exitCode = 2; }
+        if (selectedProfile != null) {
+            try {
+                if (profiles == null || profileOptionInvalid) throw new LocalizedException("error.profile.option");
+                var selected = profiles.selectProfile(ProfileCommands.id(selectedProfile), true);
+                if (!selected.isSuccess()) { selected.errors(localization).forEach(output::println); exitCode = 2; return; }
+                refreshContext();
+            } catch (LocalizedException error) { output.println(error.localizedMessage().render(localization)); exitCode = 2; return; }
+        }
         if (localization.preferenceFailure()) output.println(localization.text(localization.preferenceFailureKey()));
         output.println(localization.text("cli.banner"));
         output.println(localization.text("cli.ready"));
+        if (profiles != null) dispatch("profile current");
         if (!commands.isEmpty()) {
-            for (String arg : commands) if (execute(arg) == 1) break;
+            for (String arg : commands) if (dispatch(arg) == 1) break;
             return;
         }
-        while (input.hasNextLine()) if (execute(input.nextLine()) == 1) break;
+        while (input.hasNextLine()) if (dispatch(input.nextLine()) == 1) break;
     }
+    private int dispatch(String line) { int result = execute(line); if (result == 2) exitCode = 2; return result; }
 
     /** 0: handled; 1: exit requested; 2: unavailable or unknown command. */
     public int execute(String line) {
         String command = Objects.requireNonNull(line).strip().toLowerCase(Locale.ROOT);
+        if (command.equals("profile") || command.startsWith("profile ")) {
+            if (profiles == null) { output.println(localization.text("error.profile.unavailable")); return 2; }
+            return new ProfileCommands(profiles, output, localization, this::refreshContext).execute(line);
+        }
         if (command.equals("lang") || command.startsWith("lang ")) {
             String[] words = line.strip().split("\\s+", -1);
             if (words.length == 1) { output.println(localization.text("cli.language", localization.language().tag())); return 0; }
@@ -91,7 +127,7 @@ public class PhotoPilotCLI {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); }
+            case "help" -> { output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); if (profiles != null) output.println(localization.text("profile.cli.help")); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }

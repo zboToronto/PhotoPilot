@@ -33,6 +33,8 @@ final class SessionPane extends VBox {
     private Map<String, String> baseline = Map.of();
     private PhotographySession editing;
     private boolean busy;
+    private boolean disposed;
+    void dispose() { disposed = true; pendingOpen = null; texts.close(); }
     private UUID pendingOpen;
 
     SessionPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
@@ -176,13 +178,14 @@ final class SessionPane extends VBox {
         busy = true; controls.setDisable(true);
         Task<Result<T>> task = new Task<>() { protected Result<T> call() { return operation.get(); } };
         task.setOnSucceeded(e -> {
+            if (disposed) return;
             busy = false; controls.setDisable(false); var result = task.getValue();
             // Only this retained pane is updated. Navigation cannot redirect a result into another feature.
             if (result.isSuccess()) success.accept(result.value().orElseThrow());
             else message(() -> String.join("; ", result.errors(localization)));
             drainOpen();
         });
-        task.setOnFailed(e -> { busy = false; controls.setDisable(false); message(() -> localization.text("session.failed")); drainOpen(); });
+        task.setOnFailed(e -> { if (disposed) return; busy = false; controls.setDisable(false); message(() -> localization.text("session.failed")); drainOpen(); });
         operations.execute(task);
     }
     private void drainOpen() { if (!busy && pendingOpen != null) { UUID id = pendingOpen; pendingOpen = null; open(id); } }

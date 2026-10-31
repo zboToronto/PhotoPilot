@@ -23,6 +23,10 @@ final class PhotoPilotWorkspace extends BorderPane {
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
     private final Label footer = FeaturePane.label("", "footer-text");
     private final Label storageNotice = FeaturePane.label("", "feedback-text");
+    private final Label profileName = FeaturePane.label("", "profile-current");
+    private final Button manageProfiles = new Button();
+    private final HBox profileBar = new HBox(14, profileName, spacer(), manageProfiles);
+    private final java.util.List<SettingsDialog> settingsWindows = new java.util.ArrayList<>();
     private final ScrollPane contentScroll;
     private String selectedId;
     private long selectionVersion;
@@ -38,7 +42,13 @@ final class PhotoPilotWorkspace extends BorderPane {
         storageNotice.getStyleClass().add("feedback-box");
         storageNotice.setMaxWidth(Double.MAX_VALUE);
         storageNotice.setVisible(false); storageNotice.setManaged(false);
-        setTop(new VBox(header(), storageNotice));
+        profileBar.getStyleClass().add("profile-bar"); profileBar.setAlignment(Pos.CENTER_LEFT);
+        profileBar.setVisible(false); profileBar.setManaged(false);
+        profileName.setId("profile-active"); profileName.setMinWidth(0); profileName.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(profileName, Priority.ALWAYS);
+        manageProfiles.setId("profiles-open"); manageProfiles.getStyleClass().add("secondary-button"); manageProfiles.setMinWidth(Region.USE_PREF_SIZE);
+        texts.text(manageProfiles.textProperty(), "profile.manage");
+        setTop(new VBox(header(), profileBar, storageNotice));
         VBox content = new VBox(detail);
         content.setAlignment(Pos.TOP_CENTER);
         content.getStyleClass().add("content-surface");
@@ -117,7 +127,10 @@ final class PhotoPilotWorkspace extends BorderPane {
         Label status = texts.label("app.build", "app-status");
         Button settings = texts.button("settings.title");
         settings.setId("settings-open"); settings.getStyleClass().add("secondary-button");
-        settings.setOnAction(event -> new SettingsDialog(getScene().getWindow(), localization).show());
+        settings.setOnAction(event -> {
+            var dialog = new SettingsDialog(getScene().getWindow(), localization); settingsWindows.add(dialog);
+            dialog.addEventHandler(javafx.stage.WindowEvent.WINDOW_HIDDEN, hidden -> settingsWindows.remove(dialog)); dialog.show();
+        });
         HBox header = new HBox(18, brand, subtitle, spacer(), status, settings);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("app-header");
@@ -152,6 +165,16 @@ final class PhotoPilotWorkspace extends BorderPane {
         storageNotice.setVisible(true); storageNotice.setManaged(true);
     }
     long selectionVersion() { return selectionVersion; }
+    void connectProfiles(Runnable open) {
+        profileBar.setVisible(true); profileBar.setManaged(true); manageProfiles.setOnAction(event -> open.run());
+    }
+    void showProfile(java.util.Optional<com.photopilot.model.LocalProfile> profile) {
+        texts.bind(profileName.textProperty(), () -> profile.map(p -> localization.text("profile.active", p.displayName())).orElseGet(() -> localization.text("profile.unavailable")));
+    }
+    void freeze(boolean value) { setDisable(value); settingsWindows.forEach(dialog -> dialog.getScene().getRoot().setDisable(value)); }
+    void dispose() {
+        java.util.List.copyOf(settingsWindows).forEach(SettingsDialog::close); texts.close(); detail.dispose();
+    }
 
     /** Exercises real controls in the existing opt-in graphical smoke mode. */
     void verifyNavigation() {

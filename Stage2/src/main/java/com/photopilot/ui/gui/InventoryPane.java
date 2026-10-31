@@ -194,6 +194,8 @@ final class InventoryPane extends VBox {
     private static void hide(Node node) { node.setVisible(false); node.setManaged(false); }
     // Package-private acceptance-test observations; use real controls for actions.
     boolean busy() { return busy; }
+    boolean dirty() { return editor.isVisible(); }
+    void dispose() { active = false; generation++; texts.close(); }
     String feedbackText() { return feedback.getText(); }
     TableView<Equipment> table() { return table; }
 }

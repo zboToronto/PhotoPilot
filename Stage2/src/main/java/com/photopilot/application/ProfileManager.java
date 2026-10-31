@@ -17,10 +17,7 @@ public final class ProfileManager implements AutoCloseable {
     public ProfileManager(Map<String, String> environment) {
         this.environment = Map.copyOf(environment);
         repository = new JsonProfileRepository(StorageConfiguration.resolve(environment).scope().root());
-        try {
-            LocalProfile profile = repository.initializeDefault();
-            active = new ApplicationBootstrap(environment, StorageScope.forProfile(repository.root(), profile.id()));
-        } catch (IOException error) { throw new IllegalArgumentException("Cannot initialize local profiles: " + error.getMessage(), error); }
+        active = new ApplicationBootstrap(environment);
     }
     public synchronized ApplicationBootstrap activeContext() {
         if (closed) throw new IllegalStateException("Profile manager is closed."); return active;

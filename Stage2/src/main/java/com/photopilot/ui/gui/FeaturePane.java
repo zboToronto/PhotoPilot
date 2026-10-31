@@ -11,6 +11,12 @@ import javafx.scene.layout.VBox;
 
 /** Selected feature content; future workflow controls belong here, not in navigation. */
 final class FeaturePane extends VBox {
+    void dispose() {
+        texts.close();
+        if (sessions != null) sessions.dispose();
+        if (inventory != null) inventory.dispose();
+        if (calculator != null) calculator.dispose();
+    }
     private final FxLocalizer texts;
     private final LocalizationService localization;
     private final Label detailsTitle = label("", "section-title");

@@ -15,6 +15,8 @@ import javafx.scene.layout.*;
 
 /** F08 form in the existing feature flow, using the inventory form styling. */
 final class CalculatorPane extends VBox {
+    boolean dirty() { return inputs.values().stream().anyMatch(input -> !input.getText().isBlank()); }
+    void dispose() { active = false; generation++; texts.close(); }
     private final LocalizationService localization;
     private final FxLocalizer texts;
     private final Label detailsTitle = FeaturePane.label("", "section-title");

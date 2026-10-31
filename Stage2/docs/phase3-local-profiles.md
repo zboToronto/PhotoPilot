@@ -1,6 +1,6 @@
 # Phase 3: local UUID profiles and isolated storage
 
-Implemented 2026-10-31 (America/Toronto), starting from Phase 2 commit `0200cfe`. This is local data organization, not authentication or access control against a malicious local user. F01/F05/F08 remain the three implemented business features; profile selection screens and CLI management commands belong to Phase 4.
+Implemented 2026-10-31 (America/Toronto), starting from Phase 2 commit `0200cfe`. This is the historical Phase 3 snapshot; the subsequent [Phase 4 implementation](phase4-profile-ui.md) adds the GUI/CLI management described as future work below. This is local data organization, not authentication or access control against a malicious local user. F01/F05/F08 remain the three implemented business features.
 
 ## Architecture review and scope
 

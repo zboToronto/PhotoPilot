@@ -2,16 +2,13 @@ package com.photopilot.ui.gui;
 
 import com.photopilot.application.PhotoPilotFacade;
 import com.photopilot.config.ApplicationBootstrap;
-import com.photopilot.config.FeatureCatalog;
+import com.photopilot.application.ProfileManager;
+import com.photopilot.model.LocalProfile;
 import com.photopilot.ui.privacy.ImagePrivacyBoundary;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
-import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /** Stage 1 UML element 2. JavaFX presentation over the unchanged shared application. */
@@ -20,23 +17,22 @@ public class PhotoPilotGUI extends Application {
     private String draftInput = "";
     private ImagePrivacyBoundary privacy;
     private ApplicationBootstrap bootstrap;
-    private PhotoPilotWorkspace workspace;
-    private SessionPane sessions;
-    private FxLocalizer texts;
+    private ProfileManager profiles;
+    private LocalProfile initialProfile;
+    private GuiProfileController controller;
     private Throwable smokeFailure;
     private IllegalArgumentException startupFailure;
-    private final ExecutorService operations = Executors.newSingleThreadExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "photopilot-gui-operation");
-        thread.setDaemon(true);
-        return thread;
-    });
 
     public static void main(String[] args) { launch(args); }
 
     @Override
     public void init() {
         try {
-            bootstrap = new ApplicationBootstrap(System.getenv());
+            profiles = new ProfileManager(System.getenv());
+            bootstrap = profiles.activeContext();
+            var selected = profiles.activeProfile();
+            if (!selected.isSuccess()) throw new IllegalArgumentException(String.join("; ", selected.errors(bootstrap.localization())));
+            initialProfile = selected.value().orElseThrow();
             app = bootstrap.facade();
             privacy = new ImagePrivacyBoundary();
         } catch (IllegalArgumentException error) { startupFailure = error; }
@@ -49,27 +45,16 @@ public class PhotoPilotGUI extends Application {
             startupError(startupFailure).showAndWait();
             Platform.exit(); return;
         }
-        workspace = new PhotoPilotWorkspace(bootstrap.localization());
-        sessions = new SessionPane(app, operations, bootstrap.localization());
-        workspace.connectSessions(sessions);
-        workspace.connectInventory(new InventoryPane(app, operations, bootstrap.localization()));
-        workspace.connectCalculator(new CalculatorPane(app, operations, bootstrap.localization()));
-        texts = new FxLocalizer(workspace, bootstrap.localization());
-        Scene scene = new Scene(workspace, 1120, 760);
-        scene.getStylesheets().add(Objects.requireNonNull(
-            PhotoPilotGUI.class.getResource("photopilot.css"), "Missing PhotoPilot stylesheet").toExternalForm());
-        texts.text(stage.titleProperty(), "app.title");
+        controller = new GuiProfileController(stage, profiles, initialProfile, context -> {
+            bootstrap = context; app = context.facade(); draftInput = "";
+        });
         stage.setMinWidth(880);
         stage.setMinHeight(600);
-        stage.setScene(scene);
-        stage.setOnCloseRequest(event -> {
-            if (sessions.preventClose(stage::close)) { event.consume(); workspace.selectSessions(); }
-        });
         stage.show();
-        bootstrap.storageNotice().ifPresent(workspace::showStorageNotice);
         if (getParameters().getRaw().contains("--smoke-test")) {
-            Platform.runLater(() -> {
+            controller.whenIdle(() -> {
                 try {
+                    var workspace = controller.workspace();
                     if (!stage.isShowing() || app.sessions() == null) {
                         throw new IllegalStateException("GUI bootstrap verification failed");
                     }
@@ -84,13 +69,13 @@ public class PhotoPilotGUI extends Application {
                     smokeFailure = error;
                     System.err.println("GUI_SMOKE_FAILED: " + error.getMessage());
                 } finally {
-                    stage.close();
+                    controller.whenIdle(stage::close);
                 }
             });
         }
     }
 
-    public void showSession(UUID id) { onFxThread(() -> { workspace.selectSessions(); sessions.open(id); }); }
+    public void showSession(UUID id) { onFxThread(() -> controller.showSession(id)); }
 
     static javafx.scene.control.Alert startupError(IllegalArgumentException error) {
         var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
@@ -104,23 +89,11 @@ public class PhotoPilotGUI extends Application {
     public void submitBrief(UUID id, String text) {
         onFxThread(() -> {
             draftInput = text;
-            long selection = workspace.selectionVersion();
-            Task<com.photopilot.common.Result<com.photopilot.model.ShootRequirement>> task = new Task<>() {
-                @Override protected com.photopilot.common.Result<com.photopilot.model.ShootRequirement> call() { return app.parse(id, text); }
-            };
-            task.setOnSucceeded(event -> {
-                if (workspace.selectionVersion() == selection) workspace.showFeedback(() -> String.join("; ", task.getValue().errors(bootstrap.localization())));
-            });
-            task.setOnFailed(event -> {
-                if (workspace.selectionVersion() == selection) {
-                    workspace.showFeedback(() -> bootstrap.localization().text("error.brief"));
-                }
-            });
-            operations.execute(task);
+            controller.submitBrief(id, text);
         });
     }
 
-    public void showFailure(String message) { onFxThread(() -> workspace.showFeedback(message)); }
+    public void showFailure(String message) { onFxThread(() -> controller.showFailure(message)); }
 
     private static void onFxThread(Runnable action) {
         if (Platform.isFxApplicationThread()) action.run();
@@ -129,9 +102,8 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void stop() {
-        operations.shutdownNow();
-        if (texts != null) texts.close();
-        if (bootstrap != null) bootstrap.close();
+        if (controller != null) controller.close();
+        if (profiles != null) profiles.close();
         if (bootstrap != null) System.out.println(bootstrap.localization().text("app.closed"));
         // Propagate smoke failures through the Application lifecycle to Maven's exit code.
         if (smokeFailure != null) throw new IllegalStateException("GUI smoke verification failed", smokeFailure);

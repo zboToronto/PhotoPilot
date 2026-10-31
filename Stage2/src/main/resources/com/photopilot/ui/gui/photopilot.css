@@ -124,3 +124,7 @@
 .inventory-content .session-notes { -fx-background-color: #ffffff; -fx-background-radius: 6; -fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-padding: 8 10; }
 .inventory-content .session-notes .content { -fx-background-color: #ffffff; }
 .inventory-content .session-notes:focused { -fx-border-color: #2563eb; }
+.profile-bar { -fx-background-color: white; -fx-padding: 8 28; -fx-border-color: #e3e8ee; -fx-border-width: 0 0 1 0; -fx-alignment: center-left; }
+.profile-current { -fx-font-weight: bold; -fx-text-fill: #23374d; }
+.profile-avatar { -fx-font-size: 28px; -fx-text-fill: #167c80; }
+.list-cell:filled:selected .profile-avatar, .list-cell:filled:selected .section-title, .list-cell:filled:selected .secondary-text { -fx-text-fill: white; }
