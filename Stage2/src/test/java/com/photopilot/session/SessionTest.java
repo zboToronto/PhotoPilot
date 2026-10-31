@@ -186,7 +186,7 @@ class SessionTest {
         assertEquals(20 * 1024 * 1024 + 1, Files.size(file()));
     }
     @Test void actualGearReferencesWarnAndConfirmedRemovalPreservesHistory() throws Exception {
-        try (var bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", root.toString(), "PHOTOPILOT_CONFIG_DIR", root.resolve("config").toString()))) {
+        try (var bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", root.toString(), "PHOTOPILOT_CONFIG_DIR", root.resolve("config").toString()), com.photopilot.repository.StorageScope.legacy(root))) {
             var parsed = EquipmentForm.parse(EquipmentType.CAMERA, UUID.randomUUID(), Map.of("brand", "Brand", "model", "Model", "mount", "E"), null);
             var gear = bootstrap.facade().inventory().add(parsed.value().orElseThrow(), false).value().orElseThrow();
             var session = repository().insert(SessionFixtures.linked(new PlannedState(), List.of(gear.snapshot()), false)).value().orElseThrow();

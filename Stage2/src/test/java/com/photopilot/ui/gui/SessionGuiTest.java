@@ -87,7 +87,7 @@ class SessionGuiTest {
     @Test void staleEditsCorruptStorageAndLifecycleKeepUserDataSafe() throws Exception {
         var executor = Executors.newSingleThreadExecutor();
         try (var app = new ApplicationBootstrap(environment())) {
-            var fixture = new JsonSessionRepository(root.resolve("sessions")).insert(SessionFixtures.linked(new PlannedState(), List.of(), false));
+            var fixture = new JsonSessionRepository(app.storageScope().sessionsDirectory()).insert(SessionFixtures.linked(new PlannedState(), List.of(), false));
             assertTrue(fixture.isSuccess(), fixture.errors().toString()); var id = fixture.value().orElseThrow().id();
             launch(app, executor); action(() -> pane.open(id)); ready(); click("session-transition"); ready();
             assertEquals("COMPLETED", app.facade().sessions().open(id).value().orElseThrow().status());
@@ -98,7 +98,7 @@ class SessionGuiTest {
             }
             click("session-save"); ready(); assertTrue(fx(() -> pane.feedbackText().contains("changed")));
             assertEquals("Local draft", fx(() -> ((TextField)pane.lookup("#session-field-title")).getText()));
-            Path file = root.resolve("sessions/sessions.json"); String valid = Files.readString(file); Files.writeString(file, "broken");
+            Path file = app.storageScope().sessionsDirectory().resolve("sessions.json"); String valid = Files.readString(file); Files.writeString(file, "broken");
             click("session-save"); ready(); assertTrue(fx(() -> pane.dirty())); assertEquals("broken", Files.readString(file));
             Files.writeString(file, valid);
         } finally { action(() -> { if (stage != null) stage.close(); }); executor.shutdownNow(); executor.awaitTermination(10,TimeUnit.SECONDS); }

@@ -49,11 +49,11 @@ class LocalizedCliTest {
             assertEquals(0, cli.execute("gear add camera brand=品牌 model=相机 mount=E"));
             var gear = app.facade().inventory().list("").value().orElseThrow().items().getFirst();
             assertEquals("品牌", gear.brand()); assertEquals("E", gear.specifications().get("mount"));
-            byte[] stored = Files.readAllBytes(directory.resolve("data/inventory.json"));
+            byte[] stored = Files.readAllBytes(app.storageScope().inventoryFile());
             bytes.reset(); assertEquals(0, cli.execute("calc nd shutter=1/125 ndStops=10"));
             assertTrue(output(bytes).contains("调整后的快门时间: 8.192 s"));
             assertFalse(output(bytes).contains("Adjusted shutter")); assertTrue(output(bytes).contains("理想"));
-            cli.execute("lang en"); assertArrayEquals(stored, Files.readAllBytes(directory.resolve("data/inventory.json")));
+            cli.execute("lang en"); assertArrayEquals(stored, Files.readAllBytes(app.storageScope().inventoryFile()));
             assertEquals(0, cli.execute("gear edit " + gear.id() + " quantity=2"));
             assertEquals(0, cli.execute("gear remove " + gear.id()));
         }

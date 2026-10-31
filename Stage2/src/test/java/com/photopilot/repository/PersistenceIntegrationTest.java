@@ -54,6 +54,16 @@ class PersistenceIntegrationTest {
         assertThrows(IllegalArgumentException.class, () -> StorageConfiguration.resolve(Map.of("PHOTOPILOT_DATA_DIR", " "), home, first));
         assertFalse(Files.exists(home));
     }
+    @Test void cliReportsCorruptRegistryAndExitsWithoutResettingData() throws Exception {
+        Path data = Files.createDirectories(root.resolve("home/.photopilot/data"));
+        Path registry = data.resolve("profiles.json"); Files.writeString(registry, "broken");
+        Process process = child("com.photopilot.ui.cli.PhotoPilotCLI", root, "help");
+        try {
+            assertTrue(process.waitFor(20, TimeUnit.SECONDS)); assertEquals(2, process.exitValue());
+            assertTrue(Files.readString(outputs.get(process)).contains("Cannot open local profile"));
+            assertEquals("broken", Files.readString(registry)); assertFalse(Files.exists(data.resolve("profiles")));
+        } finally { stop(process); }
+    }
     @Test void legacyDataTriggersNoticeWithoutBeingMovedOrOpened() throws Exception {
         Path work = root.resolve("work"); Files.createDirectories(work.resolve("data"));
         Files.writeString(work.resolve("data/inventory.json"), "legacy bytes");
@@ -74,8 +84,10 @@ class PersistenceIntegrationTest {
     @Test void actualCliProcessesShareDefaultStorageAcrossDirectoriesAndPersistCrudAndLanguage() throws Exception {
         Path first = Files.createDirectory(root.resolve("first")), second = Files.createDirectory(root.resolve("second"));
         cli(first, "gear add camera brand=Test model=相机 mount=E", "session create title=夜景 date=2026-11-01 notes=保留", "lang zh-CN");
-        Path home = root.resolve("home/.photopilot"); var inventory = new JsonInventoryRepository(home.resolve("data/inventory.json"));
-        var repository = new JsonSessionRepository(home.resolve("data/sessions"));
+        Path home = root.resolve("home/.photopilot"); var registry = new JsonProfileRepository(home.resolve("data"));
+        var scope = StorageScope.forProfile(registry.root(), registry.initializeDefault().id());
+        var inventory = new JsonInventoryRepository(scope.inventoryFile());
+        var repository = new JsonSessionRepository(scope.sessionsDirectory());
         var gear = ok(inventory.load()).items().getFirst(); var session = ok(repository.search("")).getFirst();
         assertEquals("相机", gear.model()); assertEquals("夜景", session.title());
         cli(second, "gear edit " + gear.id() + " quantity=2", "session edit " + session.id() + " notes=更新");

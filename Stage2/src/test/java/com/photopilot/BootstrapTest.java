@@ -32,7 +32,7 @@ class BootstrapTest {
         return f.get(owner);
     }
 
-    @Test void compositionSharesDependenciesAndDoesNotCreateUserData() throws Exception {
+    @Test void compositionSharesDependenciesAndInitializesOnlyProfileMetadata() throws Exception {
         Path data = temporary.resolve("no-user-data");
         try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of("PHOTOPILOT_DATA_DIR", data.toString(), "PHOTOPILOT_CONFIG_DIR", data.resolve("config").toString()))) {
             PhotoPilotFacade facade = bootstrap.facade();
@@ -51,7 +51,10 @@ class BootstrapTest {
             assertSame(field(planning, "environment"), field(tools.get("environment"), "environment"));
             assertSame(agent, field(field(planning, "matching"), "ranking") instanceof com.photopilot.strategy.PortabilityRanking ranking
                 ? field(ranking, "agent") : null);
-            assertFalse(Files.exists(data));
+            assertTrue(Files.exists(data.resolve("profiles.json")));
+            assertTrue(bootstrap.storageScope().profileId().isPresent());
+            assertFalse(Files.exists(bootstrap.storageScope().inventoryFile()));
+            assertFalse(Files.exists(bootstrap.storageScope().sessionsDirectory().resolve("sessions.json")));
         }
     }
 

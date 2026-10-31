@@ -1,5 +1,7 @@
 # Phase 2: integrated local JSON persistence
 
+Historical Phase 2 snapshot. [Phase 3](phase3-local-profiles.md) now supplies registered UUID profiles, revocable contexts and verified legacy migration beneath the same configurable root. Global display-language preferences remain unchanged. Phase 2 paths/startup claims below describe that earlier implementation.
+
 Verified 2026-10-31 (America/Toronto), starting from Phase 1 commit `a28ef2b`. This extends the existing working F01/F05 persistence; it does not introduce parallel repositories or implement scaffolded AI producers.
 
 ## Initial architecture and integration

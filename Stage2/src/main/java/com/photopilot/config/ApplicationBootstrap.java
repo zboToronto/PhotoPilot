@@ -17,12 +17,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** Per-application composition root. Reads preferences, but never writes business data or calls providers at startup. */
+/** Per-context composition root. Normal startup initializes the stable local profile without provider calls. */
 public final class ApplicationBootstrap implements AutoCloseable {
     private final PhotoPilotFacade facade;
     private final HttpClient http;
     private final LocalizationService localization;
     private final StorageScope storageScope;
+    private final ProfileAccess profileAccess;
 
     private final Optional<LocalizedMessage> storageNotice;
 
@@ -30,14 +31,29 @@ public final class ApplicationBootstrap implements AutoCloseable {
         this(environment, StorageConfiguration.resolve(environment));
     }
     private ApplicationBootstrap(Map<String, String> environment, StorageConfiguration configuration) {
-        this(environment, configuration.scope(), configuration.configurationDirectory(), configuration.legacyDirectory());
+        this(environment, prepare(environment, configuration.scope(), true), configuration.configurationDirectory(), configuration.legacyDirectory());
     }
     /** One fixed scope for every business repository and agent dependency in this application. */
     public ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope) {
-        this(environment, storageScope, StorageConfiguration.resolve(environment).configurationDirectory(), Optional.empty());
+        this(environment, prepare(environment, storageScope, false), StorageConfiguration.resolve(environment).configurationDirectory(), Optional.empty());
     }
-    private ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope, Path configuration, Optional<Path> legacy) {
-        this.storageScope = java.util.Objects.requireNonNull(storageScope, "storageScope");
+    private record Selection(StorageScope scope, ProfileAccess access) { }
+    private static Selection prepare(Map<String, String> environment, StorageScope requested, boolean defaultProfile) {
+        if (!Set.of("portability", "coverage").contains(environment.getOrDefault("PHOTOPILOT_RANKING", "portability")))
+            throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
+        URI.create(environment.getOrDefault("GEMINI_ENDPOINT", "https://unconfigured.invalid/gemini"));
+        try {
+            if (defaultProfile || requested.profileId().isPresent()) {
+                var registry = new JsonProfileRepository(requested.root());
+                var id = defaultProfile ? registry.initializeDefault().id() : requested.profileId().orElseThrow();
+                var access = registry.open(id); return new Selection(access.scope(), access);
+            }
+            // Explicit unscoped overload retained for legacy tooling/tests, never normal application startup.
+            return new Selection(requested, null);
+        } catch (java.io.IOException error) { throw new IllegalArgumentException("Cannot open local profile: " + error.getMessage(), error); }
+    }
+    private ApplicationBootstrap(Map<String, String> environment, Selection selection, Path configuration, Optional<Path> legacy) {
+        this.storageScope = selection.scope(); this.profileAccess = selection.access();
         storageNotice = legacy.map(path -> LocalizedMessage.of("storage.legacyFound", path.toString(), storageScope.directory().toString()));
         localization = new LocalizationService(new JsonLocalePreferenceRepository(configuration.resolve("preferences.json"),
             configuration.resolve("settings.properties")));
@@ -47,8 +63,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
         }
         URI geminiEndpoint = URI.create(environment.getOrDefault("GEMINI_ENDPOINT", "https://unconfigured.invalid/gemini"));
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        SessionRepository sessions = new JsonSessionRepository(storageScope.sessionsDirectory());
-        InventoryRepository inventory = new JsonInventoryRepository(storageScope.inventoryFile());
+        SessionRepository sessions = profileAccess == null ? new JsonSessionRepository(storageScope.sessionsDirectory()) : profileAccess.sessions();
+        InventoryRepository inventory = profileAccess == null ? new JsonInventoryRepository(storageScope.inventoryFile()) : profileAccess.inventory();
         ToolRegistry tools = new ToolRegistry(Map.of());
         LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
             environment.getOrDefault("GEMINI_MODEL", "UNCONFIGURED"), http, Duration.ofSeconds(30)), localization);
@@ -87,5 +103,5 @@ public final class ApplicationBootstrap implements AutoCloseable {
     public StorageScope storageScope() { return storageScope; }
 
     @Override
-    public void close() { http.close(); }
+    public void close() { if (profileAccess != null) profileAccess.close(); http.close(); }
 }

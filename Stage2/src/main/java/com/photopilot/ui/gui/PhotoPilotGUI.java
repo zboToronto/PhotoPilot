@@ -24,6 +24,7 @@ public class PhotoPilotGUI extends Application {
     private SessionPane sessions;
     private FxLocalizer texts;
     private Throwable smokeFailure;
+    private IllegalArgumentException startupFailure;
     private final ExecutorService operations = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "photopilot-gui-operation");
         thread.setDaemon(true);
@@ -34,13 +35,20 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void init() {
-        bootstrap = new ApplicationBootstrap(System.getenv());
-        app = bootstrap.facade();
-        privacy = new ImagePrivacyBoundary();
+        try {
+            bootstrap = new ApplicationBootstrap(System.getenv());
+            app = bootstrap.facade();
+            privacy = new ImagePrivacyBoundary();
+        } catch (IllegalArgumentException error) { startupFailure = error; }
     }
 
     @Override
     public void start(Stage stage) {
+        if (startupFailure != null) {
+            if (getParameters().getRaw().contains("--smoke-test")) throw startupFailure;
+            startupError(startupFailure).showAndWait();
+            Platform.exit(); return;
+        }
         workspace = new PhotoPilotWorkspace(bootstrap.localization());
         sessions = new SessionPane(app, operations, bootstrap.localization());
         workspace.connectSessions(sessions);
@@ -83,6 +91,15 @@ public class PhotoPilotGUI extends Application {
     }
 
     public void showSession(UUID id) { onFxThread(() -> { workspace.selectSessions(); sessions.open(id); }); }
+
+    static javafx.scene.control.Alert startupError(IllegalArgumentException error) {
+        var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        alert.setTitle(com.photopilot.i18n.EnglishMessages.text("app.title"));
+        alert.setHeaderText(com.photopilot.i18n.EnglishMessages.text("error.profile.startup"));
+        alert.setContentText(error.getMessage());
+        alert.getDialogPane().getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
+        return alert;
+    }
 
     public void submitBrief(UUID id, String text) {
         onFxThread(() -> {

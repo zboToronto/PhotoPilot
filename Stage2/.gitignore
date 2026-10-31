@@ -10,6 +10,11 @@ preferences.json
 preferences.json.lock
 preferences-*.tmp
 .photopilot/
+profiles.json
+profiles.lock
+profiles-*.tmp
+profiles/
+profile-staging/
 .env
 .env.*
 !.env.example

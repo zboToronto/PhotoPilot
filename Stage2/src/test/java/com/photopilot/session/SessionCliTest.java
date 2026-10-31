@@ -29,7 +29,7 @@ class SessionCliTest {
             assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("Night portrait"));
             assertEquals(2, cli.execute("session transition " + id + " event=SHOOT_COMPLETED"));
             assertEquals(2, cli.execute("session transition " + id + " event=PLAN_APPROVED"));
-            var fixture = new JsonSessionRepository(root.resolve("sessions")).insert(SessionFixtures.linked(new PlannedState(), List.of(), false)).value().orElseThrow();
+            var fixture = new JsonSessionRepository(app.storageScope().sessionsDirectory()).insert(SessionFixtures.linked(new PlannedState(), List.of(), false)).value().orElseThrow();
             assertEquals(0, cli.execute("session transition " + fixture.id() + " event=SHOOT_COMPLETED"));
             assertEquals("COMPLETED", app.facade().sessions().open(fixture.id()).value().orElseThrow().status());
             assertEquals(2, cli.execute("session delete " + id));
@@ -44,13 +44,15 @@ class SessionCliTest {
             for (String command : List.of("session create", "session create title=T date=2026-02-30", "session open 1-1-1-1-1", "session edit",
                     "session list status=ACTIVE", "session create title=T title=U date=2026-11-01", "session create title=T date=2026-11-01 extra=value",
                     "session delete x --confirm=false", "session create title=\"unclosed")) assertEquals(2, cli.execute(command), command);
-            assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("日期")); assertFalse(Files.exists(root.resolve("sessions/sessions.json")));
+            assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("日期")); assertFalse(Files.exists(app.storageScope().sessionsDirectory().resolve("sessions.json")));
         }
     }
     @Test void separateJvmProcessesRestoreUtf8SessionAfterActualRestart() throws Exception {
         String created = process("session create title=\"夜景 shoot\" date=2026-11-01 location=\"湖边\" notes=\"保持原文\"\nexit\n");
         assertTrue(created.contains("Session saved."), created);
-        var repository = new JsonSessionRepository(root.resolve("sessions")); var session = repository.search("").value().orElseThrow().getFirst();
+        var registry = new com.photopilot.repository.JsonProfileRepository(root);
+        var scope = com.photopilot.repository.StorageScope.forProfile(root, registry.initializeDefault().id());
+        var repository = new JsonSessionRepository(scope.sessionsDirectory()); var session = repository.search("").value().orElseThrow().getFirst();
         String restored = process("session restore " + session.id() + "\nexit\n");
         assertTrue(restored.contains("夜景 shoot"), restored); assertTrue(restored.contains("保持原文"), restored);
         String edited = process("session edit " + session.id() + " notes=\"Edited across processes\"\nexit\n");

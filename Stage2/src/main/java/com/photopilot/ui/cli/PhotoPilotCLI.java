@@ -43,7 +43,8 @@ public class PhotoPilotCLI {
             new PhotoPilotCLI(bootstrap.facade(), new ImagePrivacyBoundary(), new Scanner(System.in, StandardCharsets.UTF_8),
                 new PrintStream(System.out, true, StandardCharsets.UTF_8), bootstrap.localization()).run(args);
         } catch (IllegalArgumentException error) {
-            System.err.println(EnglishMessages.text("cli.configuration", error.getMessage()));
+            new PrintStream(System.err, true, StandardCharsets.UTF_8).println(EnglishMessages.text("cli.configuration", error.getMessage()));
+            System.exit(2);
         }
     }
 

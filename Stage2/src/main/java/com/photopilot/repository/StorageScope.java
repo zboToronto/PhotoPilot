@@ -15,7 +15,7 @@ public record StorageScope(Path root, Optional<UUID> profileId) {
     /** Existing unowned data keeps exactly the original layout. */
     public static StorageScope legacy(Path root) { return new StorageScope(root, Optional.empty()); }
 
-    /** Reserved for a future profile manager; the ID is never a user-supplied path fragment. */
+    /** UUID-scoped address; registry validation and access lifetime belong to ProfileAccess. */
     public static StorageScope forProfile(Path root, UUID profileId) {
         return new StorageScope(root, Optional.of(Objects.requireNonNull(profileId, "profileId")));
     }

@@ -25,21 +25,24 @@ class StorageScopeTest {
         assertThrows(NullPointerException.class, () -> StorageScope.forProfile(data, null));
     }
 
-    @Test void existingBootstrapKeepsLegacyPathsAndScopeSelectionCreatesNoData() {
+    @Test void startupUsesStableDefaultAndExplicitRegisteredScope() throws Exception {
         Path data = root.resolve("data");
         var environment = Map.of("PHOTOPILOT_DATA_DIR", data.toString(), "PHOTOPILOT_CONFIG_DIR", root.resolve("config").toString());
+        StorageScope first;
         try (var app = new ApplicationBootstrap(environment)) {
-            assertEquals(StorageScope.legacy(data), app.storageScope());
-            assertFalse(Files.exists(data));
-            assertTrue(app.facade().createSession("Legacy", LocalDate.of(2026, 11, 1)).isSuccess());
-            assertTrue(Files.exists(data.resolve("sessions/sessions.json")));
+            first = app.storageScope(); assertTrue(first.profileId().isPresent());
+            assertTrue(Files.exists(data.resolve("profiles.json")));
+            assertFalse(Files.exists(first.inventoryFile()));
+            assertTrue(app.facade().createSession("Default", LocalDate.of(2026, 11, 1)).isSuccess());
+            assertTrue(Files.exists(first.sessionsDirectory().resolve("sessions.json")));
         }
-        var selected = StorageScope.forProfile(data, UUID.randomUUID());
+        try (var app = new ApplicationBootstrap(environment)) { assertEquals(first, app.storageScope()); }
+        var registry = new JsonProfileRepository(data); var selected = StorageScope.forProfile(data, registry.create("Second").id());
         try (var app = new ApplicationBootstrap(environment, selected)) {
             assertEquals(selected, app.storageScope());
             assertTrue(app.facade().sessions().search("").value().orElseThrow().isEmpty());
             assertTrue(app.facade().inventory().list("").value().orElseThrow().items().isEmpty());
-            assertFalse(Files.exists(selected.directory()));
         }
+        assertThrows(IllegalArgumentException.class, () -> new ApplicationBootstrap(environment, StorageScope.forProfile(data, UUID.randomUUID())));
     }
 }
