@@ -2,6 +2,8 @@
 
 Implemented and verified 2026-10-31 on Windows/JDK 21, from Phase 3 commit `5844f69`. This adds usable profile management to the existing application; it does not increase the three implemented business features (F01/F05/F08) or implement live AI.
 
+This records the Phase 4 implementation. [Final Phase 5 storage stabilization](data-storage.md) supersedes its handoff scope and supplies the current storage reference and verification.
+
 ## Architecture inspected
 
 The existing GUI is JavaFX 21, launched by `PhotoPilotGUI`, with `PhotoPilotWorkspace`, `FeaturePane`, F01/F05/F08 panes and a shared stylesheet/localization service. The existing `PhotoPilotCLI` accepts complete command lines from stdin or one complete command per argument, dispatching to shared application services. Both now own a `ProfileManager` rather than permanently retaining the initial bootstrap.
@@ -135,12 +137,12 @@ All 130 main and 29 test sources were compiled during implementation; this is no
 
 First test iterations exposed test-harness assumptions (Windows nested argument quoting, absent lazy empty inventory file, using model toString instead of its title); the harness was corrected without weakening assertions. Native resizing is asynchronous; the layout test now waits for the scene resize before capture. An added narrow-window feedback check exposed offscreen error feedback; a fixed footer resolved it, and the five-test graphical rerun passed. Rendered snapshots in ignored `target/phase4-profiles-narrow-zh.png`, `target/phase4-profiles-feedback-zh.png` and `target/phase4-main-narrow-zh.png` were visually inspected; profile editor actions are reached by vertical scrolling at minimum height while errors stay visible. These are automated real-desktop workflows with image inspection, not a claimed human/manual full acceptance session or recorded demo.
 
-## Limits and Phase 5 handoff
+## Limits and later validation
 
 - Existing F01/F05/F08 remain verified; eight other workflows, live agent/provider behavior and demonstration recordings remain outstanding. Profile CRUD is infrastructure, not an extra major course feature.
 - No live file watching, global remembered selection, authentication, permanent deletion or archive restore UI. Use refresh; back up the entire root including registry. Language preferences remain global.
 - Windows graphical execution and ordinary filesystem failure/concurrency tests passed. Other OSes, multiple DPI settings, screen readers, very large registries, long-running stress, physical power loss and adversarial filesystem races are not verified.
-- Phase 5 should run a full user acceptance/demo script, concurrent GUI/CLI rename/archive/edit/switch stress with stale handles, prolonged queued operations, repeated switches/leak observations, backup/recovery drills, additional disk-full/permission/interruption fault injection and large/long-name accessibility/layout checks. Preserve originals and use isolated copies; no real user-data fault injection.
+- The later Phase 5 request explicitly limits that phase to focused storage integration and basic verification. Comprehensive acceptance/demo, concurrent GUI/CLI stress with stale handles, prolonged queued operations, repeated-switch/leak observations, backup/recovery drills, further fault injection and large/long-name accessibility/layout checks are Stage 3 or later work. Preserve originals and use isolated copies; no real user-data fault injection.
 - Future implemented AI requests must use the same tracked queue or an equally explicit captured-context cancellation/completion policy. Do not schedule untracked model tasks and assume the profile header identifies their ownership.
 
-No known failing Phase 4 checks remain. This is readiness for the final validation phase, not completion of Phase 5.
+No known failing Phase 4 checks remained at this snapshot. Subsequent storage fixes and current limitations are recorded in the final storage reference linked above.

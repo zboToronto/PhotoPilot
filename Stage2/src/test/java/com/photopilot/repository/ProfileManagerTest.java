@@ -111,6 +111,22 @@ class ProfileManagerTest {
             ok(previous.facade().sessions().create("Still A", LocalDate.now()));
         }
     }
+    @Test void reselectingActiveProfileValidatesStorageAndRetainsContextOnFailure() throws Exception {
+        try (var manager = new ProfileManager(env())) {
+            var context = manager.activeContext(); UUID id = ok(manager.activeProfile()).id();
+            Path file = context.storageScope().inventoryFile(); Files.writeString(file, "broken");
+            assertFalse(manager.selectProfile(id, true).isSuccess(), "Reselect must not report an invalid store as ready");
+            assertSame(context, manager.activeContext()); assertEquals("broken", Files.readString(file));
+            Files.delete(file); // Remove only this test's injected corrupt file; empty new profiles are lazy.
+            Path directory = context.storageScope().directory(), retained = root.resolve("retained-profile");
+            Files.move(directory, retained);
+            assertFalse(manager.selectProfile(id, true).isSuccess()); assertFalse(Files.exists(directory));
+            assertSame(context, manager.activeContext());
+            Files.move(retained, directory);
+            assertEquals(id, ok(manager.selectProfile(id, true)).id()); assertSame(context, manager.activeContext());
+            ok(context.facade().sessions().create("After repair", LocalDate.of(2026, 11, 1)));
+        }
+    }
     @Test void foreignSessionAndInventoryRevisionsCannotUpdateAnotherProfile() throws Exception {
         try (var manager = new ProfileManager(env())) {
             UUID a = ok(manager.activeProfile()).id(), b = ok(manager.createProfile("B")).id();

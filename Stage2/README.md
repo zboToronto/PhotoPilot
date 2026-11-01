@@ -83,7 +83,7 @@ In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a 
 ./mvnw.cmd test '-Dtest=LocalizationTest,LocalizedCliTest,TranslationResourcesTest,AgentLanguageTest,LocalizationGuiTest'
 ```
 
-The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **163 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [Phase 4 evidence](docs/phase4-profile-ui.md) records the current verification; [F01 evidence](docs/f01-sessions.md) records its earlier 95-test snapshot; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, resource coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
+The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` for a headless localization check; that does not verify GUI acceptance. The full suite has **165 passing tests** (2026-10-31); GUI smoke and JAR packaging also passed. [Final storage integration evidence](docs/data-storage.md) records current verification; [F01 evidence](docs/f01-sessions.md) records its earlier 95-test snapshot; localization evidence below describes its earlier 71-test snapshot. See [localization architecture, resource coverage, extension instructions and verification limits](docs/localization.md) and [updated implementation UML](docs/localization-architecture.md).
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
@@ -177,7 +177,7 @@ Select Technical Calculator in the existing GUI, or enter `calc help` in the CLI
 
 [F08 usage, formulas, source inventory, design decisions, tests and limitations](docs/f08-calculators.md). Final F08 suite: 53/53 tests and GUI_SMOKE_OK, Windows/JDK 21. A graphical desktop is needed for the real JavaFX acceptance tests. Close existing GUI instances before `clean` on Windows if the native cache DLL is locked.
 
-## Local profile management and isolation (Phases 3–4)
+## Local JSON storage and profile management
 
 Normal GUI/CLI startup automatically opens the same persistent default UUID with no login step. The GUI header shows the current profile; **Manage profiles** opens a modeless list with Create, Enter, Rename and confirmed Delete actions. Names may be duplicated; secondary UUIDs distinguish rows. All actions use the shared ProfileManager. Display names never determine paths. All business services/history/tool dependencies use guarded repositories beneath `<root>/profiles/<uuid>/`. Display language remains global under PHOTOPILOT_CONFIG_DIR.
 
@@ -187,7 +187,9 @@ On first initialization, existing `<root>/inventory.json` and `<root>/sessions/s
 
 Switching prepares a fresh service/agent graph and revokes the old context. GUI switching waits for queued work/completion callbacks and confirms discarding unsaved session/equipment/calculator inputs. Failed switching retains original views and drafts; successful switching rebuilds views and clears old inputs/results. CLI commands execute synchronously and replace the active Facade after success. Use the profile list's Refresh action and existing feature refresh actions for changes from another process. Deletion is confirmed archive: active/default profiles are protected, records remain on disk, and archived identities cannot be opened. It does not reclaim disk space; no restore command is available.
 
-See [Phase 4 GUI/CLI guide, implementation UML, 163-test verification and Phase 5 handoff](docs/phase4-profile-ui.md), and [Phase 3 APIs, registry format, migration/recovery and deletion safeguards](docs/phase3-local-profiles.md).
+Phase 5 stabilized two integration boundaries: reselecting the current profile validates its storage without discarding valid views, and authoritative JSON preference saves no longer depend on the old properties writer lock. Legacy first-copy locking and non-destructive failure behavior remain intact. No schema or storage-layout changes were needed.
+
+See the [final storage reference: architecture, formats, selection, migration, errors, backup/recovery and 165-test evidence](docs/data-storage.md), [GUI/CLI usage](docs/phase4-profile-ui.md), and [Phase 3 registry and migration APIs](docs/phase3-local-profiles.md). Comprehensive JUnit/KUMA and prolonged stress validation remain Stage 3 work.
 
 ## Integrated JSON persistence (Phase 2)
 

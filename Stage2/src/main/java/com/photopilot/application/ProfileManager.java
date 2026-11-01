@@ -33,7 +33,11 @@ public final class ProfileManager implements AutoCloseable {
         return call(() -> {
             if (!pendingChangesHandled) throw new IOException("Save or discard pending changes and stop old UI work before switching profiles.");
             LocalProfile profile = repository.find(id);
-            if (active.storageScope().profileId().orElseThrow().equals(id)) return profile;
+            if (active.storageScope().profileId().orElseThrow().equals(id)) {
+                // A selected directory/file may have changed externally since this context opened.
+                // Reuse the same validation as a new selection without revoking valid existing views.
+                try (var validation = repository.open(id)) { return profile; }
+            }
             // Prepare and validate everything first. A failure leaves the previous context untouched.
             ApplicationBootstrap replacement = new ApplicationBootstrap(environment, StorageScope.forProfile(repository.root(), id));
             ApplicationBootstrap previous = active;

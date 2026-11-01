@@ -87,7 +87,12 @@ class ProfileGuiTest {
         UUID a=active(), b=manager.createProfile("B").value().orElseThrow().id();
         mainClick("session-create"); field("session-field-title","Unsaved A"); assertTrue(fx(() -> controller.dirty()));
         var old=manager.activeContext(); var oldView=fx(() -> controller.workspace());
-        profiles(); select(b); confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),false);
+        profiles();
+        Path activeFile=old.storageScope().inventoryFile(); Files.writeString(activeFile,"broken active");
+        click("profile-enter"); assertSame(oldView,fx(() -> controller.workspace())); assertEquals(a,active());
+        assertTrue(fx(() -> ((Label)panel().lookup("#profile-feedback")).getText().contains("failed")));
+        assertEquals("broken active",Files.readString(activeFile)); Files.delete(activeFile);
+        select(b); confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),false);
         assertEquals(a,active()); assertSame(oldView,fx(() -> controller.workspace()));
         Path file=StorageScope.forProfile(root.resolve("data"),b).inventoryFile(); assertFalse(Files.exists(file)); Files.writeString(file,"broken");
         confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),true);

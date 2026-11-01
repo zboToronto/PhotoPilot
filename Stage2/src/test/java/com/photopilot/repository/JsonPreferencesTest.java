@@ -79,6 +79,20 @@ class JsonPreferencesTest {
         try (var app = new ApplicationBootstrap(env)) { assertEquals(Language.ENGLISH, app.localization().language()); }
         assertTrue(Files.readString(json()).contains("保留"));
     }
+    @Test void legacyLockProtectsFirstCopyButDoesNotBlockAuthoritativeJsonSaves() throws Exception {
+        Files.writeString(legacy(), "language=en\ncustom=keep\n"); byte[] original = Files.readAllBytes(legacy());
+        Path lockFile = legacy().resolveSibling("settings.properties.lock");
+        try (var channel = java.nio.channels.FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             var lock = channel.lock()) {
+            assertThrows(IOException.class, () -> repository().save("zh-CN")); assertFalse(Files.exists(json()));
+        }
+        repository().save("en");
+        try (var channel = java.nio.channels.FileChannel.open(lockFile, StandardOpenOption.WRITE); var lock = channel.lock()) {
+            repository().save("zh-CN"); assertEquals("zh-CN", repository().load());
+        }
+        assertArrayEquals(original, Files.readAllBytes(legacy()));
+        assertEquals("keep", JsonParser.parseString(Files.readString(json())).getAsJsonObject().getAsJsonObject("values").get("custom").getAsString());
+    }
     @Test void inaccessiblePreferencePathDoesNotCrashApplicationOrOverwriteIt() throws Exception {
         Files.createDirectory(json());
         var service = new LocalizationService(repository()); assertTrue(service.preferenceFailure());

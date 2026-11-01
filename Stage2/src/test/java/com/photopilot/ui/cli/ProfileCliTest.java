@@ -54,6 +54,9 @@ class ProfileCliTest {
     @Test void failedSelectionKeepsFacadeAndCorruptFilesUntouched() throws Exception {
         try (var manager=new ProfileManager(env())) {
             var cli=cli(manager); var context=manager.activeContext(); var b=manager.createProfile("B").value().orElseThrow();
+            Path activeFile=context.storageScope().inventoryFile(); Files.writeString(activeFile,"broken active");
+            assertEquals(2,cli.execute("profile select " + manager.activeProfile().value().orElseThrow().id()));
+            assertSame(context,manager.activeContext()); assertEquals("broken active",Files.readString(activeFile)); Files.delete(activeFile);
             Path broken=StorageScope.forProfile(root.resolve("data"),b.id()).inventoryFile(); Files.writeString(broken,"broken");
             assertEquals(2,cli.execute("profile select " + b.id())); assertSame(context,manager.activeContext());
             assertEquals(0,cli.execute("session create title=Kept date=2026-11-01"));

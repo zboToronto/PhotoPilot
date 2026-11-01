@@ -21,8 +21,12 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
         if (this.file.equals(this.legacy)) throw new IllegalArgumentException("JSON and legacy settings must have distinct paths.");
     }
     private Map<String, String> read() throws IOException {
+        var stored = readJson();
+        return stored.isPresent() ? stored.orElseThrow() : readLegacy();
+    }
+    private Optional<Map<String, String>> readJson() throws IOException {
         var bytes = AtomicFiles.read(file, MAX_BYTES);
-        if (bytes.isEmpty()) return readLegacy();
+        if (bytes.isEmpty()) return Optional.empty();
         try (var reader = new JsonReader(new StringReader(AtomicFiles.utf8(bytes.get())))) {
             reader.setStrictness(Strictness.STRICT);
             JsonObject root = StrictJson.readElement(reader, 0).getAsJsonObject();
@@ -35,7 +39,7 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
                 values.put(entry.getKey(), value.getAsString());
             }
             if (values.containsKey("language") && !Language.supports(values.get("language"))) throw new IOException("Unsupported saved language.");
-            return values;
+            return Optional.of(values);
         } catch (RuntimeException malformed) { throw new IOException("Invalid preferences JSON; original preserved.", malformed); }
     }
     private Map<String, String> readLegacy() throws IOException {
@@ -52,14 +56,21 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
     @Override public void save(String tag) throws IOException {
         if (!Language.supports(tag)) throw new IOException("Unsupported language preference.");
         AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), () -> {
-            // Coordinate the first copy with the existing properties writer too.
-            return AtomicFiles.locked(legacy.resolveSibling(legacy.getFileName() + ".lock"), () -> {
-                var values = read(); values.put("language", tag);
-                JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); root.add("values", JSON.toJsonTree(values));
-                AtomicFiles.write(file, "preferences-", JSON.toJson(root).getBytes(StandardCharsets.UTF_8), MAX_BYTES, this::replace);
-                return true;
-            });
+            var stored = readJson();
+            if (stored.isPresent()) write(stored.orElseThrow(), tag);
+            else {
+                // Only the first copy depends on the legacy writer. JSON remains authoritative thereafter.
+                AtomicFiles.locked(legacy.resolveSibling(legacy.getFileName() + ".lock"), () -> {
+                    write(readLegacy(), tag); return true;
+                });
+            }
+            return true;
         });
+    }
+    private void write(Map<String, String> values, String tag) throws IOException {
+        values.put("language", tag);
+        JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); root.add("values", JSON.toJsonTree(values));
+        AtomicFiles.write(file, "preferences-", JSON.toJson(root).getBytes(StandardCharsets.UTF_8), MAX_BYTES, this::replace);
     }
     protected void replace(Path temporary) throws IOException { AtomicFiles.replace(temporary, file); }
 }
