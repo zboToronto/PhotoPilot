@@ -21,6 +21,9 @@ public class PhotoPilotCLI {
     private LocalizationService localization;
     private ProfileManager profiles;
     private int exitCode;
+    // Embedded callers historically supply an interactive Scanner; main detects redirected stdin explicitly.
+    private boolean interactiveInput = true;
+    private boolean failedProfileCommand;
 
     public PhotoPilotCLI(PhotoPilotFacade app, ImagePrivacyBoundary privacy) {
         this(app, privacy, new Scanner(System.in), System.out);
@@ -51,11 +54,12 @@ public class PhotoPilotCLI {
 
     public static void main(String[] args) {
         int status;
-        try (ProfileManager profiles = new ProfileManager(System.getenv())) {
+        try (ProfileManager profiles = new ProfileManager(System.getenv(), startupProfile(args))) {
             var bootstrap = profiles.activeContext();
             bootstrap.storageNotice().ifPresent(note -> new PrintStream(System.err, true, StandardCharsets.UTF_8)
                 .println(note.render(bootstrap.localization())));
             var cli = new PhotoPilotCLI(profiles, new Scanner(System.in, StandardCharsets.UTF_8), new PrintStream(System.out, true, StandardCharsets.UTF_8));
+            cli.interactiveInput = System.console() != null;
             cli.run(args); status = cli.exitCode();
         } catch (IllegalArgumentException error) {
             new PrintStream(System.err, true, StandardCharsets.UTF_8).println(EnglishMessages.text("cli.configuration", error.getMessage()));
@@ -63,6 +67,20 @@ public class PhotoPilotCLI {
             return;
         }
         if (status != 0) System.exit(status);
+    }
+
+    private static java.util.UUID startupProfile(String[] args) {
+        String selected = null;
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if (arg.equals("--lang")) { i++; continue; }
+            if (arg.equals("--profile") || arg.startsWith("--profile=")) {
+                String value = arg.startsWith("--profile=") ? arg.substring(10) : i + 1 < args.length ? args[++i] : "";
+                if (selected != null || value.isBlank()) throw new LocalizedException("error.profile.option");
+                selected = value;
+            }
+        }
+        return selected == null ? null : ProfileCommands.id(selected);
     }
 
     public void run(String[] args) {
@@ -95,12 +113,20 @@ public class PhotoPilotCLI {
         output.println(localization.text("cli.ready"));
         if (profiles != null) dispatch("profile current");
         if (!commands.isEmpty()) {
-            for (String arg : commands) if (dispatch(arg) == 1) break;
+            for (String arg : commands) if (dispatch(arg) == 1 || failedProfileCommand) break;
             return;
         }
-        while (input.hasNextLine()) if (dispatch(input.nextLine()) == 1) break;
+        while (input.hasNextLine()) {
+            int result = dispatch(input.nextLine());
+            if (result == 1 || (failedProfileCommand && !interactiveInput)) break;
+        }
     }
-    private int dispatch(String line) { int result = execute(line); if (result == 2) exitCode = 2; return result; }
+    private int dispatch(String line) {
+        int result = execute(line); if (result == 2) exitCode = 2;
+        String command = line.strip().toLowerCase(Locale.ROOT);
+        failedProfileCommand = result == 2 && (command.equals("profile") || command.startsWith("profile "));
+        return result;
+    }
 
     /** 0: handled; 1: exit requested; 2: unavailable or unknown command. */
     public int execute(String line) {

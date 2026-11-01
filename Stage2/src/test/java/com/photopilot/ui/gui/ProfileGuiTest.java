@@ -29,6 +29,8 @@ class ProfileGuiTest {
     void startWindow() throws Exception {
         LocalProfile initial=manager.activeProfile().value().orElseThrow();
         action(() -> { stage=new Stage(); controller=new GuiProfileController(stage,manager,initial,context -> {}); stage.show(); }); ready();
+        assertEquals("user-selection", fx(() -> stage.getScene().getRoot().getId()));
+        click("profile-enter");
     }
     @AfterEach void close() throws Exception { action(() -> { if(controller!=null)controller.close(); if(stage!=null)stage.close(); }); if(manager!=null)manager.close(); }
     void ready() throws Exception {
@@ -36,11 +38,11 @@ class ProfileGuiTest {
         while(fx(() -> controller.busy())) { if(System.nanoTime()>deadline)fail("Profile GUI timed out"); Thread.sleep(20); }
         action(() -> { controller.workspace().applyCss(); controller.workspace().layout(); });
     }
-    ProfileDialog dialog() { return Window.getWindows().stream().filter(w -> w instanceof ProfileDialog && w.isShowing()).map(w -> (ProfileDialog)w).findFirst().orElseThrow(); }
-    Parent panel() { return dialog().getScene().getRoot(); }
+    Stage dialog() { return stage; }
+    Parent panel() { return controller.picker(); }
     @SuppressWarnings("unchecked") ListView<LocalProfile> list() { return (ListView<LocalProfile>)panel().lookup("#profile-list"); }
     void profiles() throws Exception { action(() -> ((Button)controller.workspace().lookup("#profiles-open")).fire()); ready(); }
-    void click(String id) throws Exception { action(() -> ((Button)panel().lookup("#"+id)).fire()); ready(); }
+    void click(String id) throws Exception { action(() -> ((Button)panel().lookup("#"+id)).fire()); ready(); if (id.equals("profile-enter") && fx(() -> controller.picker() == null)) { assertTrue(fx(() -> controller.workspace().atHome())); nav("F01"); } }
     void name(String value) throws Exception { action(() -> ((TextField)panel().lookup("#profile-name")).setText(value)); }
     UUID create(String name) throws Exception { name(name); click("profile-create"); return fx(() -> list().getSelectionModel().getSelectedItem().id()); }
     void select(UUID id) throws Exception { action(() -> list().getItems().stream().filter(p -> p.id().equals(id)).findFirst().ifPresent(list().getSelectionModel()::select)); }
@@ -83,6 +85,44 @@ class ProfileGuiTest {
         profiles(); select(a); click("profile-enter"); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
         assertEquals(1,manager.activeContext().facade().inventory().list("").value().orElseThrow().items().size());
     }
+    @Test void avatarPreviewHomeNavigationAndBilingualLayoutsUseRealSelectedUser() throws Exception {
+        UUID original = active(); profiles(); UUID selected = create("Alex · Photography");
+        Path source = root.resolve("avatar.png");
+        var image = new java.awt.image.BufferedImage(320, 240, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics(); graphics.setColor(new java.awt.Color(62, 103, 142)); graphics.fillRect(0, 0, 320, 240);
+        graphics.setColor(new java.awt.Color(218, 232, 241)); graphics.fillOval(110, 40, 100, 100); graphics.fillOval(60, 145, 200, 150); graphics.dispose();
+        javax.imageio.ImageIO.write(image, "png", source.toFile());
+        action(() -> controller.picker().previewAvatar(selected, source));
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (!fx(() -> Window.getWindows().stream().anyMatch(w -> w.isShowing() && w.getScene().getRoot().lookup("#avatar-preview") != null))) {
+            if (System.nanoTime() > deadline) fail("Avatar preview did not appear"); Thread.sleep(20);
+        }
+        action(() -> {
+            DialogPane preview = (DialogPane)Window.getWindows().stream().filter(Window::isShowing)
+                .map(w -> w.getScene().getRoot().lookup("#avatar-preview")).filter(Objects::nonNull).findFirst().orElseThrow();
+            var use = preview.getButtonTypes().stream().filter(b -> b.getButtonData() == ButtonBar.ButtonData.OK_DONE).findFirst().orElseThrow();
+            ((Button)preview.lookupButton(use)).fire();
+        }); ready();
+        byte[] avatar = manager.avatar(selected).value().orElseThrow().orElseThrow();
+        assertTrue(manager.avatar(original).value().orElseThrow().isEmpty());
+        name("Alex Renamed"); click("profile-rename"); assertArrayEquals(avatar, manager.avatar(selected).value().orElseThrow().orElseThrow());
+        snapshot(panelOnFx(), "user-selection-en");
+        action(() -> ((Button)panel().lookup("#profile-enter")).fire()); ready();
+        assertEquals(selected, active()); assertTrue(fx(() -> controller.workspace().atHome()));
+        snapshot(fx(() -> controller.workspace()), "home-dashboard-en");
+        for (String feature : List.of("F05", "F01", "F08", "F10", "F02")) {
+            mainClick("home-" + feature); assertFalse(fx(() -> controller.workspace().atHome()));
+            action(() -> ((ToggleButton)controller.workspace().lookup("#nav-home")).fire()); ready();
+            assertTrue(fx(() -> controller.workspace().atHome()));
+        }
+        action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); stage.setWidth(880); stage.setHeight(600); });
+        resized(stage, 880, 600); snapshot(fx(() -> controller.workspace()), "home-dashboard-narrow-zh");
+        profiles(); snapshot(panelOnFx(), "user-selection-narrow-zh");
+        click("avatar-remove"); assertTrue(manager.avatar(selected).value().orElseThrow().isEmpty());
+        var splash = fx(() -> { var window = new Stage(); window.setScene(new javafx.scene.Scene(new SplashScreen(), 880, 600));
+            window.getScene().getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); window.show(); return window; });
+        try { snapshot(fx(() -> splash.getScene().getRoot()), "startup-splash"); } finally { action(splash::close); }
+    }
     @Test void failedSwitchAndCancelRetainDraftThenSuccessRebuildsAndRevokesOldContext() throws Exception {
         UUID a=active(), b=manager.createProfile("B").value().orElseThrow().id();
         mainClick("session-create"); field("session-field-title","Unsaved A"); assertTrue(fx(() -> controller.dirty()));
@@ -101,15 +141,52 @@ class ProfileGuiTest {
         Files.delete(file); confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),true);
         assertEquals(b,active()); assertNotSame(oldView,fx(() -> controller.workspace())); assertFalse(fx(() -> controller.dirty()));
         assertEquals(0,old.localization().listenerCount()); assertFalse(old.facade().inventory().list("").isSuccess());
-        assertEquals(0,fx(() -> ((TableView<?>)controller.workspace().lookup("#session-table")).getItems().size()));
+        nav("F01"); assertEquals(0,fx(() -> ((TableView<?>)controller.workspace().lookup("#session-table")).getItems().size()));
     }
     @Test void inventoryCalculatorDraftsAndWindowCloseRequireResolution() throws Exception {
         UUID a=active(),b=manager.createProfile("B").value().orElseThrow().id(); nav("F05"); mainClick("gear-add"); field("gear-field-model","Unsaved camera");
+        nav("F05"); nav("F01"); nav("F05");
+        assertTrue(fx(() -> controller.dirty()));
+        assertEquals("Unsaved camera", fx(() -> ((TextField)controller.workspace().lookup("#gear-field-model")).getText()));
         profiles(); select(b); confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),false); assertEquals(a,active());
         confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),true); assertEquals(b,active());
         nav("F08"); action(() -> ((TextField)controller.workspace().lookupAll(".text-field").iterator().next()).setText("42")); assertTrue(fx(() -> controller.dirty()));
         confirm(() -> stage.fireEvent(new WindowEvent(stage,WindowEvent.WINDOW_CLOSE_REQUEST)),false); assertTrue(fx(() -> stage.isShowing()));
         profiles(); select(a); confirm(() -> ((Button)panel().lookup("#profile-enter")).fire(),true); assertFalse(fx(() -> controller.dirty())); assertEquals(a,active());
+    }
+    @Test void startupRecoveryOffersHealthyProfilesWithoutResettingCorruptDefault() throws Exception {
+        UUID a = active(), b = manager.createProfile("Healthy B").value().orElseThrow().id();
+        Path broken = manager.activeContext().storageScope().inventoryFile();
+        action(() -> { controller.close(); stage.close(); }); manager.close();
+        Files.writeString(broken, "broken default");
+        byte[] registry = Files.readAllBytes(root.resolve("data/profiles.json"));
+        var failure = assertThrows(IllegalArgumentException.class, () -> new ProfileManager(env()));
+        var recovery = fx(() -> { var dialog = new ProfileRecoveryDialog(env(), failure); dialog.show(); return dialog; });
+        action(() -> {
+            @SuppressWarnings("unchecked") var choices = (ComboBox<LocalProfile>)recovery.getDialogPane().lookup("#profile-recovery-list");
+            choices.getSelectionModel().select(choices.getItems().stream().filter(p -> p.id().equals(a)).findFirst().orElseThrow());
+            ((Button)recovery.getDialogPane().lookup("#profile-recovery-enter")).fire();
+        });
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+        while (fx(() -> recovery.getDialogPane().lookup("#profile-recovery-list").isDisabled())) {
+            if (System.nanoTime() > deadline) fail("Recovery failure feedback timed out"); Thread.sleep(20);
+        }
+        assertTrue(fx(recovery::isShowing)); assertNull(fx(recovery::getResult));
+        snapshot(recovery.getDialogPane(), "profile-startup-recovery");
+        action(() -> {
+            @SuppressWarnings("unchecked") var choices = (ComboBox<LocalProfile>)recovery.getDialogPane().lookup("#profile-recovery-list");
+            choices.getSelectionModel().select(choices.getItems().stream().filter(p -> p.id().equals(b)).findFirst().orElseThrow());
+            ((Button)recovery.getDialogPane().lookup("#profile-recovery-enter")).fire();
+        });
+        while (fx(recovery::isShowing)) {
+            if (System.nanoTime() > deadline) fail("Recovery selection timed out"); Thread.sleep(20);
+        }
+        try (var recovered = fx(recovery::getResult)) {
+            assertNotNull(recovered); assertEquals(b, recovered.activeProfile().value().orElseThrow().id());
+        }
+        action(() -> { var cancelled = new ProfileRecoveryDialog(env(), failure); cancelled.show(); cancelled.close(); assertNull(cancelled.getResult()); });
+        assertEquals("broken default", Files.readString(broken));
+        assertArrayEquals(registry, Files.readAllBytes(root.resolve("data/profiles.json")));
     }
     @Test void pendingWorkerAndCompletionBlockSwitchUntilOriginalOperationFinishes() throws Exception {
         UUID a=active(),b=manager.createProfile("B").value().orElseThrow().id(); var entered=new CountDownLatch(1); var release=new CountDownLatch(1); var old=manager.activeContext();
@@ -128,8 +205,8 @@ class ProfileGuiTest {
         UUID a=create("摄影 档案"), b=create("摄影 档案"); assertNotEquals(a,b); assertEquals(3,fx(() -> list().getItems().size()));
         select(defaultId); confirm(() -> ((Button)panel().lookup("#profile-delete")).fire(),true); assertTrue(manager.getProfile(defaultId).isSuccess());
         select(a); click("profile-enter"); profiles();
-        action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); dialog().setWidth(480); dialog().setHeight(480); });
-        resized(fx(this::dialog),480,480);
+        action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); dialog().setWidth(880); dialog().setHeight(600); });
+        resized(fx(this::dialog),880,600);
         action(() -> ((ScrollPane)panel().lookup("#profiles-scroll")).setVvalue(0));
         snapshot(panelOnFx(),"phase4-profiles-narrow-zh");
         name(" "); click("profile-rename");
@@ -138,7 +215,7 @@ class ProfileGuiTest {
         snapshot(panelOnFx(),"phase4-profiles-feedback-zh");
         try(var other=new ProfileManager(env())) { assertTrue(other.renameProfile(a,"外部重命名").isSuccess()); }
         click("profile-refresh"); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("外部重命名")));
-        action(() -> { dialog().close(); stage.setWidth(880); stage.setHeight(600); }); resized(stage,880,600); snapshot(fx(() -> controller.workspace()),"phase4-main-narrow-zh");
+        action(() -> { controller.requestSwitch(active()); stage.setWidth(880); stage.setHeight(600); }); ready(); resized(stage,880,600); snapshot(fx(() -> controller.workspace()),"phase4-main-narrow-zh");
         profiles(); try(var other=new ProfileManager(env())) { assertTrue(other.deleteProfile(a,true).isSuccess()); }
         click("profile-refresh"); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("不可用")));
         select(b); click("profile-enter"); assertEquals(b,active());

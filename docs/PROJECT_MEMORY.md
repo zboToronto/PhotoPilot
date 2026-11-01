@@ -1,6 +1,6 @@
 # PhotoPilot project memory
 
-Last reviewed: 2026-10-31 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
+Last reviewed: 2026-11-01 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
 
 ## Evidence and repository layout
 
@@ -26,9 +26,17 @@ Last reviewed: 2026-10-31 (America/Toronto). This is the current context index; 
 
 Five pattern structures exist; their business operations are not yet five completed operational patterns. JsonInventoryRepository and JsonSessionRepository have tested atomic persistence. F01 now exercises Facade and State; this does not establish five completed operational patterns.
 
+## User workspace integration (2026-11-01)
+
+- Current GUI flow: Splash → Select User → Home → Features. JavaFX is retained; background local initialization has no fake minimum delay or network work. UserSelectionPane replaces ProfileDialog; HomeDashboard adds real F05/F01/F08 launchers plus honest F10/F02 availability links. All eleven feature routes remain, with Home and a backend-derived user/avatar bar. Ordinary GUI strings use User / 用户; CLI profile syntax and internal names remain compatible.
+- ProfileManager remains the lifecycle boundary. Different-user success rebuilds scoped services/agent/panes; pending work blocks switching, dirty inputs require confirmation and failed switching retains drafts. Home suspends module activation without erasing drafts. Same-user reentry validates stores and retains drafts. Active/default deletion remains protected archive, retaining files.
+- AvatarRepository normalizes bounded PNG/JPEG input to previewed 256 × 256 PNG at profiles/<uuid>/avatar.png. Atomic replacement and registry locking/path checks preserve ownership; rename/restart preserve avatars, missing/corrupt avatars render initials, and removal restores defaults. UserAvatar performs presentation only. No schema/dependency/Stage1 changes or live AI calls.
+- Full-suite verification: **172/172** tests, followed by **22/22** focused checks after the final long-name layout adjustment, zero failures/errors/skips, package and GUI_SMOKE_OK, all 135 main/29 test sources recompiled (not clean). Actual chooser CRUD/preview/Home/navigation controls, user isolation, retained GUI/CLI regressions and English/Chinese 880×600 renders checked. Prior uncommitted storage repairs were reviewed and retained as integration prerequisites. Three focused methods added, no Stage3 expansion. OS file picker, other platforms/DPI, live AI and separate source/UML audit unverified.
+- Original design → startup chooser/Home and avatar service replace direct F01 entry/modeless management → coherent user-centered desktop workflow → presentation/composition changes preserve Facade/Repository/State and existing feature services. [Architecture, usage, failure policy, verification and limits](../Stage2/docs/user-workspace.md).
+
 ## UI baseline to preserve
 
-`PhotoPilotGUI` owns lifecycle and callbacks; `PhotoPilotWorkspace` owns shell/navigation; `FeaturePane` owns feature content and feedback; `FeaturePresentation` maps stable F01-F11 identifiers to presentation labels. Reuse `src/main/resources/com/photopilot/ui/gui/photopilot.css` for visual styles.
+`PhotoPilotGUI` owns splash/background initialization and callbacks; `GuiProfileController` owns user selection/context transitions; `PhotoPilotWorkspace` owns Home and shell/navigation; `FeaturePane` owns feature content and feedback; `FeaturePresentation` maps stable F01-F11 identifiers to presentation labels. Reuse `src/main/resources/com/photopilot/ui/gui/photopilot.css` for visual styles.
 
 - Workspace group: F01, F02, F03, F10. Equipment: F04-F07. Photography Tools: F08, F09, F11.
 - Preserve bounded content width, wrapping text, independent navigation/content scrolling, selected-item behavior, keyboard navigation and focus styles. Existing defaults are 1120 x 760 with minimum 880 x 600.
@@ -53,7 +61,13 @@ These are confirmed gaps, not permission to implement or redesign them.
 
 The structural audit currently rejects any HTTP send call as a scaffold safeguard. When authorized integration work starts, revise that obsolete scaffold assumption deliberately and document why; do not treat it as a permanent prohibition on required LLM integration.
 
-## Final storage stabilization Phase 5 (2026-10-31)
+## Storage audit corrections (2026-11-01)
+
+- Fixed the four audit findings: failed profile commands stop CLI batches/redirected stdin before later writes; explicit startup UUID bypasses damaged default business stores; GUI startup recovery selects an existing profile through the shared manager without resetting data; F05 drafts survive navigation/reselection; initially empty pending default migrations revalidate legacy sources. No schemas, dependencies, Stage1 or Stage3 tests changed. Normal default identity, interactive validation behavior and ordinary command-error compatibility remain intact.
+- Verification: **32/32** focused checks, then **169/169** full Stage2 tests, zero failures/errors/skips, package and GUI_SMOKE_OK. Four new methods in existing classes plus navigation assertions; child JVM and JavaFX controls cover the failure paths. Recovery-dialog render inspected. All 131 main/29 test sources compiled; not Maven clean. Sandbox cache failure resolved via local JDK21; first full run's ordinary-command continuation and English-resource failures fixed before final success. Separate structural audit was not rerun; Stage1 diff is empty. No commit/push performed.
+- Commands, rationale, behavior and limits: [current storage reference](../Stage2/docs/data-storage.md#static-audit-follow-up-2026-11-01). This is focused repair/basic regression, not comprehensive Stage3 expansion.
+
+## Final storage stabilization Phase 5 (historical 2026-10-31 snapshot)
 
 - Scope is focused Stage 2 integration/correction, explicitly not comprehensive Stage 3 JUnit/KUMA or feature development. Reviewed models, ports/codecs, paths, registry/migration, revocation, service/agent dependencies, GUI/CLI state and filesystem policy. No competing normal business store or profile-data singleton found; legacy properties and explicit unscoped entry points remain compatibility-only. No schemas, paths, public business APIs, dependencies or Stage1 artifacts changed.
 - Reproduced and fixed two defects: ProfileManager's same-identity shortcut reported selection success despite corrupt/missing storage; it now opens/closes the existing registry validation access while retaining the current context and drafts. JsonLocalePreferenceRepository acquired the legacy lock even after authoritative JSON existed; it now locks legacy only for the first copy, retaining JSON locking/validation, unknown settings and original legacy bytes.

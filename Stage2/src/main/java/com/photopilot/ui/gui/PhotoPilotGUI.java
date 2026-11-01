@@ -25,8 +25,7 @@ public class PhotoPilotGUI extends Application {
 
     public static void main(String[] args) { launch(args); }
 
-    @Override
-    public void init() {
+    private void initializeStorage() {
         try {
             profiles = new ProfileManager(System.getenv());
             bootstrap = profiles.activeContext();
@@ -40,38 +39,76 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void start(Stage stage) {
+        stage.setMinWidth(880); stage.setMinHeight(600); stage.setTitle("PhotoPilot");
+        var scene = new javafx.scene.Scene(new SplashScreen(), 1120, 760);
+        scene.getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
+        stage.setScene(scene);
+        // Keep lifecycle ownership until the worker returns; never abandon an open storage context.
+        stage.setOnCloseRequest(event -> event.consume());
+        stage.show();
+        var task = new javafx.concurrent.Task<Void>() {
+            protected Void call() { initializeStorage(); return null; }
+        };
+        task.setOnSucceeded(event -> finishStartup(stage));
+        task.setOnFailed(event -> {
+            startupFailure = new IllegalArgumentException(com.photopilot.i18n.EnglishMessages.text("error.profile.startup"));
+            finishStartup(stage);
+        });
+        Platform.runLater(() -> { var worker = new Thread(task, "photopilot-startup"); worker.setDaemon(true); worker.start(); });
+    }
+
+    private void finishStartup(Stage stage) {
         if (startupFailure != null) {
-            if (getParameters().getRaw().contains("--smoke-test")) throw startupFailure;
-            startupError(startupFailure).showAndWait();
-            Platform.exit(); return;
+            if (getParameters().getRaw().contains("--smoke-test")) { smokeFailure = startupFailure; Platform.exit(); return; }
+            if (profiles != null) profiles.close();
+            try {
+                var recovered = new ProfileRecoveryDialog(System.getenv(), startupFailure).showAndWait();
+                if (recovered.isEmpty()) { Platform.exit(); return; }
+                profiles = recovered.orElseThrow(); bootstrap = profiles.activeContext();
+                initialProfile = profiles.activeProfile().value().orElseThrow();
+                app = bootstrap.facade(); privacy = new ImagePrivacyBoundary();
+            } catch (IllegalArgumentException error) {
+                startupError(error).showAndWait(); Platform.exit(); return;
+            }
         }
         controller = new GuiProfileController(stage, profiles, initialProfile, context -> {
             bootstrap = context; app = context.facade(); draftInput = "";
         });
+        var transition = new javafx.animation.FadeTransition(javafx.util.Duration.millis(160), stage.getScene().getRoot());
+        transition.setFromValue(0.2); transition.setToValue(1); transition.play();
         stage.setMinWidth(880);
         stage.setMinHeight(600);
         stage.show();
         if (getParameters().getRaw().contains("--smoke-test")) {
             controller.whenIdle(() -> {
                 try {
-                    var workspace = controller.workspace();
-                    if (!stage.isShowing() || app.sessions() == null) {
-                        throw new IllegalStateException("GUI bootstrap verification failed");
-                    }
-                    workspace.verifyNavigation();
-                    stage.setWidth(880);
-                    stage.setHeight(600);
-                    workspace.applyCss();
-                    workspace.layout();
-                    workspace.verifyNavigation();
-                    System.out.println("GUI_SMOKE_OK: window shown, all 11 features navigated, accurate statuses, disabled workflows, status feedback, selection retained, minimum-size layout");
-                } catch (RuntimeException | AssertionError error) {
-                    smokeFailure = error;
-                    System.err.println("GUI_SMOKE_FAILED: " + error.getMessage());
-                } finally {
-                    controller.whenIdle(stage::close);
-                }
+                    if (!"user-selection".equals(stage.getScene().getRoot().getId())) throw new IllegalStateException("User selection was not shown");
+                    controller.requestSwitch(initialProfile.id());
+                    controller.whenIdle(() -> verifyWorkspace(stage));
+                } catch (RuntimeException | AssertionError error) { smokeFailure = error; controller.whenIdle(stage::close); }
             });
+        }
+    }
+
+    private void verifyWorkspace(Stage stage) {
+        try {
+            var workspace = controller.workspace();
+            if (!workspace.atHome()) throw new IllegalStateException("Home was not the landing page");
+            if (!stage.isShowing() || app.sessions() == null) {
+                throw new IllegalStateException("GUI bootstrap verification failed");
+            }
+            workspace.verifyNavigation();
+            stage.setWidth(880);
+            stage.setHeight(600);
+            workspace.applyCss();
+            workspace.layout();
+            workspace.verifyNavigation();
+            System.out.println("GUI_SMOKE_OK: splash, user selection, real context selection, Home dashboard, all 11 features, minimum-size layout");
+        } catch (RuntimeException | AssertionError error) {
+            smokeFailure = error;
+            System.err.println("GUI_SMOKE_FAILED: " + error.getMessage());
+        } finally {
+            controller.whenIdle(stage::close);
         }
     }
 
@@ -81,7 +118,7 @@ public class PhotoPilotGUI extends Application {
         var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
         alert.setTitle(com.photopilot.i18n.EnglishMessages.text("app.title"));
         alert.setHeaderText(com.photopilot.i18n.EnglishMessages.text("error.profile.startup"));
-        alert.setContentText(error.getMessage());
+        alert.setContentText(com.photopilot.i18n.EnglishMessages.text("user.storageFailed"));
         alert.getDialogPane().getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
         return alert;
     }

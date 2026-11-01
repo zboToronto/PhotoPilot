@@ -119,7 +119,9 @@ public class JsonProfileRepository {
         Path staging = root.resolve("profile-staging").resolve(pending.profile().id().toString());
         ProfilePaths.safe(destination); ProfilePaths.safe(staging);
         if (!Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
-            Map<String, byte[]> source = pending.files().isEmpty() ? Map.of() : legacySnapshot();
+            // An empty default snapshot still needs change detection after an interrupted migration.
+            boolean migratingDefault = pending.profile().id().equals(state.defaultId());
+            Map<String, byte[]> source = migratingDefault ? legacySnapshot() : Map.of();
             Map<String, String> hashes = new TreeMap<>(); source.forEach((key, bytes) -> hashes.put(key, digest(bytes)));
             if (!hashes.equals(pending.files())) throw new IOException("Legacy data changed during initialization; originals and pending profile preserved. Restore the recorded source before retrying.");
             Files.createDirectories(staging);

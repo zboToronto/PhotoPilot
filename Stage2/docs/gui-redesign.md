@@ -1,5 +1,7 @@
 # PhotoPilot GUI redesign
 
+> This is the historical initial shell implementation. The current flow is Splash → Select User → Home → Features, with real user management and avatars. See [current workspace design and verification](user-workspace.md). F01/F05/F08 are now operational; historical scaffold-only claims below describe the original snapshot.
+
 The existing application uses JavaFX 21.0.6, not Swing. The redesign retains JavaFX, Maven, JDK 21, the shared application layer, and the CLI. No dependencies were added and `pom.xml` is unchanged. FlatLaf is a Swing look and feel and is not needed here.
 
 ## Changed presentation files

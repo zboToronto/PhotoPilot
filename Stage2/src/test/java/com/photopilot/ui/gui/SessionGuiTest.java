@@ -31,7 +31,7 @@ class SessionGuiTest {
     void launch(ApplicationBootstrap app, ExecutorService executor) throws Exception {
         try { Platform.startup(() -> Platform.setImplicitExit(false)); } catch (IllegalStateException started) { }
         action(() -> {
-            pane = new SessionPane(app.facade(), executor, app.localization()); workspace = new PhotoPilotWorkspace(app.localization()); workspace.connectSessions(pane);
+            pane = new SessionPane(app.facade(), executor, app.localization()); workspace = new PhotoPilotWorkspace(app.localization()); workspace.connectSessions(pane); workspace.selectSessions();
             workspace.connectInventory(new InventoryPane(app.facade(), executor, app.localization()));
             workspace.connectCalculator(new CalculatorPane(app.facade(), executor, app.localization()));
             stage = new Stage(); var scene = new Scene(workspace,1120,760);

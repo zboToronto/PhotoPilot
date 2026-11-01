@@ -17,7 +17,8 @@ class StorageNoticeGuiTest {
             try {
                 alert.show();
                 assertTrue(alert.isShowing()); assertEquals(javafx.scene.control.Alert.AlertType.ERROR, alert.getAlertType());
-                assertTrue(alert.getContentText().contains("profiles.json")); assertTrue(alert.getHeaderText().contains("No data was reset"));
+                assertTrue(alert.getContentText().contains("restore a backup")); assertFalse(alert.getContentText().contains("Invalid profile registry"));
+                assertTrue(alert.getHeaderText().contains("No data was reset"));
                 return true;
             } finally { alert.close(); }
         });

@@ -23,6 +23,48 @@ class ProfileManagerTest {
         return ok(EquipmentForm.parse(EquipmentType.CAMERA, UUID.randomUUID(), Map.of("brand", "Test", "model", name, "mount", "E"), null));
     }
     static Object field(Object object, String name) throws Exception { Field f = object.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(object); }
+    @Test void avatarsNormalizePersistRenameAndStayIsolatedAcrossArchive() throws Exception {
+        Path source = root.resolve("portrait.jpg");
+        var image = new java.awt.image.BufferedImage(480, 320, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics(); graphics.setColor(java.awt.Color.BLUE); graphics.fillRect(0, 0, 480, 320); graphics.dispose();
+        javax.imageio.ImageIO.write(image, "jpeg", source.toFile());
+        UUID a, b; byte[] saved;
+        try (var manager = new ProfileManager(env())) {
+            a = ok(manager.activeProfile()).id(); b = ok(manager.createProfile("Avatar B")).id();
+            assertTrue(ok(manager.avatar(a)).isEmpty());
+            byte[] prepared = ok(ProfileManager.prepareAvatar(source));
+            ok(manager.saveAvatar(a, prepared)); ok(manager.saveAvatar(b, prepared));
+            saved = ok(manager.avatar(a)).orElseThrow();
+            var decoded = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(saved));
+            assertEquals(256, decoded.getWidth()); assertEquals(256, decoded.getHeight());
+            ok(manager.renameProfile(a, "Renamed")); assertArrayEquals(saved, ok(manager.avatar(a)).orElseThrow());
+            ok(manager.removeAvatar(b)); assertTrue(ok(manager.avatar(b)).isEmpty());
+            ok(manager.saveAvatar(b, prepared)); ok(manager.deleteProfile(b, true));
+            assertFalse(manager.avatar(b).isSuccess()); assertFalse(manager.saveAvatar(b, prepared).isSuccess());
+            assertArrayEquals(saved, ok(manager.avatar(a)).orElseThrow());
+        }
+        Files.delete(source); // No persistent dependency on the selected external file.
+        try (var manager = new ProfileManager(env())) {
+            assertArrayEquals(saved, ok(manager.avatar(a)).orElseThrow());
+            ok(manager.removeAvatar(a)); assertTrue(ok(manager.avatar(a)).isEmpty());
+        }
+    }
+    @Test void invalidAvatarInputPreservesPreviousBytesAndRejectsForeignIdentity() throws Exception {
+        try (var manager = new ProfileManager(env())) {
+            UUID id = ok(manager.activeProfile()).id(); Path source = root.resolve("image.png");
+            javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB), "png", source.toFile());
+            ok(manager.saveAvatar(id, ok(ProfileManager.prepareAvatar(source))));
+            byte[] original = ok(manager.avatar(id)).orElseThrow();
+            Files.writeString(source, "invalid PNG"); assertFalse(ProfileManager.prepareAvatar(source).isSuccess());
+            assertFalse(manager.saveAvatar(id, new byte[]{1,2,3}).isSuccess());
+            assertFalse(manager.saveAvatar(UUID.randomUUID(), original).isSuccess());
+            assertArrayEquals(original, ok(manager.avatar(id)).orElseThrow());
+            Path avatar = manager.activeContext().storageScope().directory().resolve("avatar.png");
+            Files.writeString(avatar, "corrupt avatar"); assertFalse(manager.avatar(id).isSuccess());
+            assertTrue(manager.selectProfile(id, true).isSuccess(), "An optional broken avatar must not block business data");
+            ok(manager.removeAvatar(id)); assertTrue(ok(manager.avatar(id)).isEmpty());
+        }
+    }
     @Test void createDuplicateNamesRenameAndRestartPreserveStableIdentities() throws Exception {
         UUID defaultId, first, second;
         try (var manager = new ProfileManager(env())) {

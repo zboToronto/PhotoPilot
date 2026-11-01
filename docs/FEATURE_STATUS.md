@@ -1,6 +1,6 @@
 # Stage 1 feature status
 
-Last source/test review: 2026-10-31 (America/Toronto). **3 of 11 business features implemented and verified: F01, F05 and F08.** The other eight retain structural scaffolds and unavailable business workflows. F01 preserves the original lifecycle prerequisites: F10 plan approval and F11 review production are still unavailable.
+Last source/test review: 2026-11-01 (America/Toronto). **3 of 11 business features implemented and verified: F01, F05 and F08.** The other eight retain structural scaffolds and unavailable business workflows. F01 preserves the original lifecycle prerequisites: F10 plan approval and F11 review production are still unavailable.
 
 Source of names/scope: Stage1/Stage1PPP.pdf section 2. Full class/method/pattern mappings: [existing feature mapping](../Stage2/docs/feature-mapping.md). Current implementation evidence: `Stage2/src/main/java/com/photopilot/config/FeatureCatalog.java`, application/service/repository source, `ui/gui/FeaturePane.java`, and `ui/cli/PhotoPilotCLI.java`.
 
@@ -23,6 +23,10 @@ Status vocabulary: **Scaffolded** = declarations/wiring with unavailable behavio
 UC14 is included validation, not a twelfth user feature. Except F01, F05 and F08, every row currently has **GUI workflow unavailable; CLI business operation unavailable; business acceptance unverified; real external integration unverified where applicable; demonstration not established**.
 
 ## Working infrastructure and test evidence
+
+- User-centered desktop shell (2026-11-01): **172/172** tests, zero failures/errors/skips; JAR and GUI_SMOKE_OK. Splash → Select User → Home → existing modules, real shared-manager CRUD/switching, persistent normalized avatars, backend active indicator and bilingual translucent UI. Switching preserves existing queue/draft/revocation safeguards and CLI syntax. Actual JavaFX controls, avatar preview, restart/rename/isolation and English/Chinese minimum-size renders checked. Three focused methods added to existing tests; no new business feature, live provider or Stage3 claim. Prior storage repairs preserved; Stage1 unchanged. [Current architecture, usage and verification limits](../Stage2/docs/user-workspace.md).
+
+- Storage audit corrections (2026-11-01): **169/169** Stage2 tests, zero failures/errors/skips; package and GUI_SMOKE_OK. Fixed failed-profile-command batch continuation, healthy-profile startup blocked by a corrupt default, F05 navigation losing drafts, and empty-source migration recovery missing newly present legacy data. GUI startup recovery supports validated selection/retry/cancel without reset. Four targeted methods added to existing test classes and navigation checks extended; no Stage3 expansion. Recovery render inspected; Stage1 unchanged, separate structural audit not rerun. [Current behavior and verification](../Stage2/docs/data-storage.md#static-audit-follow-up-2026-11-01).
 
 - Final storage stabilization Phase 5 (2026-10-31): **165/165** tests, zero failures/errors/skips; JAR, GUI_SMOKE_OK and source/UML audit passed. Fixed same-profile selection bypassing corrupt/missing-store checks and JSON preferences unnecessarily waiting on the legacy properties lock. Two focused regression methods reproduce the defects; existing GUI/CLI checks verify failure retention. Existing restart/isolation/management/data-exchange/failure/migration workflows rerun on temporary data. Final architecture, formats and backup/recovery consolidated in [storage reference](../Stage2/docs/data-storage.md). No new feature or comprehensive Stage 3 test suite; existing business statuses unchanged.
 

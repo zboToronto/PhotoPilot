@@ -128,3 +128,48 @@
 .profile-current { -fx-font-weight: bold; -fx-text-fill: #23374d; }
 .profile-avatar { -fx-font-size: 28px; -fx-text-fill: #167c80; }
 .list-cell:filled:selected .profile-avatar, .list-cell:filled:selected .section-title, .list-cell:filled:selected .secondary-text { -fx-text-fill: white; }
+
+/* Restrained frosted surfaces over a stationary diffuse backdrop. Text is never blurred. */
+.workspace {
+    -fx-background-color: linear-gradient(to bottom right, #e5edf7 0%, #f3f0f8 48%, #e4efed 100%);
+}
+.app-header, .profile-bar, .footer { -fx-background-color: rgba(255,255,255,0.72); }
+.sidebar { -fx-background-color: rgba(255,255,255,0.60); }
+.navigation-scroll, .navigation-scroll > .viewport,
+.content-scroll, .content-scroll > .viewport, .content-surface,
+.user-selection .scroll-pane, .user-selection .scroll-pane > .viewport { -fx-background-color: transparent; }
+.glass-panel {
+    -fx-background-color: rgba(255,255,255,0.80);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-border-color: rgba(255,255,255,0.95);
+    -fx-effect: dropshadow(gaussian, rgba(44,61,87,0.10), 28, 0.05, 0, 8);
+    -fx-padding: 28;
+}
+.user-selection .list-view { -fx-background-color: transparent; -fx-border-color: #dbe3ed; -fx-border-radius: 10; -fx-padding: 4; }
+.user-selection .list-cell { -fx-background-color: transparent; -fx-padding: 12; -fx-background-radius: 8; }
+.user-selection .list-cell:filled:hover { -fx-background-color: rgba(229,238,251,0.65); }
+.user-selection .list-cell:filled:selected { -fx-background-color: #e0ebfc; }
+.user-selection .list-cell:filled:selected .label { -fx-text-fill: #203a60; }
+.user-selection .list-cell:focused { -fx-border-color: #8baee0; -fx-border-radius: 8; }
+.user-selection .text-field { -fx-background-color: white; -fx-padding: 10; -fx-border-color: #cad5e3; -fx-border-radius: 6; -fx-background-radius: 6; }
+.user-avatar { -fx-background-color: #d6e2f4; -fx-background-radius: 100; }
+.avatar-initial { -fx-font-size: 20px; -fx-text-fill: #315380; -fx-font-weight: bold; }
+.home-dashboard { -fx-padding: 0 0 20; }
+.home-hero { -fx-padding: 0 0 10; }
+.home-hero .navigation-group { -fx-padding: 0; }
+.home-hero .feature-title { -fx-font-size: 28px; }
+.module-card {
+    -fx-background-color: rgba(255,255,255,0.84);
+    -fx-border-color: rgba(255,255,255,0.98);
+    -fx-background-radius: 14; -fx-border-radius: 14;
+    -fx-padding: 22; -fx-alignment: top-left;
+    -fx-effect: dropshadow(gaussian, rgba(44,61,87,0.08), 14, 0.02, 0, 4);
+}
+.module-card:hover { -fx-background-color: #ffffff; -fx-border-color: #bdcfe7; }
+.module-card:focused { -fx-border-color: #2563eb; }
+.module-card .section-title { -fx-font-size: 17px; }
+.module-symbol { -fx-font-size: 24px; -fx-text-fill: #42658f; }
+.module-status { -fx-font-size: 11px; -fx-text-fill: #48658a; }
+.splash-title { -fx-font-size: 40px; -fx-font-weight: bold; }
+.splash-mark { -fx-font-size: 54px; -fx-text-fill: #42658f; }

@@ -95,6 +95,32 @@ class ProfileCliTest {
         process(2,"profile delete " + b); process(2,"profile select " + UUID.randomUUID());
         process(0,"profile delete " + b + " --confirm"); process(2,"--profile="+b,"session list");
     }
+    @Test void failedBatchSelectionStopsBeforeWritingToPreviousProfile() throws Exception {
+        try (var manager = new ProfileManager(env())) {
+            var cli = cli(manager);
+            cli.run(new String[]{"profile select " + UUID.randomUUID(), "session create title=Wrong date=2026-11-01"});
+            assertEquals(2, cli.exitCode());
+            assertTrue(manager.activeContext().facade().sessions().search("").value().orElseThrow().isEmpty());
+        }
+        process(2, "profile select " + UUID.randomUUID(), "session create title=WrongPipe date=2026-11-01");
+        try (var manager = new ProfileManager(env())) {
+            assertTrue(manager.activeContext().facade().sessions().search("").value().orElseThrow().isEmpty());
+        }
+    }
+    @Test void explicitStartupOpensHealthyProfileDespiteCorruptDefault() throws Exception {
+        UUID b; Path broken;
+        try (var manager = new ProfileManager(env())) {
+            b = manager.createProfile("Healthy B").value().orElseThrow().id();
+            broken = manager.activeContext().storageScope().inventoryFile();
+        }
+        Files.writeString(broken, "broken default");
+        byte[] registry = Files.readAllBytes(root.resolve("data/profiles.json"));
+        process(2, "session list");
+        process(0, "--profile=" + b, "session create title=Healthy date=2026-11-01");
+        assertTrue(process(0, "--profile", b.toString(), "session list").contains("Healthy"));
+        assertEquals("broken default", Files.readString(broken));
+        assertArrayEquals(registry, Files.readAllBytes(root.resolve("data/profiles.json")));
+    }
     @Test void realJvmCorruptStartupDoesNotResetRegistry() throws Exception {
         process(0,"profile list"); Path registry=root.resolve("data/profiles.json"); Files.writeString(registry,"broken");
         String failure=process(2,"profile list"); assertFalse(failure.contains("Exception in thread")); assertEquals("broken",Files.readString(registry));

@@ -7,13 +7,14 @@ import com.photopilot.model.LocalProfile;
 import java.util.*;
 import java.util.function.*;
 import javafx.geometry.Insets;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.*;
 
-/** Modeless profile picker and editor using the existing theme, asynchronous manager calls and explicit archive confirmation. */
-final class ProfileDialog extends Stage {
+/** Single-window user picker; lifecycle and avatar I/O stay in shared services. */
+final class UserSelectionPane extends BorderPane {
+    private final Window owner;
+    private Map<UUID, Optional<byte[]>> avatars = Map.of();
     private final ProfileManager profiles;
     private final UiOperations operations;
     private final LocalizationService language;
@@ -25,21 +26,21 @@ final class ProfileDialog extends Stage {
     private final ScrollPane scroll = new ScrollPane();
     private final Label feedback = FeaturePane.label("", "feedback-text");
     private boolean working, disposed;
-    private record Snapshot(List<LocalProfile> profiles, Optional<LocalProfile> active) { }
+    private record Snapshot(List<LocalProfile> profiles, Optional<LocalProfile> active, Map<UUID, Optional<byte[]>> avatars) { }
 
-    ProfileDialog(Window owner, ProfileManager profiles, UiOperations operations, Consumer<UUID> select,
+    UserSelectionPane(Window owner, ProfileManager profiles, UiOperations operations, Consumer<UUID> select,
                   Consumer<Optional<LocalProfile>> activeChanged, LocalizationService language) {
-        initOwner(owner); this.profiles = profiles; this.operations = operations; this.language = language; this.activeChanged = activeChanged;
+        this.owner = owner; this.profiles = profiles; this.operations = operations; this.language = language; this.activeChanged = activeChanged;
         var content = new VBox(16); content.setPadding(new Insets(24)); content.getStyleClass().add("settings-content");
-        texts = new FxLocalizer(content, language); texts.useReadableFont(content); texts.text(titleProperty(), "profile.manage");
+        texts = new FxLocalizer(content, language); texts.useReadableFont(content); setId("user-selection"); getStyleClass().addAll("workspace", "user-selection");
         list.setId("profile-list"); list.setPrefHeight(230); list.setMinHeight(150);
         texts.text(list.accessibleTextProperty(), "profile.choose"); list.setPlaceholder(texts.label("profile.empty", "secondary-text"));
         list.setCellFactory(view -> new ListCell<>() {
             protected void updateItem(LocalProfile item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) { setGraphic(null); setText(null); return; }
-                var icon = FeaturePane.label("●", "profile-avatar");
-                icon.setMinWidth(Region.USE_PREF_SIZE);
+                var icon = UserAvatar.view(item.displayName(), avatars.getOrDefault(item.id(), Optional.empty()), 46);
+
                 var title = FeaturePane.label(item.displayName(), "section-title");
                 var identity = FeaturePane.label(item.id().toString(), "secondary-text");
                 var names = new VBox(4, title, identity); names.setMinWidth(0); HBox.setHgrow(names, Priority.ALWAYS);
@@ -59,7 +60,7 @@ final class ProfileDialog extends Stage {
         }, false);
         Button delete = button("profile.delete", "profile-delete", () -> {
             var item = list.getSelectionModel().getSelectedItem();
-            if (item != null && GuiProfileController.confirm(this, language, "profile.deleteTitle", "profile.deletePrompt", "profile.delete", item.displayName(), item.id()))
+            if (item != null && GuiProfileController.confirm(owner, language, "profile.deleteTitle", "profile.deletePrompt", "profile.delete", item.displayName(), item.id()))
                 mutate(() -> profiles.deleteProfile(item.id(), true), "profile.deleted", value -> null);
         }, false);
         for (Button selected : List.of(enter, rename, delete)) selected.disableProperty().bind(list.getSelectionModel().selectedItemProperty().isNull());
@@ -67,18 +68,48 @@ final class ProfileDialog extends Stage {
             String value = name.getText(); mutate(() -> profiles.createProfile(value), "profile.created", LocalProfile::id);
         }, true);
         controls.getChildren().addAll(list, new FlowPane(10, 8, enter, button("profile.refresh", "profile-refresh", this::refresh, false)), label, name,
-            new FlowPane(10, 8, create, rename, delete), texts.label("profile.policy", "secondary-text"));
+            new FlowPane(10, 8, create, rename, delete), new FlowPane(10, 8, button("avatar.import", "avatar-import", this::chooseAvatar, false), button("avatar.remove", "avatar-remove", this::removeAvatar, false)), texts.label("profile.policy", "secondary-text"));
         feedback.setId("profile-feedback"); feedback.setMaxWidth(Double.MAX_VALUE);
-        content.getChildren().addAll(texts.label("profile.choose", "feature-title"), texts.label("profile.description", "secondary-text"), controls);
-        scroll.setId("profiles-scroll"); scroll.setContent(content); scroll.setFitToWidth(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        content.setMaxWidth(760); content.getStyleClass().add("glass-panel");
+        var brand = texts.label("app.title", "brand");
+        content.getChildren().addAll(brand, texts.label("profile.choose", "feature-title"), texts.label("profile.description", "secondary-text"), controls);
+        scroll.setId("profiles-scroll"); var centered = new VBox(content); centered.setAlignment(javafx.geometry.Pos.TOP_CENTER); centered.setPadding(new Insets(32)); scroll.setContent(centered); scroll.setFitToWidth(true); scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         var feedbackBox = new VBox(feedback); feedbackBox.setPadding(new Insets(12, 24, 12, 24));
         feedbackBox.getStyleClass().add("feedback-box");
         feedbackBox.visibleProperty().bind(feedback.textProperty().isNotEmpty()); feedbackBox.managedProperty().bind(feedbackBox.visibleProperty());
-        var root = new BorderPane(scroll); root.setBottom(feedbackBox);
-        Scene scene = new Scene(root, 660, 620); scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
-        setScene(scene); setMinWidth(480); setMinHeight(480);
-        setOnCloseRequest(event -> { if (working) { event.consume(); message("profile.wait"); } });
-        setOnHidden(event -> { disposed = true; texts.close(); });
+        setCenter(scroll); setBottom(feedbackBox);
+    }
+    void dispose() { disposed = true; texts.close(); }
+    private void chooseAvatar() {
+        var selected = list.getSelectionModel().getSelectedItem();
+        if (selected == null || working) return;
+        var chooser = new FileChooser(); chooser.setTitle(language.text("avatar.import"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG / JPEG", "*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"));
+        var source = chooser.showOpenDialog(owner); if (source == null) return;
+        previewAvatar(selected.id(), source.toPath());
+    }
+    void previewAvatar(UUID id, java.nio.file.Path source) {
+        freeze(true);
+        operations.run(() -> ProfileManager.prepareAvatar(source), result -> {
+            if (disposed) return;
+            freeze(false);
+            if (!result.isSuccess()) { message("avatar.failed"); return; }
+            var bytes = result.value().orElseThrow();
+            var preview = new Alert(Alert.AlertType.CONFIRMATION);
+            preview.initOwner(owner); preview.setTitle(language.text("avatar.preview")); preview.setHeaderText(language.text("avatar.preview"));
+            preview.getDialogPane().setId("avatar-preview");
+            preview.getDialogPane().setContent(UserAvatar.view("", Optional.of(bytes), 160));
+            preview.getDialogPane().getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
+            var save = new ButtonType(language.text("avatar.save"), ButtonBar.ButtonData.OK_DONE);
+            var cancel = new ButtonType(language.text("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+            preview.getButtonTypes().setAll(save, cancel);
+            if (preview.showAndWait().filter(save::equals).isPresent())
+                mutate(() -> profiles.saveAvatar(id, bytes), "avatar.saved", value -> id);
+        });
+    }
+    private void removeAvatar() {
+        var selected = list.getSelectionModel().getSelectedItem();
+        if (selected != null) mutate(() -> profiles.removeAvatar(selected.id()), "avatar.removed", value -> selected.id());
     }
     private Button button(String key, String id, Runnable action, boolean primary) {
         var button = texts.button(key); button.setId(id); button.getStyleClass().add(primary ? "primary-button" : "secondary-button");
@@ -86,17 +117,19 @@ final class ProfileDialog extends Stage {
     }
     void freeze(boolean value) { working = value; controls.setDisable(value); }
     void message(String key) { texts.text(feedback.textProperty(), key); }
-    void failure(Result<?> result) { texts.bind(feedback.textProperty(), () -> String.join("; ", result.errors(language))); }
+    void failure(Result<?> result) { message("user.operationFailed"); }
     void refresh() { var selected = list.getSelectionModel().getSelectedItem(); refresh(selected == null ? null : selected.id()); }
     private void refresh(UUID selected) {
         if (disposed) return; freeze(true);
         operations.run(() -> {
             var loaded = profiles.listProfiles(); if (!loaded.isSuccess()) return Result.<Snapshot>failure(loaded);
-            return Result.success(new Snapshot(loaded.value().orElseThrow(), profiles.activeProfile().value()));
+            var images = new HashMap<UUID, Optional<byte[]>>();
+            for (var user : loaded.value().orElseThrow()) images.put(user.id(), profiles.avatar(user.id()).value().orElse(Optional.empty()));
+            return Result.success(new Snapshot(loaded.value().orElseThrow(), profiles.activeProfile().value(), images));
         }, result -> {
             if (disposed) return; freeze(false);
             if (!result.isSuccess()) { failure(result); return; }
-            var snapshot = result.value().orElseThrow(); activeChanged.accept(snapshot.active()); list.getItems().setAll(snapshot.profiles());
+            var snapshot = result.value().orElseThrow(); avatars = snapshot.avatars(); activeChanged.accept(snapshot.active()); list.getItems().setAll(snapshot.profiles());
             UUID choose = selected == null ? snapshot.active().map(LocalProfile::id).orElse(null) : selected;
             snapshot.profiles().stream().filter(p -> p.id().equals(choose)).findFirst().ifPresent(item -> { list.getSelectionModel().select(item); list.scrollTo(item); });
             if (snapshot.active().isEmpty()) message("profile.unavailable");

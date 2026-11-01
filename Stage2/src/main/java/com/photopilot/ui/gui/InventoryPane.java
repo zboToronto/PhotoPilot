@@ -98,8 +98,10 @@ final class InventoryPane extends VBox {
         button.setOnAction(event -> action.run()); return button;
     }
     void activate(boolean active) {
-        this.active = active; generation++;
-        if (active) { hide(editor); hide(confirmation); hide(feedbackBox); refresh(); }
+        if (this.active == active) return;
+        this.active = active;
+        // Navigation must retain the editor and its original revision, including pending save feedback.
+        if (active && !busy) refresh();
     }
     void refresh() {
         String query = search.getText();
@@ -175,7 +177,7 @@ final class InventoryPane extends VBox {
         long request = ++generation; busy = true; controls.setDisable(true);
         Task<Result<T>> task = new Task<>() { @Override protected Result<T> call() { return operation.get(); } };
         task.setOnSucceeded(event -> {
-            if (!active || request != generation) return;
+            if (request != generation) return;
             busy = false; controls.setDisable(false);
             var result = task.getValue();
             if (result.isSuccess()) success.accept(result.value().orElseThrow());
@@ -185,7 +187,7 @@ final class InventoryPane extends VBox {
             }
         });
         task.setOnFailed(event -> {
-            if (active && request == generation) { busy = false; controls.setDisable(false); message(() -> localization.text("gear.operationFailed")); }
+            if (request == generation) { busy = false; controls.setDisable(false); message(() -> localization.text("gear.operationFailed")); }
         });
         operations.execute(task);
     }

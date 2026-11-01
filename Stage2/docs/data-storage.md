@@ -21,16 +21,25 @@ Traced F01 `SessionPane` / `SessionCommands` -> Facade -> SessionService -> guar
 
 No competing normal business stores or profile-data singleton/cache was found. JsonProfileRepository's ThreadLocal stores only lock ownership, not active identities or records. The old public `FileLocalePreferenceRepository` is retained for explicitly constructed legacy clients/tests; normal bootstrap uses only the JSON implementation. Likewise, explicit unscoped bootstrap/repository construction remains for controlled legacy tooling and tests, not normal GUI/CLI startup. Removing these compatibility entry points would break existing callers. Configuration's legacy-path detection is discovery, not a second writer.
 
-Two defects were reproduced and corrected:
+The original 2026-10-31 Phase 5 pass reproduced and corrected two defects:
 
 1. **Reselecting the current profile bypassed storage validation.** A corrupt inventory or missing registered directory could still produce selection success. ProfileManager now uses the existing registry open/validation path, closes the temporary validation access, and retains the current context/views. Failure preserves the damaged bytes and drafts; valid reselection does not rebuild the application. Existing GUI/CLI error paths now receive the failure.
 2. **JSON preference saves unnecessarily depended on the legacy writer lock.** After migration, an unrelated old properties writer could block authoritative JSON updates. The repository now reads JSON once under its JSON lock and acquires the legacy lock only when JSON is absent and a first copy is needed. Existing JSON corruption still fails without fallback; legacy bytes and unrelated preference values remain intact.
 
-Only these two production files changed. Two focused regression methods were added to existing test classes, and existing GUI/CLI checks were extended; no new test framework, production class, schema, dependency or large test suite was introduced. No files were removed. Stage1 artifacts and business/agent APIs are unchanged.
+That original pass changed only those two production files. The 2026-11-01 follow-up below adds focused corrections without changing schemas, dependencies or Stage1 artifacts.
+
+### Static-audit follow-up (2026-11-01)
+
+- CLI argument batches and redirected stdin stop after a failed profile command, before subsequent business mutations can reach the previous profile. Ordinary command-validation behavior and interactive console recovery remain compatible. Invalid `--profile` still aborts before business commands.
+- `ProfileManager(environment, UUID)` opens the requested registered profile directly, without first opening the default business stores. CLI parses startup selection before constructing the manager. GUI startup failures offer `ProfileRecoveryDialog`: select an existing identity, retry after failed selection, or cancel. Shared `availableProfiles` reads metadata without opening business stores; selection validates through the same manager/bootstrap. No automatic fallback, repair, registry reset or default-identity change occurs.
+- F05 retains its editor, original revision and feedback across navigation/reselection. Its pending operation completes against the captured pane/context even when temporarily hidden; disposal still invalidates callbacks and tracked work still blocks profile switching. Unsaved forms remain visible to the existing switch/close guard.
+- Pending default migration rechecks the legacy source even when the recorded snapshot was empty. Legacy data appearing before directory publication causes a visible failure with original bytes and the pending UUID/journal preserved. Ordinary empty-profile creation remains independent of legacy data; completed migration still does not reimport it.
+
+Original design -> explicit startup selection and recovery over the existing manager, retained F05 draft state, profile-command batch stop and default-journal source revalidation -> correct wrong-profile writes, failure isolation, draft loss and interrupted-migration ambiguity -> F01/F05 CLI/GUI and profile infrastructure; Facade/Repository/State boundaries remain unchanged.
 
 ```mermaid
 flowchart TD
-    GUI[PhotoPilotGUI / GuiProfileController / ProfileDialog] --> PM[ProfileManager]
+    GUI[PhotoPilotGUI / GuiProfileController / UserSelectionPane] --> PM[ProfileManager]
     CLI[PhotoPilotCLI / ProfileCommands] --> PM
     PM --> REG[JsonProfileRepository: registry + migration journal]
     PM --> BOOT[ApplicationBootstrap: active context]
@@ -81,9 +90,11 @@ Stable UUIDs survive rename, restart and migration. Inventory revisions compare 
 
 ## Selection, UI refresh and concurrency
 
-Each process opens the same persisted default UUID on startup. GUI selection and CLI `profile select` affect that process only. CLI `--profile UUID` / `--profile=UUID` selects at startup without changing the default; invalid selection aborts before any requested business command. Commands execute synchronously and report failures with process exit code 2. Metadata listing/current identity does not itself certify that every business file is healthy; entering/reselecting a profile validates its stores.
+GUI startup initializes the persisted default behind a splash, then requires selection in Select User before Home. Normal CLI startup opens the persisted default UUID. Explicit CLI `--profile UUID` / `--profile=UUID` opens that identity directly, even if the default business store is damaged; invalid selection aborts before business commands. GUI startup failure offers selection of an existing profile or cancellation. GUI selection and CLI `profile select` affect that process only and never change the persisted default. Commands execute synchronously and report failures with process exit code 2; argument batches and redirected stdin stop after a failed profile command. Interactive console users may correct the failure while retaining the original context. Metadata listing/current identity does not itself certify business-file health; entering/reselecting a profile validates its stores. CLI without an explicit startup UUID still requires a healthy default.
 
-In the GUI, use **Manage profiles** in the header to create, enter, rename or delete a selected profile. The header reflects backend identity. Duplicate names have secondary UUIDs. Delete requires a cancellable confirmation naming the target. In the CLI, use `profile list`, `profile create "Name"`, `profile current`, `profile select UUID`, `profile rename UUID "New Name"`, and `profile delete UUID --confirm`; `profile help` lists syntax. Use a complete command per stdin line or properly quoted argument. See [GUI/CLI usage and implementation](phase4-profile-ui.md).
+In the GUI, use **Switch User / User Settings** in the active-user bar to create, enter, rename or delete a selected profile. The header reflects backend identity. Duplicate names have secondary UUIDs. Delete requires a cancellable confirmation naming the target. In the CLI, use `profile list`, `profile create "Name"`, `profile current`, `profile select UUID`, `profile rename UUID "New Name"`, and `profile delete UUID --confirm`; `profile help` lists syntax. Use a complete command per stdin line or properly quoted argument. See [current user workspace and avatar implementation](user-workspace.md) and [historical GUI/CLI integration](phase4-profile-ui.md).
+
+The optional avatar is `<root>/profiles/<uuid>/avatar.png`: bounded PNG/JPEG import with preview, normalization to 256 × 256 PNG, atomic replacement under the registry lock, restart persistence and default-initial fallback. Rename preserves the UUID/path; archive retains this file along with business data. No registry schema change or external source path is needed. See [avatar safety and limits](user-workspace.md#avatar-storage-and-failure-behavior).
 
 Switching blocks while the GUI's tracked queue or completion delivery is pending. Unsaved session/equipment/calculator inputs require explicit discard, or cancellation followed by an existing Save operation. A different successful selection constructs new service/agent dependencies, revokes old access and rebuilds views/listeners, clearing old tables, forms, calculation results and prefill state. Failed selection retains the old context and drafts. Valid same-profile selection validates without disposing views. All later operations still recheck membership/path safety.
 
@@ -113,6 +124,20 @@ Close all GUI/CLI writers before copying. Back up the **entire business root**, 
 Reviewed ignore rules cover expected runtime roots, Stage2 profile directories/registry/settings/temp files, caches, logs, local launchers and secrets. Controlled fixtures and `.env.example` remain tracked. All verification uses temporary directories or ignored `target/`; no real profiles, photography records or credentials are needed. Custom runtime/backup locations should remain outside the repository.
 
 ## Basic verification and Stage 3 boundary
+
+Latest shell integration (2026-11-01): **172/172**, JAR and GUI_SMOKE_OK; actual chooser/Home/avatar controls and bilingual renders verified. The startup flow now uses Home. See [current verification and limits](user-workspace.md#verification-and-limits). The storage audit evidence below describes the preceding snapshot.
+
+Follow-up verification, 2026-11-01: **32/32** focused checks passed, followed by **169/169** full Stage2 tests, zero failures/errors/skips, JAR packaging and **GUI_SMOKE_OK**. Four methods were added to existing test classes; the existing gear-draft check now navigates away/back and reselects F05 before cancellation/discard. Child CLI JVMs verify redirected-input stop and healthy explicit startup with corrupt default data. Real JavaFX recovery controls verify failed selection, retry, cancellation and byte preservation; the recovery-dialog render was inspected. All 131 main/29 test sources compiled during final verification; not Maven clean. Stage1 has no diff; the separate Python structural audit was not rerun in this follow-up.
+
+Initial compilation hit sandbox JavaFX-cache access errors; local JDK21 execution resolved them. The first full run exposed an overly broad batch-error stop and a missing explicit English resource entry; both were corrected before final success. No existing test was weakened. No Stage3 suite, stress campaign or real user data was added.
+
+```powershell
+# Local JDK21; smoke DATA/CONFIG overrides use a fresh ignored target/ directory.
+./mvnw.cmd -B -o '-Dtest=ProfileCliTest,ProfileGuiTest,ProfileRecoveryTest,InventoryGuiTest' test
+./mvnw.cmd -B -o test package javafx:run '-Djavafx.args=--smoke-test'
+```
+
+The remainder of this section records the historical 2026-10-31 Phase 5 verification:
 
 Fresh Phase 5 baseline: **163/163** existing tests passed. The two defect checks failed before repair (false successful reselection; legacy-lock Busy error after JSON migration). After repair, **31/31** focused existing integration checks passed. Final full suite: **165/165**, zero failures/errors/skips; JAR packaging and **GUI_SMOKE_OK**. No existing checks were removed or weakened.
 

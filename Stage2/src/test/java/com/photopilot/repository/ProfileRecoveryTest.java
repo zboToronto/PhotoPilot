@@ -126,6 +126,19 @@ class ProfileRecoveryTest {
         assertArrayEquals(changed, Files.readAllBytes(root.resolve("inventory.json")));
         Files.write(root.resolve("inventory.json"), original); assertEquals(id, registry().initializeDefault().id());
     }
+    @Test void initiallyEmptyMigrationRejectsLegacyDataAppearingBeforeRecovery() throws Exception {
+        var broken = new JsonProfileRepository(root) {
+            protected void movePrepared(Path source, Path target) throws IOException { throw new IOException("Interrupted"); }
+        };
+        assertThrows(IOException.class, broken::initializeDefault);
+        UUID id = pendingId(); byte[] journal = Files.readAllBytes(registryFile());
+        ok(new JsonInventoryRepository(root.resolve("inventory.json")).transact(inv -> inv.add(camera("Restored legacy"))));
+        byte[] legacy = Files.readAllBytes(root.resolve("inventory.json"));
+        assertThrows(IOException.class, () -> registry().initializeDefault());
+        assertEquals(id, pendingId()); assertArrayEquals(journal, Files.readAllBytes(registryFile()));
+        assertArrayEquals(legacy, Files.readAllBytes(root.resolve("inventory.json")));
+        assertFalse(Files.exists(StorageScope.forProfile(root, id).directory()));
+    }
     @Test void conflictingDestinationIsPreservedInsteadOfReplaced() throws Exception {
         var broken = new JsonProfileRepository(root) { int writes; protected void replace(Path temp) throws IOException { if (++writes == 2) throw new IOException("Interrupted"); super.replace(temp); } };
         assertThrows(IOException.class, broken::initializeDefault);

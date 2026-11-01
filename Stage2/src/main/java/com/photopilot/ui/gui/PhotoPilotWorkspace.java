@@ -18,6 +18,10 @@ import javafx.scene.layout.VBox;
 /** Lightweight application shell. No services, persistence, or feature execution. */
 final class PhotoPilotWorkspace extends BorderPane {
     private final FeaturePane detail;
+    private final HomeDashboard home;
+    private final VBox content = new VBox();
+    private final ToggleButton homeButton = new ToggleButton();
+    private final javafx.scene.layout.StackPane avatar = new javafx.scene.layout.StackPane();
     private final LocalizationService localization;
     private final FxLocalizer texts;
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
@@ -25,7 +29,7 @@ final class PhotoPilotWorkspace extends BorderPane {
     private final Label storageNotice = FeaturePane.label("", "feedback-text");
     private final Label profileName = FeaturePane.label("", "profile-current");
     private final Button manageProfiles = new Button();
-    private final HBox profileBar = new HBox(14, profileName, spacer(), manageProfiles);
+    private final HBox profileBar = new HBox(14, avatar, profileName, spacer(), manageProfiles);
     private final java.util.List<SettingsDialog> settingsWindows = new java.util.ArrayList<>();
     private final ScrollPane contentScroll;
     private String selectedId;
@@ -37,6 +41,7 @@ final class PhotoPilotWorkspace extends BorderPane {
         texts = new FxLocalizer(this, localization);
         texts.useReadableFont(this);
         detail = new FeaturePane(localization);
+        home = new HomeDashboard(localization, id -> navigation.get(id).fire());
         getStyleClass().add("workspace");
         storageNotice.setId("storage-notice");
         storageNotice.getStyleClass().add("feedback-box");
@@ -47,9 +52,9 @@ final class PhotoPilotWorkspace extends BorderPane {
         profileName.setId("profile-active"); profileName.setMinWidth(0); profileName.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(profileName, Priority.ALWAYS);
         manageProfiles.setId("profiles-open"); manageProfiles.getStyleClass().add("secondary-button"); manageProfiles.setMinWidth(Region.USE_PREF_SIZE);
-        texts.text(manageProfiles.textProperty(), "profile.manage");
+        texts.text(manageProfiles.textProperty(), "user.switch");
         setTop(new VBox(header(), profileBar, storageNotice));
-        VBox content = new VBox(detail);
+
         content.setAlignment(Pos.TOP_CENTER);
         content.getStyleClass().add("content-surface");
         contentScroll = scroll(content, "content-scroll");
@@ -57,6 +62,9 @@ final class PhotoPilotWorkspace extends BorderPane {
         VBox sidebar = new VBox(4);
         sidebar.getStyleClass().add("sidebar");
         ToggleGroup selection = new ToggleGroup();
+        homeButton.setId("nav-home"); homeButton.setToggleGroup(selection); homeButton.getStyleClass().add("navigation-item");
+        homeButton.setMaxWidth(Double.MAX_VALUE); texts.text(homeButton.textProperty(), "home.title");
+        homeButton.setOnAction(event -> showHome()); sidebar.getChildren().add(homeButton);
         String previousGroup = "";
         for (FeaturePresentation feature : FeaturePresentation.all()) {
             if (!feature.group().equals(previousGroup)) {
@@ -78,6 +86,7 @@ final class PhotoPilotWorkspace extends BorderPane {
                 button.setSelected(true);
                 selectedId = feature.id();
                 selectionVersion++;
+                content.getChildren().setAll(detail);
                 detail.show(feature);
                 contentScroll.setVvalue(0);
                 texts.bind(footer.textProperty(), () -> localization.text("feature.footer", feature.id(), feature.title(localization)));
@@ -90,7 +99,7 @@ final class PhotoPilotWorkspace extends BorderPane {
         navigationScroll.setMinWidth(250);
         navigationScroll.setMaxWidth(250);
         // Arrow keys follow display order across groups; Tab reaches content actions.
-        var buttons = navigation.values().stream().toList();
+        var buttons = new java.util.ArrayList<ToggleButton>(); buttons.add(homeButton); buttons.addAll(navigation.values());
         for (int i = 0; i < buttons.size(); i++) {
             final int index = i;
             buttons.get(i).setOnKeyPressed(event -> {
@@ -118,8 +127,19 @@ final class PhotoPilotWorkspace extends BorderPane {
         bottom.setAlignment(Pos.CENTER_LEFT);
         bottom.getStyleClass().add("footer");
         setBottom(bottom);
-        navigation.get("F01").fire();
+        showHome();
     }
+
+    void showHome() {
+        detail.suspendModules();
+        selectedId = "HOME"; selectionVersion++; homeButton.setSelected(true);
+        content.getChildren().setAll(home); contentScroll.setVvalue(0); texts.text(footer.textProperty(), "home.title");
+    }
+    boolean atHome() { return "HOME".equals(selectedId); }
+    void showAvatar(String name, java.util.Optional<byte[]> bytes) {
+        avatar.getChildren().setAll(UserAvatar.view(name, bytes, 34)); home.avatar(name, bytes);
+    }
+    void closeSettings() { java.util.List.copyOf(settingsWindows).forEach(SettingsDialog::close); }
 
     private HBox header() {
         Label brand = texts.label("app.title", "brand");
@@ -169,11 +189,12 @@ final class PhotoPilotWorkspace extends BorderPane {
         profileBar.setVisible(true); profileBar.setManaged(true); manageProfiles.setOnAction(event -> open.run());
     }
     void showProfile(java.util.Optional<com.photopilot.model.LocalProfile> profile) {
+        home.user(profile);
         texts.bind(profileName.textProperty(), () -> profile.map(p -> localization.text("profile.active", p.displayName())).orElseGet(() -> localization.text("profile.unavailable")));
     }
     void freeze(boolean value) { setDisable(value); settingsWindows.forEach(dialog -> dialog.getScene().getRoot().setDisable(value)); }
     void dispose() {
-        java.util.List.copyOf(settingsWindows).forEach(SettingsDialog::close); texts.close(); detail.dispose();
+        closeSettings(); texts.close(); home.dispose(); detail.dispose();
     }
 
     /** Exercises real controls in the existing opt-in graphical smoke mode. */

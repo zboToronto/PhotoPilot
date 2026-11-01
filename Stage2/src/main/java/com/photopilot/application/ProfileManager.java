@@ -15,9 +15,19 @@ public final class ProfileManager implements AutoCloseable {
     private boolean closed;
 
     public ProfileManager(Map<String, String> environment) {
+        this(environment, null);
+    }
+    /** Explicit startup selection must not open the default profile's business files first. */
+    public ProfileManager(Map<String, String> environment, UUID initialProfile) {
         this.environment = Map.copyOf(environment);
         repository = new JsonProfileRepository(StorageConfiguration.resolve(environment).scope().root());
-        active = new ApplicationBootstrap(environment);
+        active = initialProfile == null ? new ApplicationBootstrap(environment)
+            : new ApplicationBootstrap(environment, StorageScope.forProfile(repository.root(), initialProfile));
+    }
+    /** Recovery can list registered identities without opening any business store or changing the registry. */
+    public static Result<List<LocalProfile>> availableProfiles(Map<String, String> environment) {
+        try { return Result.success(new JsonProfileRepository(StorageConfiguration.resolve(environment).scope().root()).list()); }
+        catch (IOException | RuntimeException error) { return Result.failureKey("error.profile.operation", Objects.toString(error.getMessage(), error.getClass().getSimpleName())); }
     }
     public synchronized ApplicationBootstrap activeContext() {
         if (closed) throw new IllegalStateException("Profile manager is closed."); return active;
@@ -27,6 +37,18 @@ public final class ProfileManager implements AutoCloseable {
     public synchronized Result<LocalProfile> getProfile(UUID id) { return call(() -> repository.find(id)); }
     public synchronized Result<LocalProfile> createProfile(String name) { return call(() -> repository.create(name)); }
     public synchronized Result<LocalProfile> renameProfile(UUID id, String name) { return call(() -> repository.rename(id, name)); }
+
+    public static Result<byte[]> prepareAvatar(java.nio.file.Path source) {
+        try { return Result.success(AvatarRepository.prepare(source)); }
+        catch (IOException | RuntimeException error) { return Result.failureKey("avatar.failed"); }
+    }
+    public synchronized Result<Optional<byte[]>> avatar(UUID id) { return call(() -> new AvatarRepository(repository).read(id)); }
+    public synchronized Result<Boolean> saveAvatar(UUID id, byte[] bytes) {
+        return call(() -> { new AvatarRepository(repository).save(id, bytes); return true; });
+    }
+    public synchronized Result<Boolean> removeAvatar(UUID id) {
+        return call(() -> { new AvatarRepository(repository).remove(id); return true; });
+    }
 
     /** Explicit transition boundary: caller has saved/discarded drafts and quiesced its UI task queue. */
     public synchronized Result<LocalProfile> selectProfile(UUID id, boolean pendingChangesHandled) {

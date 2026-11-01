@@ -73,6 +73,12 @@ final class FeaturePane extends VBox {
         getChildren().addAll(heading, new Separator(), empty, new Separator(), actions, feedbackBox);
     }
 
+    void suspendModules() {
+        if (sessions != null) sessions.activate(false);
+        if (inventory != null) inventory.activate(false);
+        if (calculator != null) calculator.activate(false);
+    }
+
     void show(FeaturePresentation selected) {
         feature = selected;
         boolean gear = selected.id().equals("F05") && inventory != null;
