@@ -21,6 +21,7 @@ final class GuiProfileController implements AutoCloseable {
     private ApplicationBootstrap context;
     private PhotoPilotWorkspace workspace;
     private SessionPane sessions;
+    private RequirementPane requirements;
     private InventoryPane inventory;
     private CalculatorPane calculator;
     private FxLocalizer texts;
@@ -38,7 +39,7 @@ final class GuiProfileController implements AutoCloseable {
     ApplicationBootstrap context() { return context; }
     UiOperations operations() { return operations; }
     boolean busy() { return switching || operations.busy(); }
-    boolean dirty() { return sessions.dirty() || inventory.dirty() || calculator.dirty(); }
+    boolean dirty() { return sessions.dirty() || requirements.dirty() || inventory.dirty() || calculator.dirty(); }
     private void install(LocalProfile selected) {
         if (picker != null) { picker.dispose(); picker = null; }
         if (workspace != null) workspace.dispose();
@@ -47,10 +48,12 @@ final class GuiProfileController implements AutoCloseable {
         var language = context.localization();
         workspace = new PhotoPilotWorkspace(language);
         sessions = new SessionPane(context.facade(), operations, language);
+        requirements = new RequirementPane(context.facade(), operations, language);
         inventory = new InventoryPane(context.facade(), operations, language);
         calculator = new CalculatorPane(context.facade(), operations, language);
         workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
-        workspace.connectSessions(sessions); workspace.connectInventory(inventory); workspace.connectCalculator(calculator);
+        workspace.connectSessions(sessions); workspace.connectRequirements(requirements);
+        workspace.connectInventory(inventory); workspace.connectCalculator(calculator);
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
         workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
@@ -130,14 +133,12 @@ final class GuiProfileController implements AutoCloseable {
         try { return alert.showAndWait().filter(yes::equals).isPresent(); } finally { localizer.close(); }
     }
     void showSession(UUID id) { if (!switching && !closed) { workspace.selectSessions(); sessions.open(id); } }
+    /** Routes an external brief into the F03 pane, which owns review and explicit confirmation. */
     void submitBrief(UUID id, String text) {
         if (switching || closed) return;
-        var captured = context; var view = workspace; long selection = view.selectionVersion();
-        operations.run(() -> captured.facade().parse(id, text), result -> {
-            if (!closed && view == workspace && view.selectionVersion() == selection)
-                view.showFeedback(() -> String.join("; ", result.errors(captured.localization())));
-        });
+        workspace.selectRequirements(); requirements.submit(id, text);
     }
+    RequirementPane requirements() { return requirements; }
     void showFailure(String text) { if (!closed) workspace.showFeedback(text); }
     void whenIdle(Runnable action) { waitIdle(action, System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20)); }
     private void waitIdle(Runnable action, long deadline) {

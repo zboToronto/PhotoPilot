@@ -190,10 +190,12 @@ final class SessionPane extends VBox {
     }
     private void drainOpen() { if (!busy && pendingOpen != null) { UUID id = pendingOpen; pendingOpen = null; open(id); } }
     private void message(Supplier<String> message) { texts.bind(feedback.textProperty(), message); show(feedbackBox); reveal(feedbackBox); }
-    private void reveal(Node target) {
+    private void reveal(Node target) { reveal(this, target); }
+    /** Scrolls the shared content viewport so feedback is visible; also used by other feature panes. */
+    static void reveal(Node owner, Node target) {
         javafx.application.Platform.runLater(() -> {
-            if (getScene() == null || !isVisible()) return;
-            if (getScene().lookup(".content-scroll") instanceof ScrollPane scroll) {
+            if (owner.getScene() == null || !owner.isVisible()) return;
+            if (owner.getScene().lookup(".content-scroll") instanceof ScrollPane scroll) {
                 scroll.applyCss(); scroll.layout();
                 Node content = scroll.getContent();
                 double top = content.sceneToLocal(target.localToScene(target.getBoundsInLocal())).getMinY();

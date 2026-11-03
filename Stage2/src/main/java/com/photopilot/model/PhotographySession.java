@@ -115,8 +115,19 @@ public class PhotographySession {
         return Result.success(this);
     }
 
-    public void attachRequirement(ShootRequirement requirement) {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.attachRequirement");
+    /**
+     * F03: copy carrying a confirmed, valid requirement; the repository revision is kept for the stale-save check.
+     * Completed/reviewed sessions keep their historical requirement.
+     */
+    public Result<PhotographySession> attachRequirement(ShootRequirement requirement) {
+        if (requirement == null || !requirement.confirmed()) return Result.failureKey("requirement.error.unconfirmed");
+        var valid = requirement.validate();
+        if (!valid.isSuccess()) return Result.failure(valid);
+        if (!state.canEditPlan()) return Result.failureKey("requirement.error.historical");
+        Instant now = Instant.now();
+        if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, now, state,
+            Optional.of(requirement), plans, reviews, profile, statistics, savedIdeas).withRevision(revision()));
     }
 
     public void attachProfile(EquipmentRequirementProfile profile) {

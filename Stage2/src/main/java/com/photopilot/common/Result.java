@@ -42,6 +42,14 @@ public class Result<T> {
         result.messages = List.of(message);
         return result;
     }
+    /** Several independent localizable findings, e.g. all deterministic validation errors at once. */
+    public static <T> Result<T> failures(List<LocalizedMessage> messages) {
+        if (messages.isEmpty()) throw new IllegalArgumentException("A failure needs at least one message");
+        Result<T> result = new Result<>(Optional.empty(), messages.stream()
+            .map(message -> EnglishMessages.text(message.key(), message.arguments().toArray())).toList(), List.of());
+        result.messages = List.copyOf(messages);
+        return result;
+    }
     public static <T> Result<T> failure(Throwable error) {
         return error instanceof LocalizedException localized ? failure(localized.localizedMessage())
             : failureKey("error.detail", Objects.toString(error.getMessage(), error.getClass().getSimpleName()));

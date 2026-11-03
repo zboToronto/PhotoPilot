@@ -62,13 +62,13 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Relevant methods:** PhotoPilotFacade:; parse(id, text); planning(); PlanningService:; parse(id, text); confirm(id, edited); RequirementService:; parse(text, context); clarify(draft, answers); confirm(edited); ShootRequirement:; validate(); confirm(); PhotographySession:; attachRequirement(requirement)
 
-**Sequence and gaps:** SD01: parsing and explicit confirmation; clarification via resubmitted text.
+**Sequence and changes:** SD01 parsing, clarification (resubmitted text plus current draft) and explicit confirmation are implemented. Added `PlanningService.clarify/confirm(expected, edited)/requirement(id)`, `RequirementExtraction` DTO/schema, `RequirementForm`, `RequirementPane`, `RequirementCommands`; `attachRequirement` returns a copy. [Design changes and rationale](f03-requirements.md#design-patterns-and-decisions).
 
-**Patterns:** Facade: shared workflow.; Adapter: Gemini parsing.
+**Patterns:** Facade: shared workflow.; Adapter: Gemini parsing with JSON Schema output.; Decorator: response-language policy.; State: only Draft/Planned sessions accept requirements.
 
-**Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [PlanningService](../src/main/java/com/photopilot/service/PlanningService.java), [PhotoPilotAgent](../src/main/java/com/photopilot/agent/PhotoPilotAgent.java), [LLMClient](../src/main/java/com/photopilot/integration/LLMClient.java), [GeminiAdapter](../src/main/java/com/photopilot/integration/GeminiAdapter.java), [PhotographySession](../src/main/java/com/photopilot/model/PhotographySession.java), [SessionRepository](../src/main/java/com/photopilot/repository/SessionRepository.java), [RequirementService](../src/main/java/com/photopilot/service/RequirementService.java), [ShootRequirement](../src/main/java/com/photopilot/model/ShootRequirement.java).
+**Files:** [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PlanningService](../src/main/java/com/photopilot/service/PlanningService.java), [RequirementService](../src/main/java/com/photopilot/service/RequirementService.java), [RequirementExtraction](../src/main/java/com/photopilot/service/RequirementExtraction.java), [PhotoPilotAgent](../src/main/java/com/photopilot/agent/PhotoPilotAgent.java), [AgentContext](../src/main/java/com/photopilot/agent/AgentContext.java), [GeminiAdapter](../src/main/java/com/photopilot/integration/GeminiAdapter.java), [ShootRequirement](../src/main/java/com/photopilot/model/ShootRequirement.java), [PhotographySession](../src/main/java/com/photopilot/model/PhotographySession.java), [RequirementForm](../src/main/java/com/photopilot/application/RequirementForm.java), [RequirementPane](../src/main/java/com/photopilot/ui/gui/RequirementPane.java), [RequirementCommands](../src/main/java/com/photopilot/ui/cli/RequirementCommands.java), [SessionRepository](../src/main/java/com/photopilot/repository/SessionRepository.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** Verified through GUI/CLI (offline Gemini stand-in) and live Gemini CLI smoke runs; 223/223 full suite (2026-11-03). See [F03 evidence](f03-requirements.md).
 
 ## F04 AI Gear Recognition and Automatic Import
 

@@ -15,6 +15,7 @@ final class FeaturePane extends VBox {
         texts.close();
         if (capability != null) capability.dispose();
         if (sessions != null) sessions.dispose();
+        if (requirements != null) requirements.dispose();
         if (inventory != null) inventory.dispose();
         if (calculator != null) calculator.dispose();
     }
@@ -37,6 +38,7 @@ final class FeaturePane extends VBox {
     private InventoryPane inventory;
     private CalculatorPane calculator;
     private SessionPane sessions;
+    private RequirementPane requirements;
     private CapabilityPane capability;
 
     FeaturePane() { this(LocalizationService.english()); }
@@ -81,6 +83,7 @@ final class FeaturePane extends VBox {
     void suspendModules() {
         if (capability != null) capability.activate(false);
         if (sessions != null) sessions.activate(false);
+        if (requirements != null) requirements.activate(false);
         if (inventory != null) inventory.activate(false);
         if (calculator != null) calculator.activate(false);
     }
@@ -92,11 +95,14 @@ final class FeaturePane extends VBox {
         boolean gear = selected.id().equals("F05") && inventory != null;
         boolean calc = selected.id().equals("F08") && calculator != null;
         boolean session = selected.id().equals("F01") && sessions != null;
+        boolean requirement = selected.id().equals("F03") && requirements != null;
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
+        if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        empty.setVisible(!gear && !calc && !session && !analysis); empty.setManaged(!gear && !calc && !session && !analysis);
-        actions.setVisible(!gear && !calc && !session && !analysis); actions.setManaged(!gear && !calc && !session && !analysis);
-        body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(!gear && !calc && !session && !analysis); line.setManaged(!gear && !calc && !session && !analysis); });
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement;
+        empty.setVisible(placeholder); empty.setManaged(placeholder);
+        actions.setVisible(placeholder); actions.setManaged(placeholder);
+        body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
         texts.bind(title.textProperty(), () -> selected.title(localization));
@@ -137,11 +143,17 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+    void connectRequirements(RequirementPane requirements) {
+        this.requirements = requirements; requirements.setVisible(false); requirements.setManaged(false); body.getChildren().add(1, requirements);
+        if (feature != null) show(feature);
+    }
+
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
         if (selected.id().equals("F06")) { showFeedback(() -> localization.text("capability.scope")); return; }
         if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
+        if (selected.id().equals("F03")) { showFeedback(() -> localization.text("requirement.ready")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED

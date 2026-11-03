@@ -86,10 +86,24 @@ final class SessionJson {
         return JSON.toJsonTree(session).getAsJsonObject();
     }
     static PhotographySession decode(JsonObject object) {
-        PhotographySession session = JSON.fromJson(object, PhotographySession.class);
+        JsonObject source = withRequirementAdditions(object);
+        PhotographySession session = JSON.fromJson(source, PhotographySession.class);
         // Reject unknown/missing fields and coercions instead of silently dropping future data.
-        if (!object.equals(encode(session))) throw new IllegalArgumentException("Unsupported or incomplete session fields.");
+        if (!source.equals(encode(session))) throw new IllegalArgumentException("Unsupported or incomplete session fields.");
         return session;
+    }
+    /**
+     * F03 added three optional v1 requirement fields. Records written before them omit the fields, which
+     * means "not specified"; only those exact absences are filled, so every other strictness check remains.
+     */
+    private static JsonObject withRequirementAdditions(JsonObject object) {
+        if (!(object.get("requirements") instanceof JsonObject requirement)
+                || requirement.has("date") && requirement.has("timeWindow") && requirement.has("portability")) return object;
+        JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("requirements");
+        if (!target.has("date")) target.add("date", JsonNull.INSTANCE);
+        if (!target.has("timeWindow")) target.addProperty("timeWindow", "");
+        if (!target.has("portability")) target.addProperty("portability", "");
+        return copy;
     }
     private static void validateGraph(Object value) {
         Objects.requireNonNull(value, "Missing required session/linked-record value");

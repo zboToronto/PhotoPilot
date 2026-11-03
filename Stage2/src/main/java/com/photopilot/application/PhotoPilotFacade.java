@@ -68,6 +68,7 @@ public class PhotoPilotFacade {
         return discovery.suggest(context);
     }
 
+    /** F03: AI-assisted, unconfirmed draft; review, clarification and confirmation continue through planning(). */
     public Result<ShootRequirement> parse(UUID id, String text) {
         return planning.parse(id, text);
     }

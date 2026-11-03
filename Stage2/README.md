@@ -87,7 +87,7 @@ The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` fo
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
-The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. **AI features remain unavailable:** `PhotoPilotAgent.run` is still a scaffold. `GeminiAdapter.complete` now sends text requests (serializing this instruction as Gemini `systemInstruction`), but only the diagnostic CLI `ai-test` calls it. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
+The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. `GeminiAdapter.complete` serializes this instruction as part of Gemini `systemInstruction`; F03 requirement parsing and the diagnostic CLI `ai-test` are its only callers, and F03 clarification questions follow the selected language. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
 
 ## F01 sessions and history
 
@@ -102,6 +102,20 @@ session delete <generated-id> --confirm
 ```
 
 [F01 schema, usage, classes, design diagrams, 95-test verification and limitations](docs/f01-sessions.md).
+
+## F03 requirement parsing (Gemini)
+
+Open **Workspace > Requirement Parsing**, choose a Draft or Planned session, describe the shoot and select **Analyze with Gemini** (or **Enter manually**). Review and edit the extracted fields, answer any clarification questions, then **Confirm and save**. Nothing is stored until confirmation; Cancel discards the draft. If Gemini fails, the request text stays in place and manual entry still works. The CLI offers the same workflow over the same services:
+
+```text
+requirement parse <session-id> I want to photograph aircraft at an airshow around sunset for three hours, two bodies, no lens changes.
+requirement set location="Lakeshore airfield" date=2026-11-14
+requirement clarify It is on November 14 at the lakeshore airfield
+requirement confirm
+requirement show <session-id>
+```
+
+`requirement manual <session-id>` starts manual entry (reusing a request kept after an AI failure) and `requirement cancel` discards the draft. Requires `LLM_API_KEY` (see configuration below). [Workflow, classes, schema, verification and limits](docs/f03-requirements.md).
 
 ## F05 gear inventory
 
@@ -124,7 +138,7 @@ The historical F05 verification contained **36 passing tests** (Windows, JDK 21,
 | --- | --- | --- | --- |
 | F01 | Photography Session and History Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED; F10/F11 prerequisites retained |
 | F02 | AI Photography Inspiration and Activity Recommendation | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
-| F03 | Natural-Language Photography Requirement Parsing | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F03 | Natural-Language Photography Requirement Parsing | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (live Gemini smoke-tested) |
 | F04 | AI Gear Recognition and Automatic Import | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F05 | Photography Gear Inventory Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
 | F06 | AI Photography Equipment Capability Requirement Analysis | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
@@ -148,7 +162,7 @@ F01 exercises Facade and State; F05/F08 retain the shared Facade and service arc
 
 ## Configuration and future integrations
 
-**AI workflows remain NOT IMPLEMENTED.** Configuring a key does not enable features. The only code path that sends a Gemini request is the manual CLI diagnostic `ai-test` (below). Startup, existing GUI/CLI commands and non-AI features do not require a key. The [repository-root setup guide](../README.md#local-gemini-key-setup-infrastructure-only) explains Google AI Studio key creation and the same setup process for developers and TAs using their own credentials.
+**F03 requirement parsing is the only AI workflow.** It and the manual CLI diagnostic `ai-test` (below) are the only code paths that send Gemini requests; other AI workflows remain NOT IMPLEMENTED. Startup, existing GUI/CLI commands and non-AI features do not require a key. The [repository-root setup guide](../README.md#local-gemini-key-setup-infrastructure-only) explains Google AI Studio key creation and the same setup process for developers and TAs using their own credentials.
 
 The canonical file is `<repository-root>/.env` (`ProjectGit/.env` in the local checkout), outside `Stage2`. From this directory, create it without overwriting an existing file:
 
@@ -174,7 +188,7 @@ Preserved integration contract:
 Result<ModelReply> LLMClient.complete(AgentContext context);
 ```
 
-`AgentContext` and `ModelReply` are the existing request/response types; no duplicate DTOs or client interface were introduced. `GeminiAdapter` serves as the Gemini LLM client skeleton under its Stage 1 Adapter name. Its configuration-injection constructor is additive; the original constructor remains compatible and unconfigured. `complete` sends the context's text messages to `{GEMINI_ENDPOINT}/models/{GEMINI_MODEL}:generateContent` and returns the generated text as untrusted `ModelReply` output. Empty contexts and unusable keys fail locally without a request; image input, tool calls and structured schemas still return explicit failures. No response is ever fabricated. The existing language decorator and agent/service/Facade wiring are retained.
+`AgentContext` and `ModelReply` are the existing request/response types; no duplicate DTOs or client interface were introduced. `GeminiAdapter` serves as the Gemini LLM client skeleton under its Stage 1 Adapter name. Its configuration-injection constructor is additive; the original constructor remains compatible and unconfigured. `complete` sends the context's text messages to `{GEMINI_ENDPOINT}/models/{GEMINI_MODEL}:generateContent` and returns the generated text as untrusted `ModelReply` output. Empty contexts and unusable keys fail locally without a request. `AgentContext` can also carry an application task instruction (sent as `systemInstruction`), labelled evidence JSON and a provider-neutral JSON Schema, which the adapter maps to `generationConfig.responseMimeType=application/json` + `responseJsonSchema` (used by F03). Image input and tool calls still return explicit failures. No response is ever fabricated. The existing language decorator and agent/service/Facade wiring are retained.
 
 ### Gemini connection smoke test (`ai-test`)
 
@@ -216,17 +230,17 @@ Current environment-variable configuration:
 | `PHOTOPILOT_DATA_DIR` | Repository path root, default `${user.home}/.photopilot/data`; registry `profiles.json` lives here; business files live under `profiles/<uuid>/` |
 | `PHOTOPILOT_CONFIG_DIR` | Preference directory, default `${user.home}/.photopilot`; JSON preferences with read-only legacy properties compatibility |
 | `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` selects the approved strategy object; ranking remains unimplemented |
-| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used only by `ai-test` |
-| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used only by `ai-test` |
-| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by `ai-test` |
+| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used by F03 and `ai-test` |
+| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used by F03 and `ai-test` |
+| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by F03 parsing/clarification and `ai-test` |
 
-For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. Future authorized work must implement structured response/schema validation, tool calls, image analysis and bounded agent reasoning/tool workflows. `PhotoPilotAgent.run` and AI services remain placeholders. This preparation is not completed AI integration and does not satisfy the course's working-LLM requirement by itself.
+For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. `PhotoPilotAgent.run` performs F03's single structured step with strict JSON decoding; tool calls, image analysis and the bounded multi-step tool loop (F10) remain future work, as do the other AI services.
 
 `.gitignore` protects `.env`, `.env.*` except `.env.example`, and `config.local.json`; both examples contain only `LLM_API_KEY=YOUR_LOCAL_API_KEY_HERE`. Never force-add a key or include it in recordings/reports. Ignore rules cannot remove already tracked secrets or old commits; exposed keys must be revoked/rotated and removed from the repository/history.
 
 ## Known limits and next implementation boundaries
 
-F01 session/history persistence, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI reasoning and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. The only live Gemini check is the diagnostic `ai-test`; no AI feature uses the provider.
+F01 session/history persistence, F03 requirement parsing, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI planning/review and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. F03 is the only feature that uses Gemini; `ai-test` remains a separate diagnostic.
 
 The original F01 optional-location/notes gap is resolved by documented SessionService overloads. F02 selection/save/dismiss routing and F07 selected-loadout persistence remain explicit gaps. Provider/library selection, generic AI list schema validation and PlanCommand decoding remain deferred. See [F01 design changes](docs/f01-sessions.md) and the historical source-verification gap record.
 
