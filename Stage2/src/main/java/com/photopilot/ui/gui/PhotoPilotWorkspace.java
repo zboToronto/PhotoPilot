@@ -1,36 +1,34 @@
 package com.photopilot.ui.gui;
 
 import com.photopilot.i18n.*;
-import javafx.scene.control.Button;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javafx.geometry.Pos;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 
 /** Lightweight application shell. No services, persistence, or feature execution. */
 final class PhotoPilotWorkspace extends BorderPane {
+    private static final double SIDEBAR_WIDTH = 240, COMPACT_SIDEBAR_WIDTH = 212, COMPACT_BELOW = 1000;
+    private static final String HOME = "HOME", USER_SETTINGS = "USER_SETTINGS", APP_SETTINGS = "APP_SETTINGS";
     private final FeaturePane detail;
     private final HomeDashboard home;
+    private final ApplicationSettingsPane applicationSettings;
+    private UserSettingsPane userSettings;
     private final VBox content = new VBox();
-    private final ToggleButton homeButton = new ToggleButton();
-    private final javafx.scene.layout.StackPane avatar = new javafx.scene.layout.StackPane();
+    private final ToggleGroup selection = new ToggleGroup();
+    private final ToggleButton homeButton;
+    private final ToggleButton userSettingsButton;
+    private final ToggleButton applicationSettingsButton;
+    private final StackPane avatar = new StackPane();
     private final LocalizationService localization;
     private final FxLocalizer texts;
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
-    private final Label footer = FeaturePane.label("", "footer-text");
     private final Label storageNotice = FeaturePane.label("", "feedback-text");
     private final Label profileName = FeaturePane.label("", "profile-current");
-    private final Button manageProfiles = new Button();
-    private final HBox profileBar = new HBox(14, avatar, profileName, spacer(), manageProfiles);
-    private final java.util.List<SettingsDialog> settingsWindows = new java.util.ArrayList<>();
+    private final Button userButton = new Button();
+    private final ContextMenu userMenu = new ContextMenu();
+    private final MenuItem switchWorkspace;
     private final ScrollPane contentScroll;
     private String selectedId;
     private long selectionVersion;
@@ -42,29 +40,22 @@ final class PhotoPilotWorkspace extends BorderPane {
         texts.useReadableFont(this);
         detail = new FeaturePane(localization);
         home = new HomeDashboard(localization, id -> navigation.get(id).fire());
+        applicationSettings = new ApplicationSettingsPane(localization);
         getStyleClass().add("workspace");
         storageNotice.setId("storage-notice");
         storageNotice.getStyleClass().add("feedback-box");
         storageNotice.setMaxWidth(Double.MAX_VALUE);
         storageNotice.setVisible(false); storageNotice.setManaged(false);
-        profileBar.getStyleClass().add("profile-bar"); profileBar.setAlignment(Pos.CENTER_LEFT);
-        profileBar.setVisible(false); profileBar.setManaged(false);
-        profileName.setId("profile-active"); profileName.setMinWidth(0); profileName.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(profileName, Priority.ALWAYS);
-        manageProfiles.setId("profiles-open"); manageProfiles.getStyleClass().add("secondary-button"); manageProfiles.setMinWidth(Region.USE_PREF_SIZE);
-        texts.text(manageProfiles.textProperty(), "user.switch");
-        setTop(new VBox(header(), profileBar, storageNotice));
+        switchWorkspace = menuItem("menu-switch-workspace", "menu.switchWorkspace", () -> { });
+        setTop(new VBox(header(), storageNotice));
 
         content.setAlignment(Pos.TOP_CENTER);
         content.getStyleClass().add("content-surface");
         contentScroll = scroll(content, "content-scroll");
         setCenter(contentScroll);
-        VBox sidebar = new VBox(4);
+        VBox sidebar = new VBox(1);
         sidebar.getStyleClass().add("sidebar");
-        ToggleGroup selection = new ToggleGroup();
-        homeButton.setId("nav-home"); homeButton.setToggleGroup(selection); homeButton.getStyleClass().add("navigation-item");
-        homeButton.setMaxWidth(Double.MAX_VALUE); texts.text(homeButton.textProperty(), "home.title");
-        homeButton.setOnAction(event -> showHome()); sidebar.getChildren().add(homeButton);
+        homeButton = item("nav-home", AppIcons.HOUSE, "home.title", this::showHome); sidebar.getChildren().add(homeButton);
         String previousGroup = "";
         for (FeaturePresentation feature : FeaturePresentation.all()) {
             if (!feature.group().equals(previousGroup)) {
@@ -73,88 +64,103 @@ final class PhotoPilotWorkspace extends BorderPane {
                 sidebar.getChildren().add(group);
                 previousGroup = feature.group();
             }
-            ToggleButton button = new ToggleButton();
+            ToggleButton button = item("nav-" + feature.id(), AppIcons.feature(feature.id()), null, () -> showFeature(feature));
             texts.bind(button.textProperty(), () -> feature.title(localization));
-            button.getStyleClass().add("navigation-item");
-            button.setId("nav-" + feature.id());
-            button.setMaxWidth(Double.MAX_VALUE);
-            button.setMinHeight(38);
             texts.bind(button.accessibleTextProperty(), () -> localization.text("feature.navigationAccessible", feature.id(), feature.title(localization)));
-            button.setToggleGroup(selection);
-            button.setOnAction(event -> {
-                // Repeated clicks must not clear the current workspace selection.
-                button.setSelected(true);
-                selectedId = feature.id();
-                selectionVersion++;
-                content.getChildren().setAll(detail);
-                detail.show(feature);
-                contentScroll.setVvalue(0);
-                texts.bind(footer.textProperty(), () -> localization.text("feature.footer", feature.id(), feature.title(localization)));
-            });
+            if (feature.status() != FeaturePresentation.Status.IMPLEMENTED) button.getStyleClass().add("navigation-item-planned");
             navigation.put(feature.id(), button);
             sidebar.getChildren().add(button);
         }
+        sidebar.getChildren().add(texts.label("group.preferences", "navigation-group"));
+        userSettingsButton = item("nav-user-settings", AppIcons.PERSON, "menu.userSettings", this::showUserSettings);
+        userSettingsButton.setVisible(false); userSettingsButton.setManaged(false);
+        applicationSettingsButton = item("nav-app-settings", AppIcons.GEAR, "menu.appSettings", this::showApplicationSettings);
+        sidebar.getChildren().addAll(userSettingsButton, applicationSettingsButton);
         ScrollPane navigationScroll = scroll(sidebar, "navigation-scroll");
-        navigationScroll.setPrefWidth(250);
-        navigationScroll.setMinWidth(250);
-        navigationScroll.setMaxWidth(250);
+        navigationScroll.setId("navigation-scroll");
+        widthProperty().addListener((o, old, value) -> sidebarWidth(navigationScroll, value.doubleValue()));
+        sidebarWidth(navigationScroll, SIDEBAR_WIDTH * 2);
         // Arrow keys follow display order across groups; Tab reaches content actions.
         var buttons = new java.util.ArrayList<ToggleButton>(); buttons.add(homeButton); buttons.addAll(navigation.values());
-        for (int i = 0; i < buttons.size(); i++) {
-            final int index = i;
-            buttons.get(i).setOnKeyPressed(event -> {
-                int next = switch (event.getCode()) {
-                    case DOWN -> Math.min(index + 1, buttons.size() - 1);
-                    case UP -> Math.max(index - 1, 0);
-                    case HOME -> 0;
-                    case END -> buttons.size() - 1;
-                    default -> -1;
-                };
-                if (next >= 0) {
-                    ToggleButton target = buttons.get(next);
-                    target.fire();
-                    target.requestFocus();
-                    double overflow = sidebar.getBoundsInLocal().getHeight() - navigationScroll.getViewportBounds().getHeight();
-                    if (overflow > 0) navigationScroll.setVvalue(Math.max(0, Math.min(1,
-                        (target.getBoundsInParent().getMinY() - 40) / overflow)));
-                    event.consume();
-                }
-            });
-        }
+        buttons.add(userSettingsButton); buttons.add(applicationSettingsButton);
+        for (ToggleButton button : buttons) button.setOnKeyPressed(event -> {
+            var shown = buttons.stream().filter(ToggleButton::isManaged).toList();
+            int index = shown.indexOf(button);
+            int next = switch (event.getCode()) {
+                case DOWN -> Math.min(index + 1, shown.size() - 1);
+                case UP -> Math.max(index - 1, 0);
+                case HOME -> 0;
+                case END -> shown.size() - 1;
+                default -> -1;
+            };
+            if (next >= 0) {
+                ToggleButton target = shown.get(next);
+                target.fire();
+                target.requestFocus();
+                double overflow = sidebar.getBoundsInLocal().getHeight() - navigationScroll.getViewportBounds().getHeight();
+                if (overflow > 0) navigationScroll.setVvalue(Math.max(0, Math.min(1,
+                    (target.getBoundsInParent().getMinY() - 40) / overflow)));
+                event.consume();
+            }
+        });
         setLeft(navigationScroll);
-        Label keyboardHint = texts.label("keyboard.navigation", "footer-hint");
-        HBox bottom = new HBox(16, footer, spacer(), keyboardHint);
-        bottom.setAlignment(Pos.CENTER_LEFT);
-        bottom.getStyleClass().add("footer");
-        setBottom(bottom);
         showHome();
     }
-
-    void showHome() {
+    private static void sidebarWidth(ScrollPane sidebar, double windowWidth) {
+        double width = windowWidth < COMPACT_BELOW ? COMPACT_SIDEBAR_WIDTH : SIDEBAR_WIDTH;
+        sidebar.setPrefWidth(width); sidebar.setMinWidth(width); sidebar.setMaxWidth(width);
+    }
+    private ToggleButton item(String id, String icon, String label, Runnable action) {
+        ToggleButton button = new ToggleButton();
+        if (label != null) texts.text(button.textProperty(), label);
+        button.setId(id); button.setToggleGroup(selection); button.getStyleClass().add("navigation-item");
+        button.setGraphic(AppIcons.slot(icon, "navigation-icon", 20)); button.setMaxWidth(Double.MAX_VALUE); button.setMinHeight(36);
+        // Repeated clicks must not clear the current workspace selection.
+        button.setOnAction(event -> { button.setSelected(true); action.run(); });
+        return button;
+    }
+    private void showFeature(FeaturePresentation feature) {
+        selectedId = feature.id();
+        selectionVersion++;
+        content.getChildren().setAll(detail);
+        detail.show(feature);
+        contentScroll.setVvalue(0);
+    }
+    private void showPage(String id, ToggleButton button, Region page) {
         detail.suspendModules();
-        selectedId = "HOME"; selectionVersion++; homeButton.setSelected(true);
-        content.getChildren().setAll(home); contentScroll.setVvalue(0); texts.text(footer.textProperty(), "home.title");
+        selectedId = id; selectionVersion++; button.setSelected(true);
+        content.getChildren().setAll(page); contentScroll.setVvalue(0);
     }
-    boolean atHome() { return "HOME".equals(selectedId); }
+    void showHome() { showPage(HOME, homeButton, home); }
+    boolean atHome() { return HOME.equals(selectedId); }
+    void showUserSettings() { showPage(USER_SETTINGS, userSettingsButton, userSettings); userSettings.refresh(); }
+    boolean atUserSettings() { return USER_SETTINGS.equals(selectedId); }
+    void showApplicationSettings() { showPage(APP_SETTINGS, applicationSettingsButton, applicationSettings); }
+    boolean atApplicationSettings() { return APP_SETTINGS.equals(selectedId); }
     void showAvatar(String name, java.util.Optional<byte[]> bytes) {
-        avatar.getChildren().setAll(UserAvatar.view(name, bytes, 34)); home.avatar(name, bytes);
+        avatar.getChildren().setAll(UserAvatar.portrait(name, bytes, 28)); home.avatar(name, bytes);
     }
-    void closeSettings() { java.util.List.copyOf(settingsWindows).forEach(SettingsDialog::close); }
 
     private HBox header() {
         Label brand = texts.label("app.title", "brand");
-        Label subtitle = texts.label("app.subtitle", "brand-subtitle");
-        Label status = texts.label("app.build", "app-status");
-        Button settings = texts.button("settings.title");
-        settings.setId("settings-open"); settings.getStyleClass().add("secondary-button");
-        settings.setOnAction(event -> {
-            var dialog = new SettingsDialog(getScene().getWindow(), localization); settingsWindows.add(dialog);
-            dialog.addEventHandler(javafx.stage.WindowEvent.WINDOW_HIDDEN, hidden -> settingsWindows.remove(dialog)); dialog.show();
+        profileName.setId("profile-active"); profileName.setWrapText(false); profileName.setMaxWidth(220); profileName.setMinHeight(Region.USE_COMPUTED_SIZE);
+        var identity = new HBox(8, avatar, profileName, AppIcons.outline(AppIcons.CHEVRON_DOWN, "user-menu-chevron")); identity.setAlignment(Pos.CENTER_LEFT);
+        userButton.setId("user-menu"); userButton.getStyleClass().setAll("user-menu"); userButton.setGraphic(identity); userButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        userButton.setVisible(false); userButton.setManaged(false);
+        userButton.setOnAction(event -> {
+            var bounds = userButton.localToScreen(userButton.getBoundsInLocal());
+            userMenu.show(userButton, bounds.getMaxX(), bounds.getMaxY() + 6); userMenu.setX(bounds.getMaxX() - userMenu.getWidth());
         });
-        HBox header = new HBox(18, brand, subtitle, spacer(), status, settings);
+        userMenu.getStyleClass().add("app-menu"); userMenu.getScene().getRoot().setStyle("-fx-background-color: transparent;");
+        userMenu.getItems().addAll(menuItem("menu-user-settings", "menu.userSettings", this::showUserSettings),
+            menuItem("menu-app-settings", "menu.appSettings", this::showApplicationSettings), new SeparatorMenuItem(), switchWorkspace);
+        HBox header = new HBox(10, AppIcons.logo(26), brand, spacer(), userButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("app-header");
         return header;
+    }
+    private MenuItem menuItem(String id, String label, Runnable action) {
+        var item = new MenuItem(); item.setId(id); texts.text(item.textProperty(), label); item.setOnAction(event -> action.run()); return item;
     }
 
     private static Region spacer() {
@@ -187,16 +193,22 @@ final class PhotoPilotWorkspace extends BorderPane {
         storageNotice.setVisible(true); storageNotice.setManaged(true);
     }
     long selectionVersion() { return selectionVersion; }
-    void connectProfiles(Runnable open) {
-        profileBar.setVisible(true); profileBar.setManaged(true); manageProfiles.setOnAction(event -> open.run());
+    void connectUserSettings(UserSettingsPane pane) {
+        userSettings = pane; userSettingsButton.setVisible(true); userSettingsButton.setManaged(true);
+    }
+    UserSettingsPane userSettings() { return userSettings; }
+    ContextMenu userMenu() { return userMenu; }
+    void connectProfiles(Runnable switchUser) {
+        userButton.setVisible(true); userButton.setManaged(true); switchWorkspace.setOnAction(event -> switchUser.run());
     }
     void showProfile(java.util.Optional<com.photopilot.model.LocalProfile> profile) {
         home.user(profile);
-        texts.bind(profileName.textProperty(), () -> profile.map(p -> localization.text("profile.active", p.displayName())).orElseGet(() -> localization.text("profile.unavailable")));
+        texts.bind(profileName.textProperty(), () -> profile.map(com.photopilot.model.LocalProfile::displayName).orElseGet(() -> localization.text("profile.unavailable")));
     }
-    void freeze(boolean value) { setDisable(value); settingsWindows.forEach(dialog -> dialog.getScene().getRoot().setDisable(value)); }
+    void freeze(boolean value) { setDisable(value); }
     void dispose() {
-        closeSettings(); texts.close(); home.dispose(); detail.dispose();
+        texts.close(); home.dispose(); detail.dispose(); applicationSettings.dispose();
+        if (userSettings != null) userSettings.dispose();
     }
 
     /** Exercises real controls in the existing opt-in graphical smoke mode. */

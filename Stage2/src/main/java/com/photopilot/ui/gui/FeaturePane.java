@@ -30,6 +30,7 @@ final class FeaturePane extends VBox {
     private final VBox feedbackBox = new VBox(8, detailsTitle, feedback);
     private final Button checkStatus = new Button();
     private final Button workflow = new Button();
+    private final VBox body = new VBox();
     private FeaturePresentation feature;
     private VBox empty;
     private FlowPane actions;
@@ -46,7 +47,7 @@ final class FeaturePane extends VBox {
         texts.text(checkStatus.textProperty(), "feature.checkStatus");
         texts.text(workflow.textProperty(), "feature.workflowUnavailable");
         getStyleClass().add("feature-content");
-        setMaxWidth(880);
+        setMaxWidth(1180);
         setMinWidth(0);
         setFillWidth(true);
         FlowPane metadata = new FlowPane(10, 8, status);
@@ -72,7 +73,9 @@ final class FeaturePane extends VBox {
         feedbackBox.getStyleClass().add("feedback-box");
         feedbackBox.setVisible(false);
         feedbackBox.setManaged(false);
-        getChildren().addAll(heading, new Separator(), empty, new Separator(), actions, feedbackBox);
+        body.getStyleClass().add("surface-panel");
+        body.getChildren().addAll(heading, empty, new Separator(), actions);
+        getChildren().addAll(body, feedbackBox);
     }
 
     void suspendModules() {
@@ -93,6 +96,7 @@ final class FeaturePane extends VBox {
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
         empty.setVisible(!gear && !calc && !session && !analysis); empty.setManaged(!gear && !calc && !session && !analysis);
         actions.setVisible(!gear && !calc && !session && !analysis); actions.setManaged(!gear && !calc && !session && !analysis);
+        body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(!gear && !calc && !session && !analysis); line.setManaged(!gear && !calc && !session && !analysis); });
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
         texts.bind(title.textProperty(), () -> selected.title(localization));
@@ -120,16 +124,16 @@ final class FeaturePane extends VBox {
     void connectInventory(InventoryPane inventory) {
         this.inventory = inventory;
         inventory.setVisible(false); inventory.setManaged(false);
-        getChildren().add(2, inventory);
+        body.getChildren().add(1, inventory);
     }
 
     void connectCalculator(CalculatorPane calculator) {
         this.calculator=calculator; calculator.setVisible(false); calculator.setManaged(false);
-        getChildren().add(2, calculator);
+        body.getChildren().add(1, calculator);
     }
 
     void connectSessions(SessionPane sessions) {
-        this.sessions = sessions; sessions.setVisible(false); sessions.setManaged(false); getChildren().add(2, sessions);
+        this.sessions = sessions; sessions.setVisible(false); sessions.setManaged(false); body.getChildren().add(1, sessions);
         if (feature != null) show(feature);
     }
 

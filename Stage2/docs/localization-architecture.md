@@ -30,7 +30,7 @@ classDiagram
         ~inputMenu(input)
         +close()
     }
-    class SettingsDialog
+    class ApplicationSettingsPane
     class PhotoPilotWorkspace
     class InventoryPane
     class CalculatorPane
@@ -65,8 +65,8 @@ classDiagram
     FileLocalePreferenceRepository ..|> LocalePreferenceRepository
     JsonLocalePreferenceRepository ..|> LocalePreferenceRepository
     ApplicationBootstrap ..> JsonLocalePreferenceRepository : constructs
-    SettingsDialog --> LocalizationService : select and persist
-    SettingsDialog *-- FxLocalizer
+    ApplicationSettingsPane --> LocalizationService : select and persist
+    ApplicationSettingsPane *-- FxLocalizer
     PhotoPilotWorkspace *-- FxLocalizer
     InventoryPane *-- FxLocalizer
     CalculatorPane *-- FxLocalizer
@@ -86,7 +86,7 @@ classDiagram
 ```mermaid
 sequenceDiagram
     actor User
-    participant Settings as SettingsDialog
+    participant Settings as ApplicationSettingsPane
     participant L as LocalizationService
     participant P as LocalePreferenceRepository
     participant FX as FxLocalizer

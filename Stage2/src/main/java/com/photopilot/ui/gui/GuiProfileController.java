@@ -25,6 +25,7 @@ final class GuiProfileController implements AutoCloseable {
     private CalculatorPane calculator;
     private FxLocalizer texts;
     private UserSelectionPane picker;
+    private UserSelectionWindow pickerWindow;
     private boolean switching, closed;
 
     GuiProfileController(Stage stage, ProfileManager profiles, LocalProfile initial, Consumer<ApplicationBootstrap> changed) {
@@ -50,6 +51,7 @@ final class GuiProfileController implements AutoCloseable {
         calculator = new CalculatorPane(context.facade(), operations, language);
         workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
         workspace.connectSessions(sessions); workspace.connectInventory(inventory); workspace.connectCalculator(calculator);
+        workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
         workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
         if (stage.getScene() == null) {
@@ -62,11 +64,19 @@ final class GuiProfileController implements AutoCloseable {
         if (closed || switching) return;
         if (busy()) { message("profile.wait"); return; }
         if (picker != null) picker.dispose();
-        picker = new UserSelectionPane(stage, profiles, operations, this::requestSwitch, this::showProfile, context.localization());
-        workspace.closeSettings();
-        stage.getScene().setRoot(picker); picker.refresh();
+        pickerWindow = new UserSelectionWindow(context.localization());
+        pickerWindow.setOnCloseRequest(event -> { if (!allowClose()) event.consume(); else close(); });
+        picker = new UserSelectionPane(pickerWindow, profiles, operations, this::requestSwitch, this::showProfile, context.localization());
+        // Shown before the main window hides, so JavaFX never sees zero open windows and exits.
+        pickerWindow.present(stage, picker); stage.hide(); picker.refresh();
     }
     UserSelectionPane picker() { return picker; }
+    UserSelectionWindow pickerWindow() { return pickerWindow; }
+    private void showWorkspace() {
+        if (pickerWindow == null) return;
+        pickerWindow.restore(stage); stage.show(); pickerWindow.dispose(); pickerWindow = null;
+    }
+    private Window owner() { return pickerWindow != null ? pickerWindow : stage; }
     private void showProfile(Optional<LocalProfile> profile) {
         if (closed) return;
         workspace.showProfile(profile);
@@ -81,7 +91,7 @@ final class GuiProfileController implements AutoCloseable {
         if (closed) return;
         if (busy()) { message("profile.wait"); return; }
         boolean same = context.storageScope().profileId().orElseThrow().equals(id);
-        if (!same && dirty() && !confirm(stage, context.localization(), "profile.switchTitle", "profile.discard", "profile.switch")) return;
+        if (!same && dirty() && !confirm(owner(), context.localization(), "profile.switchTitle", "profile.discard", "profile.switch")) return;
         switching = true; workspace.freeze(true); if (picker != null) picker.freeze(true);
         operations.run(() -> profiles.selectProfile(id, true), result -> {
             if (closed) return;
@@ -89,7 +99,7 @@ final class GuiProfileController implements AutoCloseable {
             if (result.isSuccess()) {
                 if (!same) install(result.value().orElseThrow());
                 else { if (picker != null) { picker.dispose(); picker = null; } }
-                stage.getScene().setRoot(workspace); workspace.showHome(); showProfile(result.value());
+                showWorkspace(); workspace.showHome(); showProfile(result.value());
                 workspace.freeze(false); workspace.showFeedback(() -> context.localization().text("profile.switched"));
             } else {
                 workspace.freeze(false); if (picker != null) { picker.freeze(false); picker.failure(result); }
@@ -103,14 +113,14 @@ final class GuiProfileController implements AutoCloseable {
     }
     private boolean allowClose() {
         if (busy()) { message("profile.wait"); return false; }
-        return !dirty() || confirm(stage, context.localization(), "profile.closeTitle", "profile.discard", "profile.discardAction");
+        return !dirty() || confirm(owner(), context.localization(), "profile.closeTitle", "profile.discard", "profile.discardAction");
     }
     static boolean confirm(Window owner, LocalizationService language, String title, String body, String action, Object... args) {
         var yes = new ButtonType(language.text(action), ButtonBar.ButtonData.OK_DONE);
         var cancel = new ButtonType(language.text("button.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        var alert = new Alert(Alert.AlertType.CONFIRMATION, "", yes, cancel); alert.initOwner(owner);
+        var alert = new Alert(Alert.AlertType.CONFIRMATION, "", yes, cancel);
+        AppDialogs.style(alert, owner);
         alert.getDialogPane().setId("profile-confirmation");
-        alert.getDialogPane().getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
         var localizer = new FxLocalizer(alert.getDialogPane(), language); localizer.useReadableFont(alert.getDialogPane());
         localizer.text(alert.titleProperty(), title); localizer.text(alert.headerTextProperty(), title); localizer.text(alert.contentTextProperty(), body, args);
         localizer.text(((Button) alert.getDialogPane().lookupButton(yes)).textProperty(), action);
@@ -137,6 +147,8 @@ final class GuiProfileController implements AutoCloseable {
     }
     @Override public void close() {
         if (closed) return; closed = true;
-        if (picker != null) picker.dispose(); workspace.dispose(); texts.close(); operations.shutdownNow();
+        if (picker != null) picker.dispose();
+        if (pickerWindow != null) pickerWindow.dispose();
+        workspace.dispose(); texts.close(); operations.shutdownNow();
     }
 }

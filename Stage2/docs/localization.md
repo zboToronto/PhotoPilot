@@ -4,7 +4,7 @@ Status: implemented and verified for the current GUI, CLI, F05 and F08. Language
 
 ## Usage and preference storage
 
-In the GUI, open **Settings / 设置** in the upper right and choose **English** or **简体中文**. Selection applies immediately and saves automatically. **Save preference / 保存偏好** retries a failed save. The modeless window updates along with the main window and other open settings windows. Current navigation, scroll position, equipment selection, search text, unsaved fields, text selection, calculator choice, inputs and displayed results remain in place. Background completions render in the current language. Text-field context menus are localized too.
+In the GUI, open **Application Settings / 应用设置** from the sidebar or avatar menu and choose **English** or **简体中文**. Selection applies immediately and saves automatically. **Save preference / 保存偏好** retries a failed save. The whole window updates in place. Unsaved fields, search text, calculator choice, inputs and displayed results are kept when you return to a feature. Background completions render in the current language. Text-field context menus are localized too.
 
 The CLI retains `help`, `status`, `F01`–`F11`, `gear`, `calc`, `exit`/`quit` and EOF. Language commands:
 
@@ -36,7 +36,7 @@ CLI stdin/stdout use UTF-8 in the main entry point, including redirected pipes. 
 | `Result` | Additive `failureKey`, descriptor/exception/Result propagation, `errors(localization)` and `hasError(key)`. Existing `errors()` remains English. Duplicate detection now uses a key, not translated text. |
 | `ApplicationBootstrap` | Constructs one localization instance before presentation; injects it into GUI/CLI and the model-port decorator. No business preferences or data are reset. |
 | `FxLocalizer` | View-owned JavaFX property bindings and localized combo-box cells/context menus. Marshals notifications onto the FX thread. Subscribes only while its window is showing; detaching/closing removes subscriptions. Weak property keys release obsolete dynamic controls. `close` supports explicit disposal. Chooses an installed CJK font without downloads. |
-| `SettingsDialog` | Edits the language preference and reports save/read failures; keeps other settings windows synchronized without recursive saves. Uses the existing theme. |
+| `ApplicationSettingsPane` | Internal page that edits the language preference and reports save/read failures without recursive saves. Replaced the former `SettingsDialog`. |
 | Existing workspace, feature, inventory and calculator panes | Bind controls and delayed result suppliers. Locale events never call navigation, activate workflows, rebuild forms or rerun business operations. |
 | Existing CLI command adapters / `CalculationForm` | Render shared Result messages and typed calculation evidence at the presentation boundary. Parsing and deterministic business rules remain shared. |
 | `LanguageAwareLLMClient` / `AgentContext` | Decorates the existing `LLMClient` port. Copies request context with a default response-language instruction and delegates exactly once. Preserves original messages/evidence/history/image approval; does not run translation calls. |

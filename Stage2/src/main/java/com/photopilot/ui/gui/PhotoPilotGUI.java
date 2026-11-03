@@ -39,7 +39,7 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void start(Stage stage) {
-        stage.setMinWidth(880); stage.setMinHeight(600); stage.setTitle("PhotoPilot");
+        stage.setMinWidth(880); stage.setMinHeight(600); stage.setTitle("PhotoPilot"); AppIcons.windowIcon(stage);
         var scene = new javafx.scene.Scene(new SplashScreen(), 1120, 760);
         scene.getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
         stage.setScene(scene);
@@ -74,15 +74,14 @@ public class PhotoPilotGUI extends Application {
         controller = new GuiProfileController(stage, profiles, initialProfile, context -> {
             bootstrap = context; app = context.facade(); draftInput = "";
         });
-        var transition = new javafx.animation.FadeTransition(javafx.util.Duration.millis(160), stage.getScene().getRoot());
+        var transition = new javafx.animation.FadeTransition(javafx.util.Duration.millis(160), controller.picker());
         transition.setFromValue(0.2); transition.setToValue(1); transition.play();
         stage.setMinWidth(880);
         stage.setMinHeight(600);
-        stage.show();
         if (getParameters().getRaw().contains("--smoke-test")) {
             controller.whenIdle(() -> {
                 try {
-                    if (!"user-selection".equals(stage.getScene().getRoot().getId())) throw new IllegalStateException("User selection was not shown");
+                    if (controller.picker() == null || !controller.pickerWindow().isShowing()) throw new IllegalStateException("User selection was not shown");
                     controller.requestSwitch(initialProfile.id());
                     controller.whenIdle(() -> verifyWorkspace(stage));
                 } catch (RuntimeException | AssertionError error) { smokeFailure = error; controller.whenIdle(stage::close); }
@@ -94,7 +93,7 @@ public class PhotoPilotGUI extends Application {
         try {
             var workspace = controller.workspace();
             if (!workspace.atHome()) throw new IllegalStateException("Home was not the landing page");
-            if (!stage.isShowing() || app.sessions() == null) {
+            if (!stage.isShowing() || app.sessions() == null || stage.getIcons().isEmpty()) {
                 throw new IllegalStateException("GUI bootstrap verification failed");
             }
             workspace.verifyNavigation();
@@ -115,7 +114,7 @@ public class PhotoPilotGUI extends Application {
     public void showSession(UUID id) { onFxThread(() -> controller.showSession(id)); }
 
     static javafx.scene.control.Alert startupError(IllegalArgumentException error) {
-        var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+        var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR); AppIcons.windowIcon(alert);
         alert.setTitle(com.photopilot.i18n.EnglishMessages.text("app.title"));
         alert.setHeaderText(com.photopilot.i18n.EnglishMessages.text("error.profile.startup"));
         alert.setContentText(com.photopilot.i18n.EnglishMessages.text("user.storageFailed"));

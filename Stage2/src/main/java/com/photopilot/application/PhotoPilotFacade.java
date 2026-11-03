@@ -21,7 +21,9 @@ import com.photopilot.model.PhotographySession;
 import com.photopilot.model.PostShootReview;
 import com.photopilot.model.ShootRequirement;
 import com.photopilot.service.DiscoveryService;
+import com.photopilot.config.LLMConfiguration;
 import com.photopilot.service.InventoryService;
+import com.photopilot.service.LLMDiagnosticService;
 import com.photopilot.service.PlanningService;
 import com.photopilot.service.ReviewService;
 import com.photopilot.service.SessionService;
@@ -40,8 +42,15 @@ public class PhotoPilotFacade {
     private ReviewService review;
     private TechnicalCalculator calculations;
     private final com.photopilot.service.GearCapabilityService capabilities;
+    private final LLMDiagnosticService aiDiagnostics;
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations) {
+        this(sessions, inventory, discovery, planning, review, calculations, new LLMDiagnosticService(
+            context -> Result.failureKey("error.notImplemented", "LLMClient"), LLMConfiguration.unconfigured(), "UNCONFIGURED"));
+    }
+
+    public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics) {
+        this.aiDiagnostics = Objects.requireNonNull(aiDiagnostics, "aiDiagnostics");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.inventory = Objects.requireNonNull(inventory, "inventory");
         this.capabilities = new com.photopilot.service.GearCapabilityService(inventory);
@@ -104,6 +113,9 @@ public class PhotoPilotFacade {
     }
 
     public com.photopilot.service.GearCapabilityService capabilities() { return capabilities; }
+
+    /** Diagnostic Gemini connection check only; not an AI feature. */
+    public LLMDiagnosticService aiDiagnostics() { return aiDiagnostics; }
 
     public SessionService sessions() {
         return sessions;

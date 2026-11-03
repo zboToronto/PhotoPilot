@@ -19,6 +19,9 @@ public class ModelReply {
         this.clarificationQuestions = List.copyOf(clarificationQuestions);
     }
 
+    /** Untrusted model text; callers must validate it before relying on it. */
+    public Optional<String> structuredOutput() { return structuredOutput; }
+
     public boolean requiresTool() {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: ModelReply.requiresTool");
     }

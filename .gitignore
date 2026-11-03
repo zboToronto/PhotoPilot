@@ -5,10 +5,12 @@
 /tmp/
 /.photopilot-integration/
 
-# Secrets and machine-local configuration (templates may be shared)
+# Local secrets
 .env
 .env.*
 !.env.example
+config.local.json
+# Other machine-local configuration (templates may be shared)
 !.env.sample
 secrets/
 .secrets/

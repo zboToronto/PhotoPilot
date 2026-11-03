@@ -41,7 +41,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
     private static Selection prepare(Map<String, String> environment, StorageScope requested, boolean defaultProfile) {
         if (!Set.of("portability", "coverage").contains(environment.getOrDefault("PHOTOPILOT_RANKING", "portability")))
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
-        URI.create(environment.getOrDefault("GEMINI_ENDPOINT", "https://unconfigured.invalid/gemini"));
+        URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
         try {
             if (defaultProfile || requested.profileId().isPresent()) {
                 var registry = new JsonProfileRepository(requested.root());
@@ -61,13 +61,16 @@ public final class ApplicationBootstrap implements AutoCloseable {
         if (!Set.of("portability", "coverage").contains(preference)) {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
         }
-        URI geminiEndpoint = URI.create(environment.getOrDefault("GEMINI_ENDPOINT", "https://unconfigured.invalid/gemini"));
+        URI geminiEndpoint = URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
+        String geminiModel = environment.getOrDefault("GEMINI_MODEL", GeminiAdapter.DEFAULT_MODEL);
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
         SessionRepository sessions = profileAccess == null ? new JsonSessionRepository(storageScope.sessionsDirectory()) : profileAccess.sessions();
         InventoryRepository inventory = profileAccess == null ? new JsonInventoryRepository(storageScope.inventoryFile()) : profileAccess.inventory();
         ToolRegistry tools = new ToolRegistry(Map.of());
+        LLMConfiguration llmConfiguration = LLMConfiguration.load(environment);
+        // Constructing the client sends nothing; only explicit complete() calls (CLI ai-test) reach the provider.
         LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
-            environment.getOrDefault("GEMINI_MODEL", "UNCONFIGURED"), http, Duration.ofSeconds(30)), localization);
+            geminiModel, http, Duration.ofSeconds(30), llmConfiguration), localization);
         PhotoPilotAgent agent = new PhotoPilotAgent(model, tools, new HistoryRetriever(sessions), 8);
         TechnicalCalculator calculator = new TechnicalCalculator();
         CompatibilityValidator compatibility = new CompatibilityValidator();
@@ -94,7 +97,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
             new PlanningService(new RequirementService(agent), matching, environmentService, agent,
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
             new ReviewService(new ExifLibraryAdapter(Set.of()), new StatisticsCalculator(), agent, sessions),
-            calculator);
+            calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel));
     }
 
     public PhotoPilotFacade facade() { return facade; }

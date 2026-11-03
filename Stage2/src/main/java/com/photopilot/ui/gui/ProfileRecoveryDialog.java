@@ -19,7 +19,7 @@ final class ProfileRecoveryDialog extends Dialog<ProfileManager> {
         var config = StorageConfiguration.resolve(environment).configurationDirectory();
         var language = new LocalizationService(new JsonLocalePreferenceRepository(
             config.resolve("preferences.json"), config.resolve("settings.properties")));
-        var pane = getDialogPane(); pane.setId("profile-recovery");
+        AppIcons.windowIcon(this); var pane = getDialogPane(); pane.setId("profile-recovery");
         pane.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
         var texts = new FxLocalizer(pane, language); texts.useReadableFont(pane);
         texts.text(titleProperty(), "app.title"); texts.text(headerTextProperty(), "profile.recovery");

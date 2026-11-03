@@ -8,6 +8,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import javafx.application.Platform;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.stage.*;
@@ -28,8 +29,8 @@ class ProfileGuiTest {
     }
     void startWindow() throws Exception {
         LocalProfile initial=manager.activeProfile().value().orElseThrow();
-        action(() -> { stage=new Stage(); controller=new GuiProfileController(stage,manager,initial,context -> {}); stage.show(); }); ready();
-        assertEquals("user-selection", fx(() -> stage.getScene().getRoot().getId()));
+        action(() -> { stage=new Stage(); controller=new GuiProfileController(stage,manager,initial,context -> {}); }); ready();
+        assertEquals("user-selection", fx(() -> controller.picker().getId())); assertTrue(fx(() -> controller.pickerWindow().isShowing()));
         click("profile-enter");
     }
     @AfterEach void close() throws Exception { action(() -> { if(controller!=null)controller.close(); if(stage!=null)stage.close(); }); if(manager!=null)manager.close(); }
@@ -38,14 +39,26 @@ class ProfileGuiTest {
         while(fx(() -> controller.busy())) { if(System.nanoTime()>deadline)fail("Profile GUI timed out"); Thread.sleep(20); }
         action(() -> { controller.workspace().applyCss(); controller.workspace().layout(); });
     }
-    Stage dialog() { return stage; }
-    Parent panel() { return controller.picker(); }
-    @SuppressWarnings("unchecked") ListView<LocalProfile> list() { return (ListView<LocalProfile>)panel().lookup("#profile-list"); }
-    void profiles() throws Exception { action(() -> ((Button)controller.workspace().lookup("#profiles-open")).fire()); ready(); }
+    Stage dialog() { return controller.pickerWindow(); }
+    UserSelectionPane panel() { return controller.picker(); }
+    List<LocalProfile> users() { return controller.picker() != null ? panel().users() : settings().users(); }
+    UserSettingsPane settings() { return controller.workspace().userSettings(); }
+    void menu(String id) throws Exception { action(() -> controller.workspace().userMenu().getItems().stream().filter(item -> id.equals(item.getId())).findFirst().orElseThrow().fire()); ready(); }
+    void profiles() throws Exception { menu("menu-switch-workspace"); }
+    void manage() throws Exception { menu("menu-user-settings"); assertTrue(fx(() -> controller.workspace().atUserSettings())); }
+    void manageSelect(UUID id) throws Exception { action(() -> settings().select(id)); }
     void click(String id) throws Exception { action(() -> ((Button)panel().lookup("#"+id)).fire()); ready(); if (id.equals("profile-enter") && fx(() -> controller.picker() == null)) { assertTrue(fx(() -> controller.workspace().atHome())); nav("F01"); } }
-    void name(String value) throws Exception { action(() -> ((TextField)panel().lookup("#profile-name")).setText(value)); }
-    UUID create(String name) throws Exception { name(name); click("profile-create"); return fx(() -> list().getSelectionModel().getSelectedItem().id()); }
-    void select(UUID id) throws Exception { action(() -> list().getItems().stream().filter(p -> p.id().equals(id)).findFirst().ifPresent(list().getSelectionModel()::select)); }
+    DialogPane open(String id) { return (DialogPane)Window.getWindows().stream().filter(Window::isShowing).map(w -> w.getScene().getRoot().lookup(id)).filter(Objects::nonNull).findFirst().orElseThrow(); }
+    Button dialogButton(DialogPane pane,ButtonBar.ButtonData kind) { return (Button)pane.lookupButton(pane.getButtonTypes().stream().filter(b -> b.getButtonData()==kind).findFirst().orElseThrow()); }
+    void named(String trigger,String value) throws Exception {
+        action(() -> {
+            Platform.runLater(() -> { var pane=open("#profile-name-dialog"); ((TextField)pane.lookup("#profile-name")).setText(value); dialogButton(pane,ButtonBar.ButtonData.OK_DONE).fire(); });
+            ((Button)settings().lookup("#"+trigger)).fire();
+        }); ready();
+    }
+    void refreshList() throws Exception { action(() -> { if (controller.picker() != null) panel().refresh(); else settings().refresh(); }); ready(); }
+    UUID create(String name) throws Exception { manage(); named("profile-create",name); return fx(() -> settings().selectedUser().id()); }
+    void select(UUID id) throws Exception { action(() -> panel().select(id)); }
     void nav(String feature) throws Exception { action(() -> ((ToggleButton)controller.workspace().lookup("#nav-"+feature)).fire()); ready(); }
     void mainClick(String id) throws Exception { action(() -> ((Button)controller.workspace().lookup("#"+id)).fire()); ready(); }
     void field(String id,String text) throws Exception { action(() -> ((TextInputControl)controller.workspace().lookup("#"+id)).setText(text)); }
@@ -60,9 +73,9 @@ class ProfileGuiTest {
         }); ready();
     }
     @Test void controlsCreateSelectCrossProcessRecordsRenameDeleteAndRestart() throws Exception {
-        UUID defaultId=active(); profiles(); assertEquals(1,fx(() -> list().getItems().size()));
+        UUID defaultId=active(); manage(); assertEquals(1,fx(() -> users().size()));
         UUID a=create("A 夜景"), b=create("B Portrait"); assertNotEquals(a,b);
-        select(a); click("profile-enter"); assertEquals(a,active());
+        profiles(); select(a); click("profile-enter"); assertEquals(a,active());
         assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("A 夜景")));
         nav("F05"); mainClick("gear-add"); field("gear-field-brand","GUI"); field("gear-field-model","A Camera"); field("gear-field-mount","E"); mainClick("gear-save");
         nav("F01"); mainClick("session-create"); field("session-field-title","A Session"); field("session-field-date","2026-11-01"); mainClick("session-save");
@@ -75,24 +88,24 @@ class ProfileGuiTest {
         assertEquals(0,fx(() -> ((TableView<?>)controller.workspace().lookup("#session-table")).getItems().size()));
         mainClick("session-create"); field("session-field-title","B Session"); field("session-field-date","2026-11-02"); mainClick("session-save");
         Path bFile=manager.activeContext().storageScope().sessionsDirectory().resolve("sessions.json"); byte[] bData=Files.readAllBytes(bFile);
-        profiles(); name("B Renamed"); click("profile-rename"); assertEquals(b,active()); assertArrayEquals(bData,Files.readAllBytes(bFile));
+        manage(); named("profile-rename","B Renamed"); assertEquals(b,active()); assertArrayEquals(bData,Files.readAllBytes(bFile));
         assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("B Renamed")));
-        select(a); click("profile-enter"); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
+        profiles(); select(a); click("profile-enter"); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
         nav("F05"); assertEquals(1,fx(() -> ((TableView<?>)controller.workspace().lookup("#gear-table")).getItems().size()));
-        profiles(); select(b); confirm(() -> ((Button)panel().lookup("#profile-delete")).fire(),false); assertTrue(manager.getProfile(b).isSuccess());
-        confirm(() -> ((Button)panel().lookup("#profile-delete")).fire(),true); assertFalse(manager.getProfile(b).isSuccess()); assertArrayEquals(bData,Files.readAllBytes(bFile));
+        manage(); manageSelect(b); confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),false); assertTrue(manager.getProfile(b).isSuccess());
+        confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),true); assertFalse(manager.getProfile(b).isSuccess()); assertArrayEquals(bData,Files.readAllBytes(bFile));
         action(() -> {controller.close();stage.close();}); manager.close(); manager=new ProfileManager(env()); assertEquals(defaultId,active()); startWindow();
         profiles(); select(a); click("profile-enter"); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
         assertEquals(1,manager.activeContext().facade().inventory().list("").value().orElseThrow().items().size());
     }
     @Test void avatarPreviewHomeNavigationAndBilingualLayoutsUseRealSelectedUser() throws Exception {
-        UUID original = active(); profiles(); UUID selected = create("Alex · Photography");
+        UUID original = active(); UUID selected = create("Alex · Photography");
         Path source = root.resolve("avatar.png");
         var image = new java.awt.image.BufferedImage(320, 240, java.awt.image.BufferedImage.TYPE_INT_RGB);
         var graphics = image.createGraphics(); graphics.setColor(new java.awt.Color(62, 103, 142)); graphics.fillRect(0, 0, 320, 240);
         graphics.setColor(new java.awt.Color(218, 232, 241)); graphics.fillOval(110, 40, 100, 100); graphics.fillOval(60, 145, 200, 150); graphics.dispose();
         javax.imageio.ImageIO.write(image, "png", source.toFile());
-        action(() -> controller.picker().previewAvatar(selected, source));
+        action(() -> settings().previewAvatar(selected, source));
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (!fx(() -> Window.getWindows().stream().anyMatch(w -> w.isShowing() && w.getScene().getRoot().lookup("#avatar-preview") != null))) {
             if (System.nanoTime() > deadline) fail("Avatar preview did not appear"); Thread.sleep(20);
@@ -105,8 +118,9 @@ class ProfileGuiTest {
         }); ready();
         byte[] avatar = manager.avatar(selected).value().orElseThrow().orElseThrow();
         assertTrue(manager.avatar(original).value().orElseThrow().isEmpty());
-        name("Alex Renamed"); click("profile-rename"); assertArrayEquals(avatar, manager.avatar(selected).value().orElseThrow().orElseThrow());
-        snapshot(panelOnFx(), "user-selection-en");
+        named("profile-rename","Alex Renamed"); assertArrayEquals(avatar, manager.avatar(selected).value().orElseThrow().orElseThrow());
+        snapshot(fx(() -> controller.workspace()), "user-settings-en");
+        profiles(); select(selected); snapshot(panelOnFx(), "user-selection-en");
         action(() -> ((Button)panel().lookup("#profile-enter")).fire()); ready();
         assertEquals(selected, active()); assertTrue(fx(() -> controller.workspace().atHome()));
         snapshot(fx(() -> controller.workspace()), "home-dashboard-en");
@@ -117,8 +131,8 @@ class ProfileGuiTest {
         }
         action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); stage.setWidth(880); stage.setHeight(600); });
         resized(stage, 880, 600); snapshot(fx(() -> controller.workspace()), "home-dashboard-narrow-zh");
-        profiles(); snapshot(panelOnFx(), "user-selection-narrow-zh");
-        click("avatar-remove"); assertTrue(manager.avatar(selected).value().orElseThrow().isEmpty());
+        profiles(); snapshot(panelOnFx(), "user-selection-narrow-zh"); click("profile-enter");
+        manage(); manageSelect(selected); action(() -> ((Button)settings().lookup("#avatar-remove")).fire()); ready(); assertTrue(manager.avatar(selected).value().orElseThrow().isEmpty());
         var splash = fx(() -> { var window = new Stage(); window.setScene(new javafx.scene.Scene(new SplashScreen(), 880, 600));
             window.getScene().getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); window.show(); return window; });
         try { snapshot(fx(() -> splash.getScene().getRoot()), "startup-splash"); } finally { action(splash::close); }
@@ -200,27 +214,95 @@ class ProfileGuiTest {
         action(() -> controller.requestSwitch(b)); ready(); assertEquals(b,active()); assertTrue(manager.activeContext().facade().sessions().search("").value().orElseThrow().isEmpty());
     }
     @Test void validationDuplicateNamesExternalRefreshProtectedDeletionAndChineseLayouts() throws Exception {
-        UUID defaultId=active(); profiles(); name(" "); click("profile-create"); assertEquals(1,fx(() -> list().getItems().size()));
-        assertTrue(fx(() -> ((Label)panel().lookup("#profile-feedback")).getText().contains("failed")));
-        UUID a=create("摄影 档案"), b=create("摄影 档案"); assertNotEquals(a,b); assertEquals(3,fx(() -> list().getItems().size()));
-        select(defaultId); confirm(() -> ((Button)panel().lookup("#profile-delete")).fire(),true); assertTrue(manager.getProfile(defaultId).isSuccess());
-        select(a); click("profile-enter"); profiles();
+        UUID defaultId=active(); manage();
+        var blankRejected=new java.util.concurrent.atomic.AtomicBoolean();
+        action(() -> {
+            Platform.runLater(() -> { var pane=open("#profile-name-dialog"); ((TextField)pane.lookup("#profile-name")).setText(" "); blankRejected.set(dialogButton(pane,ButtonBar.ButtonData.OK_DONE).isDisabled()); dialogButton(pane,ButtonBar.ButtonData.CANCEL_CLOSE).fire(); });
+            ((Button)settings().lookup("#profile-create")).fire();
+        }); ready(); assertTrue(blankRejected.get()); assertEquals(1,fx(() -> users().size()));
+        named("profile-create","x".repeat(81)); assertEquals(1,fx(() -> users().size()));
+        assertTrue(fx(() -> { var pane=open("#profile-error"); pane.applyCss(); var fill=pane.getBackground().getFills().getFirst().getFill();
+            return pane.getStyleClass().contains("app-dialog") && ((javafx.scene.paint.Color)fill).getOpacity()>.9; }),"Error dialog must be an opaque chooser-styled panel, not see-through"); snapshot(fx(() -> open("#profile-error")),"chooser-error-dialog");
+        assertTrue(fx(() -> ((Label)settings().lookup("#profile-feedback")).getText().contains("failed")));
+        UUID a=create("摄影 档案"), b=create("摄影 档案"); assertNotEquals(a,b); assertEquals(3,fx(() -> users().size()));
+        manageSelect(defaultId); assertTrue(fx(() -> settings().lookup("#profile-delete").isDisabled()),"Active user cannot be offered for deletion");
+        profiles(); select(a); click("profile-enter"); manage(); manageSelect(defaultId);
+        confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),true); assertTrue(manager.getProfile(defaultId).isSuccess());
+        profiles();
         action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); dialog().setWidth(880); dialog().setHeight(600); });
         resized(fx(this::dialog),880,600);
-        action(() -> ((ScrollPane)panel().lookup("#profiles-scroll")).setVvalue(0));
+
         snapshot(panelOnFx(),"phase4-profiles-narrow-zh");
-        name(" "); click("profile-rename");
-        assertTrue(fx(() -> { panel().applyCss(); panel().layout(); var label=panel().lookup("#profile-feedback"); var bounds=label.localToScene(label.getBoundsInLocal());
-            return label.isVisible() && bounds.getMinY()>=0 && bounds.getMaxY()<=dialog().getScene().getHeight(); }),"Operation feedback must be visible in the narrow window");
-        snapshot(panelOnFx(),"phase4-profiles-feedback-zh");
+        click("profile-enter"); manage(); named("profile-rename","x".repeat(81));
+        assertTrue(fx(() -> settings().lookup("#profile-feedback").isVisible()),"Operation feedback must be visible");
+        snapshot(fx(() -> controller.workspace()),"phase4-profiles-feedback-zh");
         try(var other=new ProfileManager(env())) { assertTrue(other.renameProfile(a,"外部重命名").isSuccess()); }
-        click("profile-refresh"); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("外部重命名")));
+        refreshList(); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("外部重命名")));
         action(() -> { controller.requestSwitch(active()); stage.setWidth(880); stage.setHeight(600); }); ready(); resized(stage,880,600); snapshot(fx(() -> controller.workspace()),"phase4-main-narrow-zh");
         profiles(); try(var other=new ProfileManager(env())) { assertTrue(other.deleteProfile(a,true).isSuccess()); }
-        click("profile-refresh"); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("不可用")));
+        refreshList(); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("不可用")));
         select(b); click("profile-enter"); assertEquals(b,active());
         profiles(); Path registry=root.resolve("data/profiles.json"); String valid=Files.readString(registry); Files.writeString(registry,"broken");
-        click("profile-refresh"); assertTrue(fx(() -> ((Label)panel().lookup("#profile-feedback")).getText().contains("失败"))); assertEquals("broken",Files.readString(registry)); Files.writeString(registry,valid);
+        refreshList(); assertTrue(fx(() -> ((Label)panel().lookup("#profile-feedback")).getText().contains("失败"))); assertEquals("broken",Files.readString(registry)); Files.writeString(registry,valid);
+    }
+    @Test void chooserKeepsSelectedUserCentredForEveryCountWithoutShowingIdentifiers() throws Exception {
+        UUID first=active(); profiles(); assertEquals(1,tiles()); assertEquals("Default",centreName()); chooserChecks(first,"chooser-1-user");
+        assertFalse(fx(() -> panel().lookup("#profile-create").isVisible()),"First-run action stays hidden while users exist");
+        for (String removed : List.of("#profile-rename","#profile-delete","#avatar-import","#avatar-remove","#profile-refresh")) assertNull(fx(() -> panel().lookup(removed)),removed);
+        assertTrue(fx(() -> panel().lookupAll(".label").stream().noneMatch(n -> ((Label)n).getText().contains("photo libraries"))),"Startup sentence must be gone");
+        click("profile-enter"); UUID b=create("Studio"); profiles(); assertEquals(2,tiles()); assertFalse(fx(() -> panel().lookup("#profile-next").isVisible())); chooserChecks(first,"chooser-2-users");
+        click("profile-enter"); UUID c=create("Travel"); profiles(); assertEquals(3,tiles()); chooserChecks(first,"chooser-3-users");
+        select(b); assertEquals("Studio",centreName());
+        action(() -> panel().fireEvent(new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,"","",javafx.scene.input.KeyCode.RIGHT,false,false,false,false)));
+        assertNotEquals(b,fx(() -> panel().selectedUser().id()));
+        select(first); click("profile-enter"); UUID d=create("Weddings"), e=create("A very long display name that must never push neighbouring users out of slots"); profiles(); select(e); assertEquals(5,fx(() -> users().size())); assertEquals(3,tiles());
+        assertTrue(fx(() -> panel().lookup("#profile-next").isVisible())); chooserChecks(e,"chooser-5-users");
+        action(() -> ((Button)panel().lookup("#profile-next")).fire()); assertNotEquals(e,fx(() -> panel().selectedUser().id()));
+        action(() -> ((Button)panel().lookup("#profile-previous")).fire()); assertEquals(e,fx(() -> panel().selectedUser().id()));
+        action(() -> { dialog().setWidth(880); dialog().setHeight(600); }); resized(fx(this::dialog),880,600); chooserChecks(e,"chooser-minimum-size");
+        action(() -> controller.pickerWindow().toggleMaximized()); assertTrue(fx(() -> controller.pickerWindow().maximizedToScreen()));
+        action(() -> controller.pickerWindow().toggleMaximized()); assertFalse(fx(() -> controller.pickerWindow().maximizedToScreen()));
+        Path broken=manager.activeContext().storageScope().inventoryFile().getParent().getParent().resolve(d.toString()).resolve("avatar.png"); Files.writeString(broken,"not an image");
+        select(d); refreshList(); assertEquals("Weddings",centreName());
+    }
+    @Test void userManagementStaysInsideTheWorkspaceUntilSwitchIsRequested() throws Exception {
+        UUID current=active(); var view=fx(() -> controller.workspace()); var context=manager.activeContext();
+        manage(); assertNull(fx(() -> controller.picker())); assertTrue(fx(() -> stage.isShowing()));
+        named("current-rename","Renamed Here");
+        assertTrue(fx(() -> ((Label)view.lookup("#profile-active")).getText().contains("Renamed Here"))); assertEquals("Renamed Here",manager.activeProfile().value().orElseThrow().displayName());
+        var cancelled=new java.util.concurrent.atomic.AtomicBoolean();
+        action(() -> { Platform.runLater(() -> { var pane=open("#profile-name-dialog"); ((TextField)pane.lookup("#profile-name")).setText("Discarded"); cancelled.set(true); dialogButton(pane,ButtonBar.ButtonData.CANCEL_CLOSE).fire(); }); ((Button)settings().lookup("#current-rename")).fire(); }); ready();
+        assertTrue(cancelled.get()); assertEquals("Renamed Here",manager.activeProfile().value().orElseThrow().displayName());
+        UUID other=create("Other User"); assertEquals(current,active()); assertEquals(other,fx(() -> settings().selectedUser().id()));
+        assertTrue(fx(() -> ((Label)view.lookup("#profile-active")).getText().contains("Renamed Here")),"Creating a user must not replace the session");
+        named("profile-rename","Other Renamed"); assertEquals(current,active()); assertEquals("Other Renamed",manager.getProfile(other).value().orElseThrow().displayName());
+        confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),true); assertFalse(manager.getProfile(other).isSuccess()); assertEquals(current,active());
+        assertSame(view,fx(() -> controller.workspace())); assertSame(context,manager.activeContext()); assertNull(fx(() -> controller.picker())); assertTrue(fx(() -> view.atUserSettings()));
+        action(() -> ((ToggleButton)view.lookup("#nav-home")).fire()); assertTrue(fx(() -> view.atHome()));
+        menu("menu-app-settings"); assertTrue(fx(() -> view.atApplicationSettings())); assertNull(fx(() -> controller.picker()));
+        profiles(); assertNotNull(fx(() -> controller.picker())); assertTrue(fx(() -> controller.pickerWindow().isShowing()));
+    }
+    @Test void closingTheChooserUsesTheSameGuardAsTheMainWindow() throws Exception {
+        mainClick("session-create"); field("session-field-title","Unsaved"); profiles();
+        confirm(() -> ((Button)controller.pickerWindow().getScene().getRoot().lookup("#window-close")).fire(),false);
+        assertTrue(fx(() -> controller.pickerWindow().isShowing())); assertFalse(fx(() -> stage.isShowing()));
+        action(() -> panel().fireEvent(new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,"","",javafx.scene.input.KeyCode.ENTER,false,false,false,false))); ready();
+        assertTrue(fx(() -> stage.isShowing())); assertNull(fx(() -> controller.pickerWindow())); nav("F01");
+        assertEquals("Unsaved",fx(() -> ((TextField)controller.workspace().lookup("#session-field-title")).getText()));
+    }
+    int tiles() throws Exception { return fx(() -> (int)panel().lookupAll(".profile-tile").stream().filter(Node::isVisible).count()); }
+    String centreName() throws Exception { return fx(() -> panel().selectedUser().displayName()); }
+    /** Selected avatar sits on the window's vertical axis; no identifier, overlap or clipped control appears. */
+    void chooserChecks(UUID current,String image) throws Exception {
+        Parent root=fx(() -> controller.pickerWindow().getScene().getRoot());
+        action(() -> { root.applyCss(); root.layout(); });
+        assertEquals(current,fx(() -> panel().selectedUser().id()));
+        assertTrue(fx(() -> { double width=root.getLayoutBounds().getWidth(); var ring=root.lookupAll(".profile-tile").stream().filter(n -> n.getPseudoClassStates().stream().anyMatch(p -> p.getPseudoClassName().equals("current"))).findFirst().orElseThrow();
+            var bounds=ring.localToScene(ring.getBoundsInLocal()); return users().size()==2 || Math.abs((bounds.getMinX()+bounds.getMaxX())/2-width/2)<2; }),"Selected avatar must stay on the centre axis");
+        assertTrue(fx(() -> root.lookupAll(".label").stream().map(n -> ((Label)n).getText()).filter(Objects::nonNull).noneMatch(text -> users().stream().anyMatch(u -> text.contains(u.id().toString())))),"Identifiers must stay hidden");
+        assertTrue(fx(() -> { double top=0; for(String id:List.of("#selection-logo","#profile-strip","#profile-enter")) { var node=root.lookup(id); var bounds=node.localToScene(node.getLayoutBounds());
+            if(bounds.getMinY()<top-.5 || bounds.getMaxY()>root.getLayoutBounds().getHeight() || bounds.getMinX()<0 || bounds.getMaxX()>root.getLayoutBounds().getWidth()) return false; top=bounds.getMaxY(); } return true; }),"Regions must stay ordered and inside the window");
+        snapshot(root,image);
     }
     Parent panelOnFx() throws Exception { return fx(this::panel); }
     void resized(Stage window,double width,double height) throws Exception {

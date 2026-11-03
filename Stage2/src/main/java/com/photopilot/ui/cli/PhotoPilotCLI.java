@@ -156,7 +156,8 @@ public class PhotoPilotCLI {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); if (profiles != null) output.println(localization.text("profile.cli.help")); }
+            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
+            case "ai-test" -> { return new AiTestCommands(app, output, localization).execute(); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }

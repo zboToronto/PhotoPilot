@@ -52,9 +52,9 @@ Wrapper distribution cache defaults to `.mvn/user-home`, and dependency cache to
 
 ## Try the bootstrap
 
-The JavaFX GUI opens Splash → Select User → Home Dashboard before any feature. The chooser supports Add User, Rename User, confirmed Delete User and persistent PNG/JPEG avatars. Home launches the real Equipment, Sessions & History and Calculator modules, with clearly marked future Planning/AI entry points. Switch User / User Settings returns to the chooser; Home remains available in the sidebar. See [the user workspace implementation and verification](docs/user-workspace.md). The GUI uses a translucent frosted workspace with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F01 opens session history and its editor; F05 opens the inventory list and forms; F08 opens the shared calculator suite; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
+The JavaFX GUI opens Splash → Choose a workspace → Home Dashboard before any feature. The full-window chooser shows users as circular avatars with the selected user centred; Left/Right changes the user and Enter continues. User management lives on the in-app **User Settings** page: Add User, Refresh list, Rename, Change Avatar, Restore Default Avatar and confirmed Delete. The avatar menu at the top right opens User Settings, Application Settings or Switch Workspace, and only Switch Workspace returns to the chooser. Home launches the real Equipment, Sessions & History and Calculator modules, with clearly marked future Planning/AI entry points. Home remains available in the sidebar. See [the user workspace implementation and verification](docs/user-workspace.md). The GUI uses translucent surfaces over a Gaussian-blurred version of the startup wallpaper, with grouped navigation for all 11 features, a selected-feature description, accurate availability status, and a **Check status** action for scaffolded features. F01 opens session history and its editor; F05 opens the inventory list and forms; F08 opens the shared calculator suite; other workflows remain unavailable and disabled. F10 appears under Workspace as Shoot Planning; F04 remains AI Gear Import (recognition/import, not gear reports). Use Up/Down or Home/End within navigation, Tab to move focus, and Space to activate buttons. The sidebar and content scroll independently in smaller windows (minimum 880 × 600). Standard window controls close the GUI and release application resources. F05 uses Gson 2.11.0 for JSON; the existing JavaFX framework and theme are retained. See [GUI implementation and verification](docs/gui-redesign.md).
 
-The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F01` lists saved sessions and `session help` documents session commands. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. `F08` lists calculators; `calc help` documents their parameters. Other feature commands report unavailable status. Unknown commands return a helpful message.
+The CLI accepts `help`, `status`, `F01` through `F11`, `exit`/`quit`, and EOF. `F01` lists saved sessions and `session help` documents session commands. `F05` lists saved gear, and `gear help` documents add/edit/remove/search/filter commands. `F08` lists calculators; `calc help` documents their parameters. `ai-test` runs the diagnostic [Gemini connection smoke test](#gemini-connection-smoke-test-ai-test). Other feature commands report unavailable status. Unknown commands return a helpful message.
 
 Noninteractive CLI example:
 
@@ -74,7 +74,7 @@ The original six JUnit tests check bootstrap wiring identity, honest not-impleme
 
 ## Language settings (English / 简体中文)
 
-English (`en`) is the fresh-user default and fallback. Open **Settings / 设置** in the GUI and select **English** or **简体中文**; labels, open settings windows, validation and displayed calculation results update immediately while preserving unsaved inputs and selection. The preference is saved at `${user.home}/.photopilot/preferences.json`, shared with the CLI. Set the actual environment variable `PHOTOPILOT_CONFIG_DIR` to override that directory. If JSON is absent, existing settings.properties is read without modification; an explicit save writes JSON and retains the original properties file. Save failures retain the session language and show retry feedback.
+English (`en`) is the fresh-user default and fallback. Open **Application Settings / 应用设置** in the GUI and select **English** or **简体中文**; labels, validation and displayed calculation results update immediately while preserving unsaved inputs and selection. The preference is saved at `${user.home}/.photopilot/preferences.json`, shared with the CLI. Set the actual environment variable `PHOTOPILOT_CONFIG_DIR` to override that directory. If JSON is absent, existing settings.properties is read without modification; an explicit save writes JSON and retains the original properties file. Save failures retain the session language and show retry feedback.
 
 In the CLI, `lang` shows the current language; `lang zh-CN` / `lang en` saves a preference. `--lang zh-CN` (or `--lang=en`) overrides only the current invocation. Existing command identifiers/options and structured tool data stay unchanged. UTF-8 terminal input/output is used.
 
@@ -87,7 +87,7 @@ The GUI tests need a desktop. Use the same list without `LocalizationGuiTest` fo
 
 Translations are UTF-8 `src/main/resources/i18n/messages{,_en,_zh_CN}.properties`. Stable semantic keys use MessageFormat parameters. Missing Chinese entries fall back to English; unknown keys show `[!key!]` with deduplicated diagnostics. Test checks detect missing/duplicate keys, invalid patterns and placeholder mismatches.
 
-The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. **Actual AI responses remain unavailable:** `PhotoPilotAgent.run` and `GeminiAdapter.complete` are still scaffolds. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
+The selected response language is wired into the existing LLM port as a request-scoped default, with explicit user language requests taking precedence. **AI features remain unavailable:** `PhotoPilotAgent.run` is still a scaffold. `GeminiAdapter.complete` now sends text requests (serializing this instruction as Gemini `systemInstruction`), but only the diagnostic CLI `ai-test` calls it. Tests establish policy propagation/context preservation through a model test double, not live AI behavior. Localization is an additional usability capability, not an additional substantial business feature.
 
 ## F01 sessions and history
 
@@ -148,7 +148,66 @@ F01 exercises Facade and State; F05/F08 retain the shared Facade and service arc
 
 ## Configuration and future integrations
 
-`.env.example` is a safe reference template. **There is no `.env` loader.** Copying it to `.env` alone does not configure the application. Do not enter a real API key for this build: it is neither required nor read. All integration methods are disabled placeholders regardless of settings.
+**AI workflows remain NOT IMPLEMENTED.** Configuring a key does not enable features. The only code path that sends a Gemini request is the manual CLI diagnostic `ai-test` (below). Startup, existing GUI/CLI commands and non-AI features do not require a key. The [repository-root setup guide](../README.md#local-gemini-key-setup-infrastructure-only) explains Google AI Studio key creation and the same setup process for developers and TAs using their own credentials.
+
+The canonical file is `<repository-root>/.env` (`ProjectGit/.env` in the local checkout), outside `Stage2`. From this directory, create it without overwriting an existing file:
+
+```powershell
+if (-not (Test-Path ../.env)) { Copy-Item ../.env.example ../.env }
+```
+
+On macOS/Linux: `test -e ../.env || cp ../.env.example ../.env`. Open `../.env` locally and paste your key after `LLM_API_KEY=`, replacing `YOUR_LOCAL_API_KEY_HERE` or filling the empty value. Keep both tracked example files unchanged. `Stage2/.env.example` retains a matching safe template for compatibility; if using it, copy it to **`../.env`**, not `Stage2/.env`. Launch the GUI/CLI with the commands above and restart after key changes.
+
+Alternatively, set `LLM_API_KEY` through your operating system's environment-variable settings before launching the app. Use this project's `LLM_API_KEY` name; `GEMINI_API_KEY` and `GOOGLE_API_KEY` are not read by PhotoPilot.
+
+`LLMConfiguration.load(environment)` is called by the shared `ApplicationBootstrap` and injected into `GeminiAdapter` for both GUI and CLI. Loading is read-only and follows these rules:
+
+- A nonblank system `LLM_API_KEY` takes precedence. An absent/blank variable falls back to the local file. An invalid nonblank environment value is reported as invalid configuration, without silently switching to the file's key.
+- Running from the repository root reads `.env`; running from the Maven `Stage2` directory reads `../.env`. Other launch directories read their own `.env`; IDEs should use one of the documented working directories. Embedders/tests can supply an explicit root with `load(environment, projectRoot)`. No parent-directory search or resource/classpath loading occurs.
+- The UTF-8 file supports `LLM_API_KEY=value`, optional surrounding single/double quotes, blank lines and whole-line `#` comments (including a UTF-8 BOM). Other variables are ignored; `.env` does not configure storage, preferences, model or endpoint. Shell execution, `export`, variable expansion, escapes, multiline values and inline comments are not supported. Duplicate key assignments and malformed values are rejected.
+- `keyStatus()` reports `MISSING`, `PLACEHOLDER`, `INVALID`, `UNREADABLE_FILE` or `CONFIGURED`. Local validation rejects the example placeholder and accepts only nonempty ASCII letters, digits, `.`, `_` and `-` (newer Google keys contain a `.`); it makes no fixed prefix/length assumption and **does not establish credential authenticity, permissions, quota or connectivity**. File errors remain configuration status rather than startup failures.
+- `requireApiKey()` is used only by `GeminiAdapter`, which sends the key in the `x-goog-api-key` header (never the URL); it throws a generic, secret-free error for unconfigured keys. Configuration diagnostics redact the key. No key is written to preferences, user profiles, logs or request/response objects.
+
+Preserved integration contract:
+
+```java
+Result<ModelReply> LLMClient.complete(AgentContext context);
+```
+
+`AgentContext` and `ModelReply` are the existing request/response types; no duplicate DTOs or client interface were introduced. `GeminiAdapter` serves as the Gemini LLM client skeleton under its Stage 1 Adapter name. Its configuration-injection constructor is additive; the original constructor remains compatible and unconfigured. `complete` sends the context's text messages to `{GEMINI_ENDPOINT}/models/{GEMINI_MODEL}:generateContent` and returns the generated text as untrusted `ModelReply` output. Empty contexts and unusable keys fail locally without a request; image input, tool calls and structured schemas still return explicit failures. No response is ever fabricated. The existing language decorator and agent/service/Facade wiring are retained.
+
+### Gemini connection smoke test (`ai-test`)
+
+`ai-test` is a **diagnostic command, not a PhotoPilot AI feature**. It checks the local key configuration, then sends one real request with the fixed prompt `What is 2 + 2? Answer briefly.` through `PhotoPilotFacade.aiDiagnostics()` → `LLMDiagnosticService` → the shared `LanguageAwareLLMClient` → `GeminiAdapter`. It prints the model's actual reply. Non-empty generated text counts as success. The command is CLI-only; the GUI is unchanged. No session data, evidence or images are sent.
+
+The default model is **`gemini-3.5-flash-lite`**. Google lists it as stable and recommended for new projects, with no shutdown date announced (checked 2026-11-02). Override it with `GEMINI_MODEL`, for example `$env:GEMINI_MODEL='gemini-3.6-flash'`, before launching.
+
+```powershell
+# From Stage2, with JDK 21 and LLM_API_KEY in ../.env
+./mvnw.cmd -q compile exec:java '-Dexec.mainClass=com.photopilot.ui.cli.PhotoPilotCLI'
+# then type at the prompt:
+#   ai-test
+#   help
+#   exit
+```
+
+Noninteractive form: `./mvnw.cmd -q compile exec:java '-Dexec.mainClass=com.photopilot.ui.cli.PhotoPilotCLI' '-Dexec.args=ai-test status exit'`.
+
+Expected success output:
+
+```text
+[INFO] Checking Gemini API configuration...
+[INFO] Sending test request to Gemini (model gemini-3.5-flash-lite)...
+
+[AI Response]
+2 + 2 = 4.
+
+[SUCCESS] Gemini API connection successful.
+```
+
+Failures print one `[ERROR]` line and the CLI keeps accepting commands: missing/empty, placeholder, malformed or unreadable key (detected before any request); rejected key (HTTP 400 `API_KEY_INVALID`/401/403); rate limit or quota (429); unknown model (404); provider errors (5xx); timeout (30 s); network failure; and malformed, empty or blocked responses. The key is never printed, and provider messages are redacted and truncated.
+
+Automated tests never call Google. `GeminiAdapterTest` and `AiTestCliTest` run the real HTTP client and CLI against a loopback `HttpServer` stand-in: `./mvnw.cmd -B -o test '-Dtest=GeminiAdapterTest,AiTestCliTest,BootstrapTest,LLMConfigurationTest'`. The live check is manual, through `ai-test`.
 
 Current environment-variable configuration:
 
@@ -157,15 +216,17 @@ Current environment-variable configuration:
 | `PHOTOPILOT_DATA_DIR` | Repository path root, default `${user.home}/.photopilot/data`; registry `profiles.json` lives here; business files live under `profiles/<uuid>/` |
 | `PHOTOPILOT_CONFIG_DIR` | Preference directory, default `${user.home}/.photopilot`; JSON preferences with read-only legacy properties compatibility |
 | `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` selects the approved strategy object; ranking remains unimplemented |
-| `GEMINI_MODEL` | Stored model name, default `UNCONFIGURED`; no API call |
-| `GEMINI_ENDPOINT` | Stored URI, default reserved `https://unconfigured.invalid/gemini`; no API call |
-| `GEMINI_API_KEY` | Placeholder for future implementation; intentionally not read |
+| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used only by `ai-test` |
+| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used only by `ai-test` |
+| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by `ai-test` |
 
-For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. Future real integration must implement private configuration/key loading, provider adapters, validation, timeouts and honest failures, and update this README with the actual supported local-key workflow. `.gitignore` already protects `.env`, `.env.*` except `.env.example`, and `config.local.json`.
+For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. Future authorized work must implement structured response/schema validation, tool calls, image analysis and bounded agent reasoning/tool workflows. `PhotoPilotAgent.run` and AI services remain placeholders. This preparation is not completed AI integration and does not satisfy the course's working-LLM requirement by itself.
+
+`.gitignore` protects `.env`, `.env.*` except `.env.example`, and `config.local.json`; both examples contain only `LLM_API_KEY=YOUR_LOCAL_API_KEY_HERE`. Never force-add a key or include it in recordings/reports. Ignore rules cannot remove already tracked secrets or old commits; exposed keys must be revoked/rotated and removed from the repository/history.
 
 ## Known limits and next implementation boundaries
 
-F01 session/history persistence, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI reasoning and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. No actual Gemini/provider connection was tested.
+F01 session/history persistence, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI reasoning and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. The only live Gemini check is the diagnostic `ai-test`; no AI feature uses the provider.
 
 The original F01 optional-location/notes gap is resolved by documented SessionService overloads. F02 selection/save/dismiss routing and F07 selected-loadout persistence remain explicit gaps. Provider/library selection, generic AI list schema validation and PlanCommand decoding remain deferred. See [F01 design changes](docs/f01-sessions.md) and the historical source-verification gap record.
 
@@ -179,7 +240,7 @@ Select Technical Calculator in the existing GUI, or enter `calc help` in the CLI
 
 ## Local JSON storage and user management
 
-GUI startup initializes local storage behind a short splash, then presents Select User. Continue validates the selected user through the shared ProfileManager and opens Home. The active-user bar opens Switch User / User Settings in the same window for selection, creation, rename, confirmed archive and avatar management. Names may be duplicated; secondary UUIDs distinguish rows. Display names never determine paths. All business services/history/tool dependencies use guarded repositories beneath `<root>/profiles/<uuid>/`. PNG/JPEG avatars are copied as normalized `avatar.png` in that UUID directory, with preview, restart persistence and restoration to initials. Display language remains global under PHOTOPILOT_CONFIG_DIR. See [user workspace behavior, architecture and verification](docs/user-workspace.md).
+GUI startup initializes local storage behind a short splash, then presents Choose a workspace. Continue validates the selected user through the shared ProfileManager and opens Home. The avatar menu opens User Settings for creation, rename, confirmed archive and avatar management inside the workspace; Switch Workspace returns to the chooser for selection. Names may be duplicated; identifiers stay hidden in the GUI (the CLI still lists them). Display names never determine paths. All business services/history/tool dependencies use guarded repositories beneath `<root>/profiles/<uuid>/`. PNG/JPEG avatars are copied as normalized `avatar.png` in that UUID directory, with preview, restart persistence and restoration to initials. Display language remains global under PHOTOPILOT_CONFIG_DIR. See [user workspace behavior, architecture and verification](docs/user-workspace.md).
 In the CLI, use `profile list`, `profile create "Display Name"`, `profile current`, `profile select <UUID>`, `profile rename <UUID> "New Name"`, `profile delete <UUID> --confirm`, and `profile help`. `--profile <UUID>` or `--profile=UUID` selects for one invocation; invalid selection aborts before business commands. Separate launches always start with the stable default unless explicitly selected. Each multiword command is one argument or one stdin line. Normal exits return 0; any command/configuration failure returns process status 2.
 
 On first initialization, existing `<root>/inventory.json` and `<root>/sessions/sessions.json` are validated and copied into the default profile, preserving the originals. A durable journal resumes interrupted initialization; conflicts/corrupt data stop without overwriting or inventing records. Later starts do not re-import legacy files. Close older application versions before migration. Retain the full root, including profiles.json, when backing up.

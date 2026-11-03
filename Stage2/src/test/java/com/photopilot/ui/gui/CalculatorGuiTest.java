@@ -70,7 +70,7 @@ class CalculatorGuiTest {
                 fill(pane,"shutter","1/125");((Button)pane.lookup("#calc-run")).fire();assertTrue(pane.feedbackText().contains("8.192 s"));
                 workspace.applyCss();workspace.layout();assertTrue(workspace.getWidth()<=880);
                 var shutter=pane.lookup("#calc-field-shutter");var nd=pane.lookup("#calc-field-ndStops");
-                assertTrue(nd.localToScene(nd.getBoundsInLocal()).getMinY()>shutter.localToScene(shutter.getBoundsInLocal()).getMinY(),"Fields must stack at minimum width");
+                for(var field:List.of(shutter,nd)){var bounds=field.localToScene(field.getBoundsInLocal());assertTrue(bounds.getWidth()>=160 && bounds.getMaxX()<=workspace.getScene().getWidth(),"Fields must stay usable and inside the window at minimum width");}
                 snapshot(workspace,"f08-nd-narrow");
                 ((ScrollPane)workspace.lookup(".content-scroll")).setVvalue(1);snapshot(workspace,"f08-nd-narrow-results");
                 ((ToggleButton)workspace.lookup("#nav-F01")).fire();assertFalse(pane.isVisible());

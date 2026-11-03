@@ -103,4 +103,24 @@ class BootstrapTest {
         }
         assertThrows(IllegalArgumentException.class, () -> new ApplicationBootstrap(Map.of("PHOTOPILOT_RANKING", "invalid", "PHOTOPILOT_DATA_DIR", temporary.resolve("data").toString(), "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString())));
     }
+
+    @Test void injectedLlmKeyIsRedactedAndEmptyContextSendsNoRequest() throws Exception {
+        try (ApplicationBootstrap bootstrap = new ApplicationBootstrap(Map.of(
+                "PHOTOPILOT_DATA_DIR", temporary.resolve("data").toString(),
+                "PHOTOPILOT_CONFIG_DIR", temporary.resolve("config").toString(),
+                "LLM_API_KEY", "offline-bootstrap-key"))) {
+            Object agent = field(bootstrap.facade().planning(), "agent");
+            LLMClient model = (LLMClient) field(agent, "model");
+            Object adapter = field(model, "delegate");
+            var configuration = (LLMConfiguration) field(adapter, "configuration");
+            assertEquals("offline-bootstrap-key", configuration.requireApiKey());
+            var result = model.complete(new AgentContext(UUID.randomUUID(), java.util.List.of(), "{}",
+                java.util.List.of(), java.util.Optional.empty()));
+            assertFalse(result.isSuccess());
+            assertTrue(result.value().isEmpty());
+            // Empty messages fail locally, before transport, so this offline test never reaches Gemini.
+            assertTrue(result.hasError("ai.error.emptyPrompt"));
+            assertFalse(result.errors().toString().contains("offline-bootstrap-key"));
+        }
+    }
 }

@@ -11,5 +11,11 @@ import com.photopilot.common.Result;
  */
 public interface LLMClient {
 
+    /**
+     * Future request/response boundary: context carries messages, verified evidence and approved images;
+     * ModelReply represents untrusted structured output, tool calls and clarification questions.
+     * Provider implementations must return explicit failures until integration is implemented.
+     * Credentials belong to injected configuration, never to request context or response data.
+     */
     public Result<ModelReply> complete(AgentContext context);
 }
