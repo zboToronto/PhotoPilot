@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 final class FeaturePane extends VBox {
     void dispose() {
         texts.close();
+        if (capability != null) capability.dispose();
         if (sessions != null) sessions.dispose();
         if (inventory != null) inventory.dispose();
         if (calculator != null) calculator.dispose();
@@ -35,6 +36,7 @@ final class FeaturePane extends VBox {
     private InventoryPane inventory;
     private CalculatorPane calculator;
     private SessionPane sessions;
+    private CapabilityPane capability;
 
     FeaturePane() { this(LocalizationService.english()); }
     FeaturePane(LocalizationService localization) {
@@ -74,6 +76,7 @@ final class FeaturePane extends VBox {
     }
 
     void suspendModules() {
+        if (capability != null) capability.activate(false);
         if (sessions != null) sessions.activate(false);
         if (inventory != null) inventory.activate(false);
         if (calculator != null) calculator.activate(false);
@@ -81,13 +84,15 @@ final class FeaturePane extends VBox {
 
     void show(FeaturePresentation selected) {
         feature = selected;
+        boolean analysis = selected.id().equals("F06") && capability != null;
+        if (capability != null) { capability.setVisible(analysis); capability.setManaged(analysis); capability.activate(analysis); }
         boolean gear = selected.id().equals("F05") && inventory != null;
         boolean calc = selected.id().equals("F08") && calculator != null;
         boolean session = selected.id().equals("F01") && sessions != null;
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        empty.setVisible(!gear && !calc && !session); empty.setManaged(!gear && !calc && !session);
-        actions.setVisible(!gear && !calc && !session); actions.setManaged(!gear && !calc && !session);
+        empty.setVisible(!gear && !calc && !session && !analysis); empty.setManaged(!gear && !calc && !session && !analysis);
+        actions.setVisible(!gear && !calc && !session && !analysis); actions.setManaged(!gear && !calc && !session && !analysis);
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
         texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
         texts.bind(title.textProperty(), () -> selected.title(localization));
@@ -104,6 +109,12 @@ final class FeaturePane extends VBox {
         texts.bind(status.textProperty(), () -> current.label(localization));
         texts.bind(status.accessibleTextProperty(), () -> localization.text("feature.statusAccessible", current.label(localization)));
         texts.text(emptyDescription.textProperty(), "feature.empty." + current.name());
+    }
+
+    void connectCapabilities(CapabilityPane capability) {
+        this.capability = capability; capability.setVisible(false); capability.setManaged(false);
+        var container = (VBox) empty.getParent();
+        container.getChildren().add(container.getChildren().indexOf(empty), capability);
     }
 
     void connectInventory(InventoryPane inventory) {
@@ -125,6 +136,7 @@ final class FeaturePane extends VBox {
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
+        if (selected.id().equals("F06")) { showFeedback(() -> localization.text("capability.scope")); return; }
         if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }

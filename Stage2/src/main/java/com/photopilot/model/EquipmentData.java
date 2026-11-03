@@ -36,7 +36,7 @@ public record EquipmentData(String type, String id, String brand, String model, 
             String b = brand.strip(), m = model.strip();
             Equipment item = switch (kind) {
                 case CAMERA -> new Camera(uuid,b,m,quantity,weight,verifiedFields,links,date,text("mount"),number("sensorWidthMm"),number("sensorHeightMm"),set("batteryTypes"),set("storageFormats"),number("resolutionMP"),number("burstFps"),bool("stabilization"),set("autofocusModes"));
-                case LENS -> new Lens(uuid,b,m,quantity,weight,verifiedFields,links,date,text("mount"),required("minFocalMm"),required("maxFocalMm"),required("maxAperture"),number("filterDiameterMm"),bool("autofocus"),bool("stabilization"));
+                case LENS -> new Lens(uuid,b,m,quantity,weight,verifiedFields,links,date,text("mount"),required("minFocalMm"),required("maxFocalMm"),required("maxAperture"),number("filterDiameterMm"),bool("autofocus"),bool("stabilization"),number("maxApertureAtMaxFocal"));
                 case FILTER -> new Filter(uuid,b,m,quantity,weight,verifiedFields,links,date,required("diameterMm"),number("ndStops"));
                 case BATTERY -> new Battery(uuid,b,m,quantity,weight,verifiedFields,links,date,text("batteryType"),required("capacityMah"),text("ratedShots").isEmpty() ? Optional.empty() : Optional.of(Integer.parseInt(text("ratedShots"))));
                 case STORAGEMEDIA -> new StorageMedia(uuid,b,m,quantity,weight,verifiedFields,links,date,text("format"),required("capacityGB"),number("writeSpeedMBps"));

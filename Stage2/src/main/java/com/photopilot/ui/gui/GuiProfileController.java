@@ -48,6 +48,7 @@ final class GuiProfileController implements AutoCloseable {
         sessions = new SessionPane(context.facade(), operations, language);
         inventory = new InventoryPane(context.facade(), operations, language);
         calculator = new CalculatorPane(context.facade(), operations, language);
+        workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
         workspace.connectSessions(sessions); workspace.connectInventory(inventory); workspace.connectCalculator(calculator);
         workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");

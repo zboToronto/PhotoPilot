@@ -172,6 +172,8 @@ final class PhotoPilotWorkspace extends BorderPane {
         return scroll;
     }
 
+    void connectCapabilities(CapabilityPane capability) { detail.connectCapabilities(capability); }
+
     void connectCalculator(CalculatorPane calculator) { detail.connectCalculator(calculator); }
     void connectSessions(SessionPane sessions) { detail.connectSessions(sessions); }
     void selectSessions() { navigation.get("F01").fire(); }
@@ -206,7 +208,7 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(localization.text("feature.status." + (entry.getKey().equals("F01") || entry.getKey().equals("F05") || entry.getKey().equals("F08") ? "IMPLEMENTED" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (entry.getKey().equals("F01") || entry.getKey().equals("F05") || entry.getKey().equals("F08") ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
@@ -214,6 +216,7 @@ final class PhotoPilotWorkspace extends BorderPane {
                 ? detail.inventoryConnected() ? localization.text("feature.inventoryReady")
                     : localization.text("feature.noWorkflow", "F05", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F08") ? localization.text("feature.calculatorReady", localization.text("feature.status.IMPLEMENTED"))
+                : entry.getKey().equals("F06") ? localization.text("capability.scope")
                     : localization.text("feature.unavailable", entry.getKey());
             if (!detail.feedbackText().equals(expected)) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());

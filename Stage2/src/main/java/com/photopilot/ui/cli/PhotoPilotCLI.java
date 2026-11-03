@@ -149,11 +149,14 @@ public class PhotoPilotCLI {
         if (command.equals("f01") || command.equals("session") || command.startsWith("session ")) {
             return new SessionCommands(app, output, localization).execute(command.equals("f01") ? "session list" : line.strip());
         }
+        if (command.equals("f06") || command.equals("capability") || command.startsWith("capability ")) {
+            return new CapabilityCommands(app, output, localization).execute(command.equals("f06") ? "capability all" : line);
+        }
         if (command.equals("f08") || command.equals("calc") || command.startsWith("calc ")) {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); if (profiles != null) output.println(localization.text("profile.cli.help")); }
+            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); if (profiles != null) output.println(localization.text("profile.cli.help")); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }

@@ -39,10 +39,12 @@ public class PhotoPilotFacade {
     private PlanningService planning;
     private ReviewService review;
     private TechnicalCalculator calculations;
+    private final com.photopilot.service.GearCapabilityService capabilities;
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations) {
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.inventory = Objects.requireNonNull(inventory, "inventory");
+        this.capabilities = new com.photopilot.service.GearCapabilityService(inventory);
         this.discovery = Objects.requireNonNull(discovery, "discovery");
         this.planning = Objects.requireNonNull(planning, "planning");
         this.review = Objects.requireNonNull(review, "review");
@@ -100,6 +102,8 @@ public class PhotoPilotFacade {
     public Result<PostShootReview> review(UUID id) {
         return review.review(id);
     }
+
+    public com.photopilot.service.GearCapabilityService capabilities() { return capabilities; }
 
     public SessionService sessions() {
         return sessions;
