@@ -97,6 +97,8 @@ final class SessionJson {
      * means "not specified"; only those exact absences are filled, so every other strictness check remains.
      */
     private static JsonObject withRequirementAdditions(JsonObject object) {
+        // F07 added an optional v1 selected loadout; older records simply have none.
+        if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
         if (!(object.get("requirements") instanceof JsonObject requirement)
                 || requirement.has("date") && requirement.has("timeWindow") && requirement.has("portability")) return object;
         JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("requirements");

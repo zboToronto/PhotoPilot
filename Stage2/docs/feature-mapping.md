@@ -144,11 +144,13 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Sequence and gaps:** SD03: compatibility and ranking.; Gap: no operation attaches a selected loadout; ranking strategy is assumed configured.
 
+**Implementation (2026-11-03):** gap resolved by `PlanningService.selectLoadout/selection` and the optional session field `selectedLoadout`; per-request strategy choice added; minimal manual F06 profile confirmation added. [Evidence, design changes and limits](f07-matching.md).
+
 **Patterns:** Facade: matching access.; Strategy: ranking policy.; Adapter: Gemini ranking.
 
 **Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [PlanningService](../src/main/java/com/photopilot/service/PlanningService.java), [PhotoPilotAgent](../src/main/java/com/photopilot/agent/PhotoPilotAgent.java), [LLMClient](../src/main/java/com/photopilot/integration/LLMClient.java), [GeminiAdapter](../src/main/java/com/photopilot/integration/GeminiAdapter.java), [EquipmentRequirementProfile](../src/main/java/com/photopilot/model/EquipmentRequirementProfile.java), [GearInventory](../src/main/java/com/photopilot/model/GearInventory.java), [GearMatchingService](../src/main/java/com/photopilot/service/GearMatchingService.java), [CompatibilityValidator](../src/main/java/com/photopilot/validation/CompatibilityValidator.java), [CompatibilityReport](../src/main/java/com/photopilot/model/CompatibilityReport.java), [LoadoutRankingStrategy](../src/main/java/com/photopilot/strategy/LoadoutRankingStrategy.java), [PortabilityRanking](../src/main/java/com/photopilot/strategy/PortabilityRanking.java), [CoverageRanking](../src/main/java/com/photopilot/strategy/CoverageRanking.java), [Loadout](../src/main/java/com/photopilot/model/Loadout.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** IMPLEMENTED / GUI + CLI VERIFIED (offline AI ranking; live Gemini requests reached labelled deterministic fallback). Selected loadouts are persisted and revalidated; F06 AI profile derivation remains unfinished.
 
 ## F08 Photography Technical Calculation Tool Suite
 
@@ -174,6 +176,8 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 ## F09 Location, Time, and Environment-Aware Photography Planning
 
+**Implementation update (2026-11-03):** Implemented through the SD03 chain with the reviewed-input overload `assessEnvironment(id, EnvironmentRequest)`; real Open-Meteo/sunrise-sunset.org data, place lookup, consent-only device path, NOAA light-phase estimates, Gemini interpretation and `checkTiming` validation; GUI `EnvironmentPane`, CLI `env`. Added participants: EnvironmentRequest, PlaceCandidate, PlaceLookupProvider, GeocodingAdapter, SolarCalculator, EnvironmentInterpretation, EnvironmentForm, EnvironmentPresentation, EnvironmentTool (retrieve only). [Workflow, providers, design changes, tests and limits](f09-environment.md).
+
 **Description:** Retrieve weather/sunlight evidence and recommend shooting windows and arrival times, labeling stale or missing data.
 
 **Type:** Hybrid
@@ -190,7 +194,7 @@ Authoritative source: Stage1.docx section 8, checked against corresponding repor
 
 **Skeleton files:** [PhotoPilotGUI](../src/main/java/com/photopilot/ui/gui/PhotoPilotGUI.java), [PhotoPilotFacade](../src/main/java/com/photopilot/application/PhotoPilotFacade.java), [PhotoPilotCLI](../src/main/java/com/photopilot/ui/cli/PhotoPilotCLI.java), [PlanningService](../src/main/java/com/photopilot/service/PlanningService.java), [PhotoPilotAgent](../src/main/java/com/photopilot/agent/PhotoPilotAgent.java), [LLMClient](../src/main/java/com/photopilot/integration/LLMClient.java), [GeminiAdapter](../src/main/java/com/photopilot/integration/GeminiAdapter.java), [FeasibilityValidator](../src/main/java/com/photopilot/validation/FeasibilityValidator.java), [ShootingWindow](../src/main/java/com/photopilot/model/ShootingWindow.java), [EnvironmentAssessment](../src/main/java/com/photopilot/model/EnvironmentAssessment.java), [EnvironmentService](../src/main/java/com/photopilot/service/EnvironmentService.java), [EnvironmentProvider](../src/main/java/com/photopilot/integration/EnvironmentProvider.java), [EnvironmentApiAdapter](../src/main/java/com/photopilot/integration/EnvironmentApiAdapter.java), [LocationService](../src/main/java/com/photopilot/service/LocationService.java), [EnvironmentContext](../src/main/java/com/photopilot/model/EnvironmentContext.java), [DeviceLocationProvider](../src/main/java/com/photopilot/integration/DeviceLocationProvider.java).
 
-**Status:** SCAFFOLDED / NOT IMPLEMENTED. No successful feature run is claimed.
+**Status:** IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; live provider and Gemini CLI runs). No desktop device-location provider exists, so device location reports unsupported; F10 consumption remains future work.
 
 ## F10 AI Shoot Plan Generation and Interactive Modification
 

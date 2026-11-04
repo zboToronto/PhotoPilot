@@ -20,14 +20,14 @@ public final class FeatureCatalog {
             "F09 " + EnglishMessages.text("catalog.F09"),
             "F10 " + EnglishMessages.text("catalog.F10"),
             "F11 " + EnglishMessages.text("catalog.F11")
-        ).stream().map(name -> name + (name.startsWith("F01 ") || name.startsWith("F03 ") || name.startsWith("F05 ") || name.startsWith("F08 ") ? " - IMPLEMENTED" : name.startsWith("F06 ") ? " - IN PROGRESS" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
+        ).stream().map(name -> name + (name.startsWith("F01 ") || name.startsWith("F03 ") || name.startsWith("F05 ") || name.startsWith("F07 ") || name.startsWith("F08 ") || name.startsWith("F09 ") ? " - IMPLEMENTED" : name.startsWith("F06 ") ? " - IN PROGRESS" : " - SCAFFOLDED / NOT IMPLEMENTED")).toList();
     }
 
     public static List<String> lines(LocalizationService localization) {
         return java.util.stream.IntStream.rangeClosed(1, 11).mapToObj(number -> {
             String id = "F%02d".formatted(number);
             return id + " " + localization.text("catalog." + id) + " - "
-                + localization.text(number == 6 ? "feature.status.IN_PROGRESS" : number == 1 || number == 3 || number == 5 || number == 8 ? "catalog.implemented" : "catalog.scaffolded");
+                + localization.text(number == 6 ? "feature.status.IN_PROGRESS" : number == 1 || number == 3 || number == 5 || number == 7 || number == 8 || number == 9 ? "catalog.implemented" : "catalog.scaffolded");
         }).toList();
     }
     public static String unavailable(String feature) {

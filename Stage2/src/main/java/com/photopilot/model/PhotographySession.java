@@ -30,10 +30,16 @@ public class PhotographySession {
     private Optional<EquipmentRequirementProfile> profile;
     private Optional<ExifStatistics> statistics;
     private List<ActivitySuggestion> savedIdeas;
+    /** F07 explicitly selected owned-gear loadout (immutable snapshots), consumed by F10. */
+    private Optional<Loadout> selectedLoadout;
     private transient String revision = "";
 
     public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas) {
-        this.id = Objects.requireNonNull(id, "id");
+        this(id, title, date, location, notes, createdAt, updatedAt, state, requirements, plans, reviews, profile, statistics, savedIdeas, Optional.empty());
+    }
+
+    public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas, Optional<Loadout> selectedLoadout) {
+        this.id =Objects.requireNonNull(id, "id");
         this.title = Objects.requireNonNull(title, "title");
         this.date = Objects.requireNonNull(date, "date");
         this.location = Objects.requireNonNull(location, "location");
@@ -47,6 +53,7 @@ public class PhotographySession {
         this.profile = Objects.requireNonNull(profile, "profile");
         this.statistics = Objects.requireNonNull(statistics, "statistics");
         this.savedIdeas = List.copyOf(savedIdeas);
+        this.selectedLoadout = Objects.requireNonNull(selectedLoadout, "selectedLoadout");
     }
 
     public Result<PhotographySession> apply(SessionEvent event) {
@@ -72,11 +79,12 @@ public class PhotographySession {
     public Optional<EquipmentRequirementProfile> profile() { return profile; }
     public Optional<ExifStatistics> statistics() { return statistics; }
     public List<ActivitySuggestion> savedIdeas() { return List.copyOf(savedIdeas); }
+    public Optional<Loadout> selectedLoadout() { return selectedLoadout == null ? Optional.empty() : selectedLoadout; }
     public String revision() { return revision == null ? "" : revision; }
     /** Repository revision token; callers cannot bypass the persisted-content comparison. */
     public PhotographySession withRevision(String revision) {
         var copy = new PhotographySession(id, title, date, location, notes, createdAt, updatedAt,
-            state, requirements, plans, reviews, profile, statistics, savedIdeas);
+            state, requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout);
         copy.revision = Objects.requireNonNull(revision);
         return copy;
     }
@@ -87,14 +95,14 @@ public class PhotographySession {
         Instant now = Instant.now();
         if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
         return new PhotographySession(id, title, date, location, notes, createdAt, now, state,
-            requirements, plans, reviews, profile, statistics, savedIdeas).withRevision(revision());
+            requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision());
     }
     public Result<PhotographySession> validate() {
         if (id == null || title == null || title.isBlank() || title.length() > 200 || date == null
                 || notes == null || notes.length() > 20000 || location == null || state == null
                 || createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt)
                 || requirements == null || plans == null || reviews == null || profile == null
-                || statistics == null || savedIdeas == null)
+                || statistics == null || savedIdeas == null || selectedLoadout == null)
             return Result.failureKey("error.session.details");
         if (location.isPresent() && !location.get().validate().isSuccess()) return Result.failure(location.get().validate());
         if (!java.util.Set.of("DRAFT", "PLANNED", "COMPLETED", "REVIEWED").contains(status()))
@@ -127,11 +135,33 @@ public class PhotographySession {
         Instant now = Instant.now();
         if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, now, state,
-            Optional.of(requirement), plans, reviews, profile, statistics, savedIdeas).withRevision(revision()));
+            Optional.of(requirement), plans, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
     }
 
-    public void attachProfile(EquipmentRequirementProfile profile) {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.attachProfile");
+    /**
+     * F06 (minimal confirmation path): copy carrying a reviewed capability profile. Like attachRequirement it returns
+     * a Result copy instead of mutating; historical sessions keep their profile. An existing F07 selection is kept and
+     * re-evaluated against the new profile whenever it is displayed or reselected.
+     */
+    public Result<PhotographySession> attachProfile(EquipmentRequirementProfile profile) {
+        if (profile == null || !profile.reviewed()) return Result.failureKey("needs.error.unconfirmed");
+        if (!profile.problems().isEmpty()) return Result.failures(profile.problems());
+        if (!state.canEditPlan()) return Result.failureKey("needs.error.historical");
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, reviews, Optional.of(profile), statistics, savedIdeas, selectedLoadout).withRevision(revision()));
+    }
+
+    /** F07: copy carrying an explicitly selected, already revalidated loadout; replacement policy belongs to the caller. */
+    public Result<PhotographySession> attachSelectedLoadout(Loadout loadout) {
+        if (loadout == null) return Result.failureKey("match.error.noSelection");
+        if (!loadout.compatibility().isUsable()) return Result.failureKey("match.error.notUsable");
+        if (!state.canEditPlan()) return Result.failureKey("match.error.historical");
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, reviews, profile, statistics, savedIdeas, Optional.of(loadout)).withRevision(revision()));
+    }
+    private Instant next() {
+        Instant now = Instant.now();
+        return now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1);
     }
 
     public void attachStatistics(ExifStatistics stats) {

@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Stage 1 UML element 59 (zero-based): {unknown is not compatible; partial needs explicit}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * UC14 result. Texts are English historical evidence; presentation re-runs the validator for localized findings.
  */
 public class CompatibilityReport {
     private boolean compatible;
@@ -19,7 +19,17 @@ public class CompatibilityReport {
         this.unmetNeeds = List.copyOf(unmetNeeds);
     }
 
+    /** Physically verified: no rule conflict and no unverifiable relationship. Unknown never counts as compatible. */
     public boolean isUsable() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: CompatibilityReport.isUsable");
+        return compatible && unverified.isEmpty() && violations.isEmpty();
     }
+
+    /** Usable and every capability need (and loadout essential) is met. */
+    public boolean fullySuitable() { return isUsable() && unmetNeeds.isEmpty(); }
+
+    public CompatibilityReport withUnmetNeeds(List<String> needs) { return new CompatibilityReport(compatible, unverified, violations, needs); }
+    public boolean compatible() { return compatible; }
+    public List<String> unverified() { return unverified; }
+    public List<String> violations() { return violations; }
+    public List<String> unmetNeeds() { return unmetNeeds; }
 }

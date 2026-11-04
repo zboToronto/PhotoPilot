@@ -20,7 +20,9 @@ import com.photopilot.validation.PlanValidator;
 
 /**
  * Stage 1 UML element 6 (zero-based): {F03, F06-F10; workflow coordination}
- * F03 parse/clarify/confirm/retrieve are implemented; F06-F10 operations remain NOT IMPLEMENTED.
+ * F03 parse/clarify/confirm/retrieve, F07 match/select/selection and F09 assessEnvironment are implemented, with the
+ * minimal deterministic F06 confirmProfile/profile path they depend on. F06 analyzeNeeds (AI derivation) and F10
+ * remain NOT IMPLEMENTED.
  */
 public class PlanningService {
     private RequirementService requirements;
@@ -99,16 +101,174 @@ public class PlanningService {
         return Result.failureKey("error.notImplemented", "PlanningService.analyzeNeeds");
     }
 
+    /**
+     * F06 minimal confirmation path (no AI): validates manually entered capability needs deterministically and
+     * against the session's confirmed requirement, then saves the reviewed profile atomically.
+     */
     public Result<EquipmentRequirementProfile> confirmProfile(UUID id, EquipmentRequirementProfile edited) {
-        return Result.failureKey("error.notImplemented", "PlanningService.confirmProfile");
+        var session = sessions.find(id);
+        return session.isSuccess() ? confirmProfile(session.value().orElseThrow(), edited) : Result.failure(session);
+    }
+
+    /** Confirms against the reviewed session version; a concurrent change is rejected by the revision check. */
+    public Result<EquipmentRequirementProfile> confirmProfile(PhotographySession expected, EquipmentRequirementProfile edited) {
+        if (expected == null) return Result.failureKey("error.session.id");
+        if (!expected.state().canEditPlan()) return Result.failureKey("needs.error.historical");
+        var requirement = expected.requirements().filter(ShootRequirement::confirmed);
+        if (requirement.isEmpty()) return Result.failureKey("needs.error.requirement");
+        var structural = requirements.validateProfile(edited);
+        if (!structural.isSuccess()) return structural;
+        var consistent = edited.validate(requirement.get());
+        if (!consistent.isSuccess()) return consistent;
+        var confirmed = edited.confirm();
+        if (!confirmed.isSuccess()) return confirmed;
+        var attached = expected.attachProfile(confirmed.value().orElseThrow());
+        if (!attached.isSuccess()) return Result.failure(attached);
+        var saved = sessions.save(attached.value().orElseThrow());
+        if (!saved.isSuccess()) return Result.failure(saved);
+        return saved.value().orElseThrow().profile().map(Result::success).orElseGet(() -> Result.failureKey("needs.error.none"));
+    }
+
+    /** Confirmed capability profile for F07/F10; unreviewed profiles are never returned. */
+    public Result<EquipmentRequirementProfile> profile(UUID id) {
+        var session = sessions.find(id);
+        if (!session.isSuccess()) return Result.failure(session);
+        return session.value().orElseThrow().profile().filter(EquipmentRequirementProfile::reviewed).map(Result::success)
+            .orElseGet(() -> Result.failureKey("needs.error.none"));
     }
 
     public Result<List<Loadout>> matchGear(UUID id) {
-        return Result.failureKey("error.notImplemented", "PlanningService.matchGear");
+        var report = matchGear(id, matching.defaultStrategy());
+        return report.isSuccess() ? Result.success(report.value().orElseThrow().recommendations().stream()
+            .map(com.photopilot.model.GearMatchReport.Candidate::loadout).toList()) : Result.failure(report);
     }
 
+    /** F07/UC07: confirmed profile + current F05 inventory -> UC14-verified, ranked candidates. Nothing is saved. */
+    public Result<com.photopilot.model.GearMatchReport> matchGear(UUID id, String strategy) {
+        if (id == null) return Result.failureKey("error.session.id");
+        var found = sessions.find(id);
+        if (!found.isSuccess()) return Result.failure(found);
+        var session = found.value().orElseThrow();
+        if (!session.state().canEditPlan()) return Result.failureKey("match.error.historical");
+        var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
+        if (profile.isEmpty()) return Result.failureKey("needs.error.none");
+        var gear = inventory.load();
+        if (!gear.isSuccess()) return Result.failure(gear);
+        return matching.analyze(profile.get(), gear.value().orElseThrow(), strategy, shootContext(session));
+    }
+
+    public Result<Loadout> selectLoadout(UUID id, Loadout selected) {
+        var session = sessions.find(id);
+        return session.isSuccess() ? selectLoadout(session.value().orElseThrow(), selected, false) : Result.failure(session);
+    }
+
+    /**
+     * Explicit F07 selection. Revalidates everything against current data before the atomic save: the candidate must
+     * still be generated from the current inventory (unknown/stale IDs are rejected), every item must be owned and
+     * unchanged, UC14 must verify it, and needs are re-evaluated against the current profile. An existing selection
+     * is replaced only when {@code replace} is true. Success is reported only after the save succeeded.
+     */
+    public Result<Loadout> selectLoadout(PhotographySession expected, Loadout selected, boolean replace) {
+        if (expected == null) return Result.failureKey("error.session.id");
+        if (selected == null) return Result.failureKey("match.error.noSelection");
+        if (!expected.state().canEditPlan()) return Result.failureKey("match.error.historical");
+        if (expected.selectedLoadout().isPresent() && !replace) return Result.failureKey("match.error.alreadySelected");
+        var profile = expected.profile().filter(EquipmentRequirementProfile::reviewed);
+        if (profile.isEmpty()) return Result.failureKey("needs.error.none");
+        var loaded = inventory.load();
+        if (!loaded.isSuccess()) return Result.failure(loaded);
+        var gear = loaded.value().orElseThrow();
+        var unavailable = matching.validator().availability(selected, gear);
+        if (!unavailable.isEmpty()) return Result.failures(unavailable);
+        if (!GearMatchingService.candidateId(selected.gear()).equals(selected.id())) return Result.failureKey("match.error.staleCandidate");
+        var current = matching.compatibleCandidates(gear);
+        if (!current.isSuccess()) return Result.failure(current);
+        var fresh = current.value().orElseThrow().stream().filter(l -> l.id().equals(selected.id())).findFirst();
+        if (fresh.isEmpty()) return Result.failureKey("match.error.staleCandidate");
+        var check = matching.validator().assess(fresh.get());
+        if (!check.usable()) {
+            var problems = new java.util.ArrayList<>(check.violations()); problems.addAll(check.unverified());
+            return Result.failures(problems);
+        }
+        var evaluated = matching.evaluate(fresh.get(), profile.get()).loadout();
+        var attached = expected.attachSelectedLoadout(evaluated);
+        if (!attached.isSuccess()) return Result.failure(attached);
+        var saved = sessions.save(attached.value().orElseThrow());
+        if (!saved.isSuccess()) return Result.failure(saved);
+        return saved.value().orElseThrow().selectedLoadout().map(Result::success).orElseGet(() -> Result.failureKey("match.error.noSavedSelection"));
+    }
+
+    /** Saved selection re-checked against the current inventory and profile (read-only; usable by F10). */
+    public Result<com.photopilot.model.GearMatchReport.SelectionStatus> selection(UUID id) {
+        var found = sessions.find(id);
+        if (!found.isSuccess()) return Result.failure(found);
+        var session = found.value().orElseThrow();
+        var saved = session.selectedLoadout();
+        if (saved.isEmpty()) return Result.failureKey("match.error.noSavedSelection");
+        var gear = inventory.load();
+        if (!gear.isSuccess()) return Result.failure(gear);
+        var check = matching.validator().assess(saved.get());
+        var compatibility = new java.util.ArrayList<>(check.violations()); compatibility.addAll(check.unverified());
+        var evaluation = matching.evaluate(saved.get(), session.profile().filter(EquipmentRequirementProfile::reviewed).orElse(null));
+        return Result.success(new com.photopilot.model.GearMatchReport.SelectionStatus(saved.get(), evaluation, compatibility,
+            matching.validator().availability(saved.get(), gear.value().orElseThrow())));
+    }
+
+    /** Ranking strategies available to GUI and CLI; the first is the configured default. */
+    public List<String> rankingStrategies() {
+        var names = new java.util.ArrayList<>(matching.strategies());
+        names.remove(matching.defaultStrategy()); names.addFirst(matching.defaultStrategy());
+        return names;
+    }
+
+    /** Short, non-identifying shoot context for AI comparison: subject, priorities and portability wording only. */
+    private static String shootContext(PhotographySession session) {
+        return session.requirements().filter(ShootRequirement::confirmed).map(r -> {
+            var parts = new java.util.ArrayList<String>();
+            if (!r.subject().isBlank()) parts.add("subject: " + r.subject());
+            if (!r.priorities().isEmpty()) parts.add("priorities: " + r.priorities());
+            if (!r.portability().isBlank()) parts.add("portability: " + r.portability());
+            r.lensChangesAllowed().ifPresent(allowed -> parts.add("lens changes " + (allowed ? "allowed" : "to be avoided")));
+            return String.join("; ", parts);
+        }).orElse("");
+    }
+
+    /** Stage 1 SD03 entry: assessment from the confirmed requirement alone (it must carry coordinates and a start time). */
     public Result<EnvironmentAssessment> assessEnvironment(UUID id) {
-        return Result.failureKey("error.notImplemented", "PlanningService.assessEnvironment");
+        var session = environmentSession(id);
+        if (!session.isSuccess()) return Result.failure(session);
+        var requirement = session.value().orElseThrow().requirements().filter(ShootRequirement::confirmed);
+        if (requirement.isEmpty()) return Result.failureKey("env.error.needsInput", "confirmed requirement (F03) or reviewed F09 inputs");
+        return environment.assess(requirement.get());
+    }
+
+    /**
+     * F09/UC09 with the location, date and availability the user reviewed. Reads the session and its confirmed F03
+     * requirement (never modified); returns a validated assessment for display or later F10 use. Nothing is saved.
+     */
+    public Result<EnvironmentAssessment> assessEnvironment(UUID id, com.photopilot.model.EnvironmentRequest request) {
+        var found = environmentSession(id);
+        if (!found.isSuccess()) return Result.failure(found);
+        var session = found.value().orElseThrow();
+        var assessed = environment.assess(session.requirements().filter(ShootRequirement::confirmed).orElse(null), request);
+        if (!assessed.isSuccess() || request == null || request.date() == null || session.date().equals(request.date())) return assessed;
+        return Result.success(assessed.value().orElseThrow().withNotices(List.of(com.photopilot.i18n.LocalizedMessage.of(
+            "env.notice.sessionDate", session.date().toString(), request.date().toString()))));
+    }
+
+    /** Location selection (manual, consented device, place lookup) shared by the F09 GUI and CLI. */
+    public LocationService location() { return environment.location(); }
+
+    /** Evidence groups of an earlier assessment that are stale now; F10 must reassess before relying on them. */
+    public java.util.Set<String> environmentStaleFields(EnvironmentAssessment assessment) {
+        return assessment == null ? java.util.Set.of() : environment.staleFields(assessment.context());
+    }
+
+    private Result<PhotographySession> environmentSession(UUID id) {
+        if (id == null) return Result.failureKey("error.session.id");
+        var session = sessions.find(id);
+        if (!session.isSuccess()) return session;
+        return session.value().orElseThrow().state().canEditPlan() ? session : Result.failureKey("env.error.historical");
     }
 
     public Result<ShootPlan> generate(UUID id) {

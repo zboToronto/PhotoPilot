@@ -97,6 +97,11 @@ public class PhotoPilotFacade {
         return planning.assessEnvironment(id);
     }
 
+    /** F09 with the location, date and availability the user reviewed; location selection is under planning().location(). */
+    public Result<EnvironmentAssessment> assessEnvironment(UUID id, com.photopilot.model.EnvironmentRequest request) {
+        return planning.assessEnvironment(id, request);
+    }
+
     public Result<ShootPlan> generatePlan(UUID id) {
         return planning.generate(id);
     }

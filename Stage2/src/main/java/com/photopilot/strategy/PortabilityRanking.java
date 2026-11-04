@@ -1,24 +1,26 @@
 package com.photopilot.strategy;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.Comparator;
 import com.photopilot.agent.PhotoPilotAgent;
-import com.photopilot.common.Result;
-import com.photopilot.model.EquipmentRequirementProfile;
-import com.photopilot.model.Loadout;
 
 /**
  * Stage 1 UML element 61 (zero-based): {AI Concrete Strategy; prioritize carrying weight}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * After suitability: lowest verified total weight (unknown weight last), then fewest items and lenses.
  */
-public class PortabilityRanking implements LoadoutRankingStrategy {
-    private PhotoPilotAgent agent;
+public class PortabilityRanking extends AiAssistedRanking {
 
     public PortabilityRanking(PhotoPilotAgent agent) {
-        this.agent = Objects.requireNonNull(agent, "agent");
+        super(agent);
     }
 
-    public Result<List<Loadout>> rank(List<Loadout> candidates, EquipmentRequirementProfile profile) {
-        return Result.failureKey("error.notImplemented", "PortabilityRanking.rank");
+    public String name() { return "portability"; }
+
+    Comparator<Metrics> priorityOrder() {
+        return Comparator.comparingDouble(Metrics::weightOrMax).thenComparingInt(Metrics::itemUnits)
+            .thenComparingInt(Metrics::lensUnits).thenComparing(Comparator.comparingDouble(Metrics::focalSpan).reversed());
+    }
+
+    String priorityInstruction() {
+        return "portability: minimize verified carried weight, number of items and lens changes while meeting mandatory needs";
     }
 }

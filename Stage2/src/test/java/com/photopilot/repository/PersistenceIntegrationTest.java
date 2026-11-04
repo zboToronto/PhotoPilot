@@ -119,7 +119,12 @@ class PersistenceIntegrationTest {
         try { ready(process, signal); assertArrayEquals(original, Files.readAllBytes(file)); }
         finally { stop(process); }
         assertEquals("Committed", ok(sessions().find(session.id())).title());
-        assertTrue(sessions().save(session.edit("Retry", session.date(), session.location(), "")).isSuccess());
+        // Windows releases a terminated process's file locks asynchronously (LockFileEx), so retry "busy" briefly.
+        var retried = sessions().save(session.edit("Retry", session.date(), session.location(), ""));
+        for (long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5); retried.hasError("error.session.busy") && System.nanoTime() < deadline; ) {
+            Thread.sleep(50); retried = sessions().save(session.edit("Retry", session.date(), session.location(), ""));
+        }
+        assertTrue(retried.isSuccess(), retried.errors()::toString);
         assertEquals("Retry", ok(sessions().find(session.id())).title());
     }
     @Test void unrelatedSessionWriteInAnotherJvmDoesNotInvalidateUnchangedRecordRevision() throws Exception {

@@ -185,6 +185,10 @@ final class PhotoPilotWorkspace extends BorderPane {
     void selectSessions() { navigation.get("F01").fire(); }
     void connectRequirements(RequirementPane requirements) { detail.connectRequirements(requirements); }
     void selectRequirements() { navigation.get("F03").fire(); }
+    void connectMatching(GearMatchPane matching) { detail.connectMatching(matching); }
+    void selectMatching() { navigation.get("F07").fire(); }
+    void connectEnvironment(EnvironmentPane environment) { detail.connectEnvironment(environment); }
+    void selectEnvironment() { navigation.get("F09").fire(); }
 
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
 
@@ -222,7 +226,7 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F03", "F05", "F08").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F03", "F05", "F07", "F08", "F09").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
@@ -232,6 +236,10 @@ final class PhotoPilotWorkspace extends BorderPane {
                     : localization.text("feature.noWorkflow", "F05", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F08") ? localization.text("feature.calculatorReady", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F06") ? localization.text("capability.scope")
+                : entry.getKey().equals("F07") ? detail.matchingConnected() ? localization.text("match.ready")
+                    : localization.text("feature.noWorkflow", "F07", localization.text("feature.status.IMPLEMENTED"))
+                : entry.getKey().equals("F09") ? detail.environmentConnected() ? localization.text("env.ready")
+                    : localization.text("feature.noWorkflow", "F09", localization.text("feature.status.IMPLEMENTED"))
                     : localization.text("feature.unavailable", entry.getKey());
             if (!detail.feedbackText().equals(expected)) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());

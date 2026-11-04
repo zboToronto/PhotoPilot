@@ -75,13 +75,19 @@ public final class ApplicationBootstrap implements AutoCloseable {
         TechnicalCalculator calculator = new TechnicalCalculator();
         CompatibilityValidator compatibility = new CompatibilityValidator();
         FeasibilityValidator feasibility = new FeasibilityValidator();
-        LoadoutRankingStrategy ranking = preference.equals("coverage")
-            ? new CoverageRanking(agent) : new PortabilityRanking(agent);
-        GearMatchingService matching = new GearMatchingService(compatibility, ranking);
+        LoadoutRankingStrategy portability = new PortabilityRanking(agent), coverage = new CoverageRanking(agent);
+        LoadoutRankingStrategy ranking = preference.equals("coverage") ? coverage : portability;
+        // The configured strategy is the default; the other remains selectable per F07 request in GUI and CLI.
+        GearMatchingService matching = new GearMatchingService(compatibility, ranking, java.util.List.of(portability, coverage));
+        // F09 providers are free and key-less; endpoints are overridable (tests use loopback fakes). Nothing is sent here.
+        // No desktop device-location provider exists, so device location reports unsupported and manual entry remains.
+        Duration providerTimeout = Duration.ofSeconds(15);
         EnvironmentService environmentService = new EnvironmentService(
-            new EnvironmentApiAdapter(URI.create("https://unconfigured.invalid/weather"),
-                URI.create("https://unconfigured.invalid/sun"), http),
-            new LocationService(Optional.empty()), agent, feasibility);
+            new EnvironmentApiAdapter(endpoint(environment, "PHOTOPILOT_WEATHER_ENDPOINT", EnvironmentApiAdapter.DEFAULT_WEATHER_ENDPOINT),
+                endpoint(environment, "PHOTOPILOT_SUN_ENDPOINT", EnvironmentApiAdapter.DEFAULT_SUN_ENDPOINT), http, providerTimeout, java.time.Clock.systemUTC()),
+            new LocationService(Optional.empty(), Optional.of(new GeocodingAdapter(
+                endpoint(environment, "PHOTOPILOT_GEOCODING_ENDPOINT", GeocodingAdapter.DEFAULT_ENDPOINT), http, providerTimeout)), java.time.Clock.systemUTC()),
+            agent, feasibility);
         EquipmentSpecificationProvider specifications = new EquipmentCatalogAdapter(
             URI.create("https://unconfigured.invalid/equipment"), http);
         PlanValidator validator = new PlanValidator(compatibility, calculator);
@@ -98,6 +104,14 @@ public final class ApplicationBootstrap implements AutoCloseable {
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
             new ReviewService(new ExifLibraryAdapter(Set.of()), new StatisticsCalculator(), agent, sessions),
             calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel));
+    }
+
+    private static URI endpoint(Map<String, String> environment, String name, URI fallback) {
+        String value = environment.getOrDefault(name, "");
+        if (value.isBlank()) return fallback;
+        URI uri = URI.create(value.strip());
+        if (!"https".equals(uri.getScheme()) && !"http".equals(uri.getScheme())) throw new IllegalArgumentException(name + " must be an http(s) URL");
+        return uri;
     }
 
     public PhotoPilotFacade facade() { return facade; }

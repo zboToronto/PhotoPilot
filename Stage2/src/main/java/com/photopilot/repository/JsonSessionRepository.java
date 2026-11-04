@@ -99,8 +99,8 @@ public class JsonSessionRepository implements SessionRepository {
     public Result<List<UUID>> referencingGear(UUID id) {
         if (id == null) return Result.failureKey("error.gear.idRequired");
         var sessions = search(""); if (!sessions.isSuccess()) return Result.failure(sessions);
-        return Result.success(sessions.value().orElseThrow().stream().filter(s -> s.plans().stream()
-            .flatMap(p -> p.loadout().stream()).flatMap(l -> l.gear().stream()).anyMatch(g -> g.sourceGearId().equals(id)))
+        return Result.success(sessions.value().orElseThrow().stream().filter(s -> java.util.stream.Stream.concat(s.plans().stream()
+            .flatMap(p -> p.loadout().stream()), s.selectedLoadout().stream()).flatMap(l -> l.gear().stream()).anyMatch(g -> g.sourceGearId().equals(id)))
             .map(PhotographySession::id).toList());
     }
     private static int index(List<PhotographySession> items, UUID id) {

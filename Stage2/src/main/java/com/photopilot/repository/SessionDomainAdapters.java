@@ -32,7 +32,8 @@ final class SessionDomainAdapters {
                 read(o, "reviews", c, new TypeToken<List<PostShootReview>>() {}),
                 read(o, "profile", c, new TypeToken<Optional<EquipmentRequirementProfile>>() {}),
                 read(o, "statistics", c, new TypeToken<Optional<ExifStatistics>>() {}),
-                read(o, "savedIdeas", c, new TypeToken<List<ActivitySuggestion>>() {}));
+                read(o, "savedIdeas", c, new TypeToken<List<ActivitySuggestion>>() {}),
+                read(o, "selectedLoadout", c, new TypeToken<Optional<Loadout>>() {}));
         });
         builder.registerTypeAdapter(ShootRequirement.class, (JsonDeserializer<ShootRequirement>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();

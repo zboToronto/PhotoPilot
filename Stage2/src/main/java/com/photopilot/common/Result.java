@@ -60,6 +60,8 @@ public class Result<T> {
         return result;
     }
     public List<String> errors(LocalizationService localization) { return messages.stream().map(message -> message.render(localization)).toList(); }
+    /** Locale-neutral failure descriptors, e.g. to carry a provider failure into a later notice. */
+    public List<LocalizedMessage> messages() { return messages; }
     public boolean hasError(String key) { return messages.stream().anyMatch(message -> message.key().equals(key)); }
 
     public Optional<T> value() { return value; }

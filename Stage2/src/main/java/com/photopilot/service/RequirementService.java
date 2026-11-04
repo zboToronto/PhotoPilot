@@ -15,7 +15,8 @@ import com.photopilot.model.ShootRequirement;
 /**
  * Stage 1 UML element 35 (zero-based): {F03, F06; AI interpretation, deterministic gates}
  * F03: the agent interprets text into an untrusted draft; this service converts it without inventing values,
- * and confirmation is a separate deterministic step. F06 profile derivation remains NOT IMPLEMENTED.
+ * and confirmation is a separate deterministic step. F06 validateProfile is implemented for manually entered
+ * capability profiles; AI profile derivation (deriveProfile) remains NOT IMPLEMENTED.
  */
 public class RequirementService {
     public static final int MAX_REQUEST = 4000;
@@ -100,8 +101,11 @@ public class RequirementService {
         return Result.failureKey("error.notImplemented", "RequirementService.deriveProfile");
     }
 
+    /** F06 deterministic gate used by the minimal confirmation path: structural checks of the capability needs. */
     public Result<EquipmentRequirementProfile> validateProfile(EquipmentRequirementProfile profile) {
-        return Result.failureKey("error.notImplemented", "RequirementService.validateProfile");
+        if (profile == null) return Result.failureKey("needs.error.none");
+        var found = profile.problems();
+        return found.isEmpty() ? Result.success(profile) : Result.failures(found);
     }
 
     private String evidence(ShootRequirement draft) {

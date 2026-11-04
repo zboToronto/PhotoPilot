@@ -8,7 +8,8 @@ import java.util.UUID;
 
 /**
  * Stage 1 UML element 63 (zero-based): {F07; immutable selected quantities and evidence}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Owned-gear combination built from inventory snapshots. Camera-to-lens assignments record the lens mounted on
+ * one body of each camera record; other lenses travel in the bag.
  */
 public class Loadout {
     private final UUID id;
@@ -33,8 +34,28 @@ public class Loadout {
             throw new IllegalArgumentException("Assignment refers to gear outside the loadout.");
     }
 
+    /** Sum of recorded unit weights times selected quantities; unknown if any item has no recorded weight. */
     public Optional<Double> totalWeightGrams() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: Loadout.totalWeightGrams");
+        double total = 0;
+        for (GearSnapshot item : gear) {
+            String weight = item.specs().get("weightGrams");
+            if (weight == null) return Optional.empty();
+            try { total += Double.parseDouble(weight) * item.selectedQuantity(); }
+            catch (NumberFormatException unreadable) { return Optional.empty(); }
+        }
+        return Double.isFinite(total) ? Optional.of(total) : Optional.empty();
     }
+
+    /** Same combination with a fresh evaluation. */
+    public Loadout withEvaluation(CompatibilityReport report, List<String> tradeOffs) {
+        return new Loadout(id, gear, cameraLensAssignments, report, tradeOffs, report.unmetNeeds());
+    }
+    public List<GearSnapshot> ofType(EquipmentType type) { return gear.stream().filter(item -> item.type().equals(type.name())).toList(); }
+    public int units(EquipmentType type) { return ofType(type).stream().mapToInt(GearSnapshot::selectedQuantity).sum(); }
+    public UUID id() { return id; }
     public List<GearSnapshot> gear() { return List.copyOf(gear); }
+    public Map<UUID, UUID> cameraLensAssignments() { return cameraLensAssignments; }
+    public CompatibilityReport compatibility() { return compatibility; }
+    public List<String> tradeOffs() { return tradeOffs; }
+    public List<String> unmetNeeds() { return unmetNeeds; }
 }

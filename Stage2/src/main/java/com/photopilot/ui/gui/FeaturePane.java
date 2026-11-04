@@ -16,6 +16,8 @@ final class FeaturePane extends VBox {
         if (capability != null) capability.dispose();
         if (sessions != null) sessions.dispose();
         if (requirements != null) requirements.dispose();
+        if (matching != null) matching.dispose();
+        if (environment != null) environment.dispose();
         if (inventory != null) inventory.dispose();
         if (calculator != null) calculator.dispose();
     }
@@ -40,6 +42,8 @@ final class FeaturePane extends VBox {
     private SessionPane sessions;
     private RequirementPane requirements;
     private CapabilityPane capability;
+    private GearMatchPane matching;
+    private EnvironmentPane environment;
 
     FeaturePane() { this(LocalizationService.english()); }
     FeaturePane(LocalizationService localization) {
@@ -84,6 +88,8 @@ final class FeaturePane extends VBox {
         if (capability != null) capability.activate(false);
         if (sessions != null) sessions.activate(false);
         if (requirements != null) requirements.activate(false);
+        if (matching != null) matching.activate(false);
+        if (environment != null) environment.activate(false);
         if (inventory != null) inventory.activate(false);
         if (calculator != null) calculator.activate(false);
     }
@@ -96,10 +102,14 @@ final class FeaturePane extends VBox {
         boolean calc = selected.id().equals("F08") && calculator != null;
         boolean session = selected.id().equals("F01") && sessions != null;
         boolean requirement = selected.id().equals("F03") && requirements != null;
+        boolean match = selected.id().equals("F07") && matching != null;
+        boolean env = selected.id().equals("F09") && environment != null;
+        if (matching != null) { matching.setVisible(match); matching.setManaged(match); matching.activate(match); }
+        if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        boolean placeholder = !gear && !calc && !session && !analysis && !requirement;
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env;
         empty.setVisible(placeholder); empty.setManaged(placeholder);
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
@@ -148,12 +158,24 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+    void connectMatching(GearMatchPane matching) {
+        this.matching = matching; matching.setVisible(false); matching.setManaged(false); body.getChildren().add(1, matching);
+        if (feature != null) show(feature);
+    }
+
+    void connectEnvironment(EnvironmentPane environment) {
+        this.environment = environment; environment.setVisible(false); environment.setManaged(false); body.getChildren().add(1, environment);
+        if (feature != null) show(feature);
+    }
+
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
         if (selected.id().equals("F06")) { showFeedback(() -> localization.text("capability.scope")); return; }
         if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
         if (selected.id().equals("F03")) { showFeedback(() -> localization.text("requirement.ready")); return; }
+        if (selected.id().equals("F07") && matching != null) { showFeedback(() -> localization.text("match.ready")); return; }
+        if (selected.id().equals("F09") && environment != null) { showFeedback(() -> localization.text("env.ready")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED
@@ -173,6 +195,8 @@ final class FeaturePane extends VBox {
     Button checkStatusButton() { return checkStatus; }
     boolean workflowDisabled() { return workflow.isDisabled(); }
     boolean inventoryConnected() { return inventory != null; }
+    boolean matchingConnected() { return matching != null; }
+    boolean environmentConnected() { return environment != null; }
 
     static Label label(String text, String style) {
         Label label = new Label(text);

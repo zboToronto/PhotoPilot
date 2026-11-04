@@ -132,6 +132,36 @@ Data is stored in `<root>/profiles/<selected-uuid>/inventory.json`; root default
 
 The historical F05 verification contained **36 passing tests** (Windows, JDK 21, 2026-10-26), including real JavaFX controls; the current full-suite count is listed in Language settings above. A graphical desktop is required for the full suite. Headless service/CLI runs may use `-Dtest=BootstrapTest,FeaturePresentationTest,InventoryTest,InventoryCliTest`; this excludes GUI acceptance and must not be reported as full verification. See [F05 evidence and known limits](docs/f05-inventory.md).
 
+## F07 gear matching and compatibility (UC07 + UC14)
+
+Open **Equipment > Compatibility Check**, choose a Draft or Planned session with confirmed F03 requirements, select **Enter capability needs**, add needs (for example focal length 100–600 mm, 2 camera bodies) and **Confirm and save profile**. This is the minimal manual F06 confirmation path; F06 AI capability analysis is still unavailable. Choose **Portability** or **Coverage** and select **Match My Gear**. Every combination of owned gear is checked by deterministic UC14 rules (mount, filter thread, battery type, storage format, quantities). Unknown specifications count as unverified, never compatible. Only verified loadouts are ranked. Gemini may reorder and explain them; if it fails, a clearly labelled deterministic ranking is shown. **Select this loadout** and confirm to save it to the session. The selection is revalidated against current inventory first. The CLI offers the same workflow:
+
+```text
+match profile <session-id>
+match need focalLength minimum=100 maximum=600 priority=1 mandatory=yes
+match need cameraCount minimum=2 maximum=2 priority=2
+match profile confirm
+match run <session-id> portability
+match select 1
+match confirm            (match confirm replace to replace an existing selection)
+match show <session-id>
+```
+
+`match capabilities` lists the supported needs. [Workflow, rules, design changes, verification, demo script and limits](docs/f07-matching.md).
+
+## F09 environment planning (UC09)
+
+Open **Photography Tools > Environment Planning** and choose a Draft or Planned session. Its confirmed F03 subject, goals and date are shown read-only and prefilled; without a confirmed requirement, enter the activity for this assessment only. Enter a location name and select **Find place coordinates** to choose among matching places (a name alone is never used), or type coordinates. Device location is requested only after explicit consent and is unsupported on desktop Java, so manual entry always works. Enter the date, the period you can be on site (local times; an end before the start continues past midnight) and an optional preparation lead time, then **Assess environment**. PhotoPilot retrieves real Open-Meteo weather and sunrise-sunset.org sun times, computes golden/blue-hour estimates, asks Gemini to propose windows from that evidence and shows only windows that pass deterministic checks. Facts, estimates, AI interpretation, rejected proposals and limitations appear in separate cards. Nothing is saved. CLI:
+
+```text
+env show <session-id>
+env place Billy Bishop Toronto City Airport
+env assess <session-id> place=1 date=2026-11-06 from=13:00 until=18:30 lead=30
+env again from=15:30 until=21:00
+```
+
+[Providers, time-zone rules, validation, design changes, verification, demo script and limits](docs/f09-environment.md).
+
 ## Planned features
 
 | ID | Stage 1 feature | Type | Status |
@@ -141,10 +171,10 @@ The historical F05 verification contained **36 passing tests** (Windows, JDK 21,
 | F03 | Natural-Language Photography Requirement Parsing | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (live Gemini smoke-tested) |
 | F04 | AI Gear Recognition and Automatic Import | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F05 | Photography Gear Inventory Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
-| F06 | AI Photography Equipment Capability Requirement Analysis | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
-| F07 | Owned Gear Matching and Compatibility Validation | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F06 | AI Photography Equipment Capability Requirement Analysis | Hybrid | IN PROGRESS (inventory analysis + manual profile confirmation; AI analysis not implemented) |
+| F07 | Owned Gear Matching and Compatibility Validation | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (AI ranking verified offline; live run fell back) |
 | F08 | Photography Technical Calculation Tool Suite | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
-| F09 | Location, Time, and Environment-Aware Photography Planning | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F09 | Location, Time, and Environment-Aware Photography Planning | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; live providers + Gemini CLI smoke-tested) |
 | F10 | AI Shoot Plan Generation and Interactive Modification | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 | F11 | AI Post-Shoot Analysis and Review | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 
@@ -229,12 +259,15 @@ Current environment-variable configuration:
 | --- | --- |
 | `PHOTOPILOT_DATA_DIR` | Repository path root, default `${user.home}/.photopilot/data`; registry `profiles.json` lives here; business files live under `profiles/<uuid>/` |
 | `PHOTOPILOT_CONFIG_DIR` | Preference directory, default `${user.home}/.photopilot`; JSON preferences with read-only legacy properties compatibility |
-| `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` selects the approved strategy object; ranking remains unimplemented |
-| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used by F03 and `ai-test` |
-| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used by F03 and `ai-test` |
-| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by F03 parsing/clarification and `ai-test` |
+| `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` sets F07's default strategy; GUI/CLI can choose per request |
+| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used by F03, F07, F09 and `ai-test` |
+| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used by F03, F07, F09 and `ai-test` |
+| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by Gemini requests (F03, F07 ranking, F09 interpretation) and `ai-test` |
+| `PHOTOPILOT_WEATHER_ENDPOINT` | F09 Open-Meteo forecast URL, default `https://api.open-meteo.com/v1/forecast` (free, no key) |
+| `PHOTOPILOT_SUN_ENDPOINT` | F09 sunrise-sunset.org URL, default `https://api.sunrise-sunset.org/json` (free, no key) |
+| `PHOTOPILOT_GEOCODING_ENDPOINT` | F09 Open-Meteo geocoding URL, default `https://geocoding-api.open-meteo.com/v1/search` (free, no key) |
 
-For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. `PhotoPilotAgent.run` performs F03's single structured step with strict JSON decoding; tool calls, image analysis and the bounded multi-step tool loop (F10) remain future work, as do the other AI services.
+For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. `PhotoPilotAgent.run` performs a single structured step with strict JSON decoding for F03, F07 and F09; tool calls, image analysis and the bounded multi-step tool loop (F10) remain future work, as do the other AI services.
 
 `.gitignore` protects `.env`, `.env.*` except `.env.example`, and `config.local.json`; both examples contain only `LLM_API_KEY=YOUR_LOCAL_API_KEY_HERE`. Never force-add a key or include it in recordings/reports. Ignore rules cannot remove already tracked secrets or old commits; exposed keys must be revoked/rotated and removed from the repository/history.
 

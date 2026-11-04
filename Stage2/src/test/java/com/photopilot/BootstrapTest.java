@@ -27,7 +27,11 @@ class BootstrapTest {
     @TempDir Path temporary;
 
     private static Object field(Object owner, String name) throws Exception {
-        Field f = owner.getClass().getDeclaredField(name);
+        Class<?> type = owner.getClass();
+        // Ranking strategies keep their agent in the shared AI-assisted Strategy base class.
+        while (java.util.Arrays.stream(type.getDeclaredFields()).noneMatch(candidate -> candidate.getName().equals(name)) && type.getSuperclass() != null)
+            type = type.getSuperclass();
+        Field f = type.getDeclaredField(name);
         f.setAccessible(true);
         return f.get(owner);
     }
@@ -84,7 +88,7 @@ class BootstrapTest {
             assertTrue(output.contains("Unknown command"));
             assertTrue(output.endsWith("PhotoPilot closed." + System.lineSeparator()));
             assertFalse(output.contains("Not implemented: F02"));
-            for (int i = 1; i <= 11; i++) assertEquals(i == 1 || i == 3 || i == 5 || i == 6 || i == 8 ? 0 : 2, cli.execute("F%02d".formatted(i)));
+            for (int i = 1; i <= 11; i++) assertEquals(i == 1 || i == 3 || i == 5 || i == 6 || i == 7 || i == 8 || i == 9 ? 0 : 2, cli.execute("F%02d".formatted(i)));
             assertEquals(11, FeatureCatalog.lines().size());
             assertEquals(1, cli.execute("exit"));
         }
