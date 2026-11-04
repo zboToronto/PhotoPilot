@@ -1,6 +1,6 @@
 # PhotoPilot — EECS 3311 Stage 2
 
-PhotoPilot is an EECS3311 photography workflow agent planned around sessions, equipment, deterministic tools, AI planning and metadata-based review. F01 Sessions & History, F05 Gear Inventory and F08 Technical Calculators are implemented and verified through GUI and CLI; the other eight business features remain **SCAFFOLDED / NOT IMPLEMENTED**. See [F05 usage, persistence, decisions and verification](docs/f05-inventory.md). It is not the completed Stage 2 submission.
+PhotoPilot is an EECS3311 photography workflow agent built around sessions, equipment, deterministic tools, AI planning and metadata-based review. Nine business features (F01, F02, F03, F04, F05, F07, F08, F09 and F10) have working GUI/CLI workflows and recorded verification. F06 provides inventory analysis and manual capability-profile confirmation, while its AI derivation remains unfinished; F11 review production remains scaffolded. See [current feature status and verification limits](../docs/FEATURE_STATUS.md). It is not the completed Stage 2 submission.
 
 The selected local design is `Project/Stage1/Stage1.docx` revision 46 and its matching `Stage1PPP.pdf` export, with the seven supplied UMLet diagrams. See [verified sources and unresolved gaps](docs/source-verification.md), [feature mapping](docs/feature-mapping.md), [all 87 UML types and 83 relationships](docs/class-inventory.md), [additional decisions](docs/additional-decisions.md), and [actual verification results](docs/verification.md).
 
@@ -103,6 +103,21 @@ session delete <generated-id> --confirm
 
 [F01 schema, usage, classes, design diagrams, 95-test verification and limitations](docs/f01-sessions.md).
 
+## F02 Find Something to Shoot (UC02)
+
+Open **Workspace > Inspiration** (or the Home card). No session is needed. Enter a place (a name or region is enough; **Find place coordinates** or typed coordinates enable distance, sun and weather checks; device location only after explicit consent), the date and the period you can shoot, an optional longest activity, the maximum **straight-line** travel distance, and optional interests, subjects to avoid, portability and other constraints. Your F05 gear is shown read-only. **Find ideas** asks Gemini for candidate activities; each one is checked deterministically (time, straight-line distance to the place lookup match, owned-gear capabilities via F07, light/weather evidence via F09, avoided subjects, event dependence) and shown as *feasible*, *unverified* (open points listed) or *not suitable*, ranked without invented scores. **Continue in Requirements** opens an unconfirmed F03 draft (F03 confirms), **Save idea** stores it in a Draft/Planned session (or a new draft session), **Dismiss** removes it from the results. Road distance, travel time, opening hours and events are never verified or invented; a Gemini failure yields no ideas. CLI:
+
+```text
+discover place Toronto
+discover run place=1 date=2026-11-06 from=13:00 until=17:00 distance=40 interests="landscape; aviation; architecture" avoid=portraits
+discover save 1 new
+discover select 2 <session-id>        (then requirement draft / requirement confirm)
+discover dismiss 3
+discover again distance=10
+```
+
+[Workflow, checks, ranking, design changes, demo script and limits](docs/f02-discovery.md).
+
 ## F03 requirement parsing (Gemini)
 
 Open **Workspace > Requirement Parsing**, choose a Draft or Planned session, describe the shoot and select **Analyze with Gemini** (or **Enter manually**). Review and edit the extracted fields, answer any clarification questions, then **Confirm and save**. Nothing is stored until confirmation; Cancel discards the draft. If Gemini fails, the request text stays in place and manual entry still works. The CLI offers the same workflow over the same services:
@@ -116,6 +131,22 @@ requirement show <session-id>
 ```
 
 `requirement manual <session-id>` starts manual entry (reusing a request kept after an AI failure) and `requirement cancel` discards the draft. Requires `LLM_API_KEY` (see configuration below). [Workflow, classes, schema, verification and limits](docs/f03-requirements.md).
+
+## F04 AI gear recognition and import (UC04)
+
+Open **Equipment > AI Gear Import**, or select **Import from image (AI)** in Gear Inventory. Choose the image type (equipment photo, product label or purchase screenshot) and a PNG/JPEG file, then **Load image**: the file is validated by content, size and dimensions and decoded on this computer only. Drag on the preview to black out personal information or to crop to the product, then **Create sanitized copy**: redacted pixels are replaced, the copy is downscaled to at most 2048 px and re-encoded as PNG without the original metadata, and the copy itself is shown. Tick the approval box and **Approve and recognize with Gemini**: only that copy is sent. Gemini proposes candidate models from visible markings only; PhotoPilot then retrieves specifications from Wikipedia (revision-pinned infobox data) and the Lensfun open database. Each field shows its value and status (*Externally verified (source)*, *Read by AI from the image*, *Entered by you*, *Unknown or conflicting*), with conflicts, sources and retrieval times. Choose the correct candidate, correct fields, decide about possible duplicates (add separately or increase an existing item's quantity), explicitly accept any unverified required values, and **Confirm import**. Nothing is saved before that; cancelling or any failure leaves the inventory unchanged and releases the temporary image data; your original file is never modified. CLI:
+
+```text
+import load "C:\path\order.png" --kind=screenshot
+import redact 10 10 600 80            (x y width height in original pixels; also: crop, undo, regions)
+import preview                        (writes the sanitized copy and prints its path for review)
+import approve --confirm
+import select 2 | import set mount="Sony E" quantity=2 | import verify
+import confirm [--accept-unverified] [--add-separate | --increase=<UUID>]
+import cancel
+```
+
+`F04` prints the command help. [Workflow, privacy, sources, design changes, verification, demo script and limits](docs/f04-gear-import.md).
 
 ## F05 gear inventory
 
@@ -162,20 +193,37 @@ env again from=15:30 until=21:00
 
 [Providers, time-zone rules, validation, design changes, verification, demo script and limits](docs/f09-environment.md).
 
+## F10 shoot planning (UC10, UC11 + UC14)
+
+Prerequisites for a session: confirmed F03 requirements and a confirmed F06 capability profile (entered in F07); a selected F07 loadout and a fresh F09 assessment made in the same application run are used when available. Open **Workspace > Shoot Planning**, choose the session, review the **Planning inputs** card and select **Generate plan**. Gemini receives only labelled evidence (no identifiers, coordinates, titles or notes) and may call the deterministic F08 calculation tool in a bounded loop; it chooses one of the verified owned loadouts, mounts, settings, strategy, schedule, preparation and shot priorities. `PlanValidator` then re-runs UC14, the confirmed camera-count/lens-change/weight limits, mandatory capability needs, numeric settings against recorded lens data, recomputes every calculation and checks schedule windows against the F09 availability and sun evidence. The preview shows validation, evidence and tool calls; nothing is saved until **Approve and save**, which revalidates and saves atomically (the first approval moves a Draft session to Planned). With a saved plan, enter a **Change request** (for example "Make the setup lighter, but keep the two-camera requirement and avoid lens changes") and **Preview change**: only the affected sections change, fixed constraints are preserved, the comparison card lists changed and unchanged decisions, and the saved plan is untouched until you approve. CLI:
+
+```text
+plan show <session-id>
+plan generate <session-id>
+plan approve                     (or plan reject)
+plan revise <session-id> "Make the setup lighter, but keep the two-camera requirement and avoid lens changes."
+plan compare
+plan approve
+plan list <session-id>
+plan open <session-id> [revision]
+```
+
+[Workflow, agent/tool safety, validation rules, design changes, verification, demo script and limits](docs/f10-planning.md).
+
 ## Planned features
 
 | ID | Stage 1 feature | Type | Status |
 | --- | --- | --- | --- |
 | F01 | Photography Session and History Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED; F10/F11 prerequisites retained |
-| F02 | AI Photography Inspiration and Activity Recommendation | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F02 | AI Photography Inspiration and Activity Recommendation | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; live providers + Gemini CLI smoke-tested) |
 | F03 | Natural-Language Photography Requirement Parsing | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (live Gemini smoke-tested) |
-| F04 | AI Gear Recognition and Automatic Import | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F04 | AI Gear Recognition and Automatic Import | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; live Gemini + Wikipedia + Lensfun CLI smoke-tested) |
 | F05 | Photography Gear Inventory Management | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
 | F06 | AI Photography Equipment Capability Requirement Analysis | Hybrid | IN PROGRESS (inventory analysis + manual profile confirmation; AI analysis not implemented) |
 | F07 | Owned Gear Matching and Compatibility Validation | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (AI ranking verified offline; live run fell back) |
 | F08 | Photography Technical Calculation Tool Suite | Deterministic | IMPLEMENTED / GUI + CLI VERIFIED |
 | F09 | Location, Time, and Environment-Aware Photography Planning | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; live providers + Gemini CLI smoke-tested) |
-| F10 | AI Shoot Plan Generation and Interactive Modification | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
+| F10 | AI Shoot Plan Generation and Interactive Modification | Hybrid | IMPLEMENTED / GUI + CLI VERIFIED (offline fakes; see docs/f10-planning.md for the live run) |
 | F11 | AI Post-Shoot Analysis and Review | Hybrid | SCAFFOLDED / NOT IMPLEMENTED |
 
 ## Architecture and patterns
@@ -218,7 +266,7 @@ Preserved integration contract:
 Result<ModelReply> LLMClient.complete(AgentContext context);
 ```
 
-`AgentContext` and `ModelReply` are the existing request/response types; no duplicate DTOs or client interface were introduced. `GeminiAdapter` serves as the Gemini LLM client skeleton under its Stage 1 Adapter name. Its configuration-injection constructor is additive; the original constructor remains compatible and unconfigured. `complete` sends the context's text messages to `{GEMINI_ENDPOINT}/models/{GEMINI_MODEL}:generateContent` and returns the generated text as untrusted `ModelReply` output. Empty contexts and unusable keys fail locally without a request. `AgentContext` can also carry an application task instruction (sent as `systemInstruction`), labelled evidence JSON and a provider-neutral JSON Schema, which the adapter maps to `generationConfig.responseMimeType=application/json` + `responseJsonSchema` (used by F03). Image input and tool calls still return explicit failures. No response is ever fabricated. The existing language decorator and agent/service/Facade wiring are retained.
+`AgentContext` and `ModelReply` are the existing request/response types; no duplicate DTOs or client interface were introduced. `GeminiAdapter` serves as the Gemini LLM client skeleton under its Stage 1 Adapter name. Its configuration-injection constructor is additive; the original constructor remains compatible and unconfigured. `complete` sends the context's text messages to `{GEMINI_ENDPOINT}/models/{GEMINI_MODEL}:generateContent` and returns the generated text as untrusted `ModelReply` output. Empty contexts and unusable keys fail locally without a request. `AgentContext` can also carry an application task instruction (sent as `systemInstruction`), labelled evidence JSON and a provider-neutral JSON Schema, which the adapter maps to `generationConfig.responseMimeType=application/json` + `responseJsonSchema` (used by F03). F04 adds image input: an approved `SanitizedImage` is sent as one inline image part, and unapproved or released images fail before any request. Provider-native tool calls still return explicit failures. No response is ever fabricated. The existing language decorator and agent/service/Facade wiring are retained.
 
 ### Gemini connection smoke test (`ai-test`)
 
@@ -260,20 +308,24 @@ Current environment-variable configuration:
 | `PHOTOPILOT_DATA_DIR` | Repository path root, default `${user.home}/.photopilot/data`; registry `profiles.json` lives here; business files live under `profiles/<uuid>/` |
 | `PHOTOPILOT_CONFIG_DIR` | Preference directory, default `${user.home}/.photopilot`; JSON preferences with read-only legacy properties compatibility |
 | `PHOTOPILOT_RANKING` | `portability` (default) or `coverage` sets F07's default strategy; GUI/CLI can choose per request |
-| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used by F03, F07, F09 and `ai-test` |
-| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used by F03, F07, F09 and `ai-test` |
-| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by Gemini requests (F03, F07 ranking, F09 interpretation) and `ai-test` |
+| `GEMINI_MODEL` | Gemini model ID, default `gemini-3.5-flash-lite`; used by F02, F03, F04, F07, F09, F10 and `ai-test` |
+| `GEMINI_ENDPOINT` | API base URI, default `https://generativelanguage.googleapis.com/v1beta`; used by F02, F03, F04, F07, F09, F10 and `ai-test` |
+| `GEMINI_TIMEOUT_SECONDS` | Per-request Gemini timeout, whole seconds 5-300, default `30`; longer values help the larger F10 planning requests |
+| `LLM_API_KEY` | System environment first; root `.env` fallback; sent only by Gemini requests (F02 discovery, F03 parsing, F04 recognition, F07 ranking, F09 interpretation, F10 planning) and `ai-test` |
 | `PHOTOPILOT_WEATHER_ENDPOINT` | F09 Open-Meteo forecast URL, default `https://api.open-meteo.com/v1/forecast` (free, no key) |
 | `PHOTOPILOT_SUN_ENDPOINT` | F09 sunrise-sunset.org URL, default `https://api.sunrise-sunset.org/json` (free, no key) |
 | `PHOTOPILOT_GEOCODING_ENDPOINT` | F09 Open-Meteo geocoding URL, default `https://geocoding-api.open-meteo.com/v1/search` (free, no key) |
+| `PHOTOPILOT_SPEC_WIKI_ENDPOINT` | F04 Wikipedia Action API URL, default `https://en.wikipedia.org/w/api.php` (free, no key) |
+| `PHOTOPILOT_SPEC_LENSFUN_ENDPOINT` | F04 Lensfun data-file base URL, default `https://raw.githubusercontent.com/lensfun/lensfun/master/data/db/` (free, no key) |
+| `PHOTOPILOT_IMPORT_MAX_MB` / `PHOTOPILOT_IMPORT_MAX_MEGAPIXELS` | F04 image limits, whole numbers 1-100, defaults 20 MB and 50 MP |
 
-For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. `PhotoPilotAgent.run` performs a single structured step with strict JSON decoding for F03, F07 and F09; tool calls, image analysis and the bounded multi-step tool loop (F10) remain future work, as do the other AI services.
+For example, `$env:PHOTOPILOT_RANKING='coverage'` (PowerShell) or `export PHOTOPILOT_RANKING=coverage` (POSIX shell) selects wiring before startup. `PhotoPilotAgent.run` performs a single structured step with strict JSON decoding for F02, F03, F07 and F09; `PhotoPilotAgent.runWithTools` is F10's bounded multi-step tool loop (allowlisted, schema-checked deterministic tools). F04 image recognition uses `run` with the approved sanitized image; F06 AI analysis and F11 remain future work.
 
 `.gitignore` protects `.env`, `.env.*` except `.env.example`, and `config.local.json`; both examples contain only `LLM_API_KEY=YOUR_LOCAL_API_KEY_HERE`. Never force-add a key or include it in recordings/reports. Ignore rules cannot remove already tracked secrets or old commits; exposed keys must be revoked/rotated and removed from the repository/history.
 
 ## Known limits and next implementation boundaries
 
-F01 session/history persistence, F03 requirement parsing, F05 inventory and F08 calculations are verified. Recognition, EXIF extraction/review production, device-location access, gear matching, AI planning/review and plan approval remain unavailable. New sessions remain Draft until F10 supplies an approved plan; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. F03 is the only feature that uses Gemini; `ai-test` remains a separate diagnostic.
+F01, F02, F03, F04, F05, F07, F08, F09 and F10 are verified (see the feature table). EXIF extraction/review production, device-location access and AI review remain unavailable. New sessions remain Draft until an F10 plan is approved; Reviewed requires F11 to supply a review. F01 now scans actual historical gear references; corrupt or unrecognized session storage blocks removal. F02, F03, F04, F07, F09 and F10 use Gemini; `ai-test` remains a separate diagnostic.
 
 The original F01 optional-location/notes gap is resolved by documented SessionService overloads. F02 selection/save/dismiss routing and F07 selected-loadout persistence remain explicit gaps. Provider/library selection, generic AI list schema validation and PlanCommand decoding remain deferred. See [F01 design changes](docs/f01-sessions.md) and the historical source-verification gap record.
 
