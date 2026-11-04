@@ -114,12 +114,21 @@ final class SessionDomainAdapters {
         builder.registerTypeAdapter(ActivitySuggestion.class, (JsonDeserializer<ActivitySuggestion>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();
             return new ActivitySuggestion(
+                read(o, "id", c, new TypeToken<UUID>() {}),
                 read(o, "subject", c, new TypeToken<String>() {}),
+                read(o, "genre", c, new TypeToken<String>() {}),
                 read(o, "setting", c, new TypeToken<String>() {}),
+                read(o, "place", c, new TypeToken<String>() {}),
+                read(o, "atUserLocation", c, new TypeToken<Boolean>() {}),
+                read(o, "start", c, new TypeToken<Optional<ZonedDateTime>>() {}),
                 read(o, "estimatedDuration", c, new TypeToken<Duration>() {}),
                 read(o, "estimatedTravelKm", c, new TypeToken<Optional<Double>>() {}),
+                read(o, "light", c, new TypeToken<String>() {}),
+                read(o, "gear", c, new TypeToken<List<String>>() {}),
                 read(o, "rationale", c, new TypeToken<String>() {}),
-                read(o, "limitations", c, new TypeToken<List<String>>() {}));
+                read(o, "limitations", c, new TypeToken<List<String>>() {}),
+                read(o, "status", c, new TypeToken<String>() {}),
+                read(o, "suggestedAt", c, new TypeToken<Optional<Instant>>() {}));
         });
         builder.registerTypeAdapter(GeoLocation.class, (JsonDeserializer<GeoLocation>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();

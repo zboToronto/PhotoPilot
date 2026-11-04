@@ -114,6 +114,7 @@ public class PhotographySession {
         for (ShootPlan plan : plans) {
             if (!planKeys.add(plan.id() + ":" + plan.revision())) return Result.failureKey("error.session.links");
         }
+        if (savedIdeas.stream().map(ActivitySuggestion::id).distinct().count() != savedIdeas.size()) return Result.failureKey("error.session.links");
         var reviewIds = new java.util.HashSet<UUID>();
         for (PostShootReview review : reviews) {
             if (!reviewIds.add(review.id()) || plans.stream().noneMatch(plan -> plan.approved()
@@ -159,6 +160,22 @@ public class PhotographySession {
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
             requirements, plans, reviews, profile, statistics, savedIdeas, Optional.of(loadout)).withRevision(revision()));
     }
+    /**
+     * F02: copy with one more saved idea; returns a Result copy like attachRequirement. Historical sessions keep their
+     * record, an idea is saved at most once, and a requirement or plan of the session is never touched.
+     */
+    public Result<PhotographySession> attachIdea(ActivitySuggestion idea) {
+        if (idea == null) return Result.failureKey("discover.error.idea");
+        var valid = idea.validate();
+        if (!valid.isSuccess()) return Result.failure(valid);
+        if (!state.canEditPlan()) return Result.failureKey("discover.error.historical");
+        if (savedIdeas.stream().anyMatch(saved -> saved.id().equals(idea.id()))) return Result.failureKey("discover.error.alreadySaved", title);
+        if (savedIdeas.size() >= MAX_SAVED_IDEAS) return Result.failureKey("discover.error.tooManySaved", MAX_SAVED_IDEAS);
+        var ideas = new java.util.ArrayList<>(savedIdeas); ideas.add(idea);
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, reviews, profile, statistics, ideas, selectedLoadout).withRevision(revision()));
+    }
+    public static final int MAX_SAVED_IDEAS = 50;
     private Instant next() {
         Instant now = Instant.now();
         return now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1);

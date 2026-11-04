@@ -111,6 +111,19 @@ final class RequirementPane extends VBox {
         if (!busy) refresh();
     }
 
+    /**
+     * Entry from F02: opens an unconfirmed draft built from a selected idea for review in the selected session.
+     * Nothing is parsed or saved; confirmation stays the explicit F03 step. Refused while another draft is open.
+     */
+    boolean review(UUID id, ShootRequirement idea) {
+        if (draft != null || idea == null || idea.confirmed()) { message(() -> localization.text("discover.error.draftOpen")); return false; }
+        pendingSubmit = () -> session.getItems().stream().filter(s -> s.id().equals(id)).findFirst()
+            .ifPresentOrElse(s -> { session.setValue(s); open(s, idea, "discover.handoff.opened"); },
+                () -> message(() -> localization.text("discover.handoffFailed", localization.text("requirement.noSessions"))));
+        if (!busy) refresh();
+        return true;
+    }
+
     private void showSaved() {
         var selected = session.getValue();
         if (selected == null || draft != null) { hide(saved); return; }

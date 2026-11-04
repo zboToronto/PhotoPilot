@@ -100,6 +100,7 @@ final class SessionJson {
         // F07 added an optional v1 selected loadout; older records simply have none.
         if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
         object = withPlanAdditions(object);
+        object = withIdeaAdditions(object);
         if (!(object.get("requirements") instanceof JsonObject requirement)
                 || requirement.has("date") && requirement.has("timeWindow") && requirement.has("portability")) return object;
         JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("requirements");
@@ -121,6 +122,31 @@ final class SessionJson {
         JsonObject copy = object.deepCopy();
         for (JsonElement plan : copy.getAsJsonArray("plans"))
             if (plan instanceof JsonObject o) defaults.forEach((key, value) -> { if (!o.has(key)) o.add(key, value.deepCopy()); });
+        return copy;
+    }
+    /**
+     * F02 added identity, place, timing, light, gear and feasibility fields to v1 saved ideas. Ideas written before
+     * them get a content-derived stable id, empty values and status UNVERIFIED (they were never checked); nothing else
+     * is filled, so the remaining strictness checks still apply.
+     */
+    private static JsonObject withIdeaAdditions(JsonObject object) {
+        if (!(object.get("savedIdeas") instanceof JsonArray ideas)) return object;
+        var defaults = new LinkedHashMap<String, JsonElement>();
+        defaults.put("genre", new JsonPrimitive("")); defaults.put("place", new JsonPrimitive("")); defaults.put("atUserLocation", new JsonPrimitive(false));
+        defaults.put("start", JsonNull.INSTANCE); defaults.put("light", new JsonPrimitive("")); defaults.put("gear", new JsonArray());
+        defaults.put("status", new JsonPrimitive("UNVERIFIED")); defaults.put("suggestedAt", JsonNull.INSTANCE);
+        boolean complete = true;
+        for (JsonElement idea : ideas) if (idea instanceof JsonObject o && (!o.has("id") || !defaults.keySet().stream().allMatch(o::has))) complete = false;
+        if (complete) return object;
+        JsonObject copy = object.deepCopy();
+        int index = 0;
+        for (JsonElement idea : copy.getAsJsonArray("savedIdeas")) {
+            index++;
+            if (!(idea instanceof JsonObject o)) continue;
+            // Content and position make the id stable across loads and distinct for identical legacy entries.
+            if (!o.has("id")) o.addProperty("id", UUID.nameUUIDFromBytes((index + ":" + o).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString());
+            defaults.forEach((key, value) -> { if (!o.has(key)) o.add(key, value.deepCopy()); });
+        }
         return copy;
     }
     private static void validateGraph(Object value) {

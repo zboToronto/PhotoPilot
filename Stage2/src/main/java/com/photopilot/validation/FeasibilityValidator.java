@@ -9,12 +9,18 @@ import java.util.regex.Pattern;
 import com.photopilot.common.Result;
 import com.photopilot.i18n.LocalizedMessage;
 import com.photopilot.model.ActivitySuggestion;
+import com.photopilot.model.ActivitySuggestion.Check;
+import com.photopilot.model.ActivitySuggestion.Feasibility;
 import com.photopilot.model.DiscoveryContext;
 import com.photopilot.model.EnvironmentAssessment;
 import com.photopilot.model.EnvironmentAssessment.Availability;
 import com.photopilot.model.EnvironmentAssessment.RejectedWindow;
 import com.photopilot.model.EnvironmentContext;
 import com.photopilot.model.EnvironmentRequest;
+import com.photopilot.model.EquipmentRequirementProfile;
+import com.photopilot.model.GearMatchReport.NeedResult;
+import com.photopilot.model.GearMatchReport.NeedStatus;
+import com.photopilot.model.Loadout;
 import com.photopilot.model.ShootingWindow;
 
 /**
@@ -23,7 +29,8 @@ import com.photopilot.model.ShootingWindow;
  * conservatively and labelled) and {@link #checkTiming} for AI-proposed windows. A window survives only if it lies
  * inside the user's availability, is consistent with the sun data for its declared light, cites known evidence and
  * quotes no measurement absent from the provider data. Invalid windows are rejected with reasons; valid ones are kept.
- * F02 {@link #validate} remains NOT IMPLEMENTED.
+ * F02 {@link #validate} checks each AI-proposed activity for time, straight-line travel, owned-equipment, light/weather
+ * evidence, avoided subjects and event dependence, reusing the F07 need comparison and the F09 light rules.
  */
 public class FeasibilityValidator {
     public static final Duration MIN_WINDOW = Duration.ofMinutes(5), SUN_TOLERANCE = Duration.ofMinutes(2);
@@ -37,8 +44,205 @@ public class FeasibilityValidator {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    /**
+     * F02: checks one AI-proposed idea against the context and returns a copy carrying every check and the overall
+     * status (worst check). FEASIBLE needs positive evidence for every applicable criterion; missing evidence is
+     * UNVERIFIED, never favourable; a conflict with a known constraint is INFEASIBLE. Nothing is repaired or contacted.
+     */
     public Result<ActivitySuggestion> validate(ActivitySuggestion idea, DiscoveryContext context) {
-        return Result.failureKey("error.notImplemented", "FeasibilityValidator.validate");
+        if (idea == null) return Result.failureKey("discover.error.idea");
+        if (context == null) return Result.failureKey("discover.error.context");
+        var structural = idea.validate();
+        if (!structural.isSuccess()) return structural;
+        var checks = new ArrayList<Check>();
+        checks.add(time(idea, context));
+        checks.add(travel(idea, context));
+        checks.add(equipment(idea, context));
+        checks.add(environment(idea, context));
+        checks.add(avoid(idea, context));
+        if (idea.dependsOnEvent()) checks.add(check("event", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.event")));
+        return Result.success(idea.withChecks(checks));
+    }
+
+    /** Cloud cover at or above which a clear-sky activity is infeasible throughout (documented threshold). */
+    public static final double OVERCAST_PCT = 80;
+
+    private Check time(ActivitySuggestion idea, DiscoveryContext context) {
+        if (idea.start().isEmpty()) return check("time", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.time.noStart"));
+        ZonedDateTime from = idea.start().get(), to = idea.end().orElseThrow();
+        var available = context.availability();
+        var found = new ArrayList<LocalizedMessage>();
+        if (!from.getZone().equals(available.start().getZone())) found.add(LocalizedMessage.of("discover.check.time.zone", available.start().getZone().getId()));
+        if (!available.contains(from, to))
+            found.add(LocalizedMessage.of("discover.check.time.outside", clock(from), clock(to), clock(available.start()), clock(available.end())));
+        if (idea.estimatedDuration().compareTo(context.maxActivity()) > 0)
+            found.add(LocalizedMessage.of("discover.check.time.tooLong", idea.estimatedDuration().toMinutes(), context.maxActivity().toMinutes()));
+        if (from.toInstant().isBefore(clock.instant())) found.add(LocalizedMessage.of("discover.check.time.past", clock(from)));
+        if (!found.isEmpty()) return new Check("time", Feasibility.INFEASIBLE, found);
+        found.add(LocalizedMessage.of("discover.check.time.ok", clock(from), clock(to), idea.estimatedDuration().toMinutes()));
+        if (!idea.atUserLocation()) found.add(LocalizedMessage.of("discover.check.time.travelExcluded"));
+        return new Check("time", Feasibility.FEASIBLE, found);
+    }
+    private static String clock(ZonedDateTime time) { return time.toLocalDate() + " " + time.toLocalTime().truncatedTo(ChronoUnit.MINUTES); }
+
+    /** Only straight-line distances to gazetteer matches count; route distance and travel time are never estimated. */
+    private static Check travel(ActivitySuggestion idea, DiscoveryContext context) {
+        String max = num(context.maxDistanceKm());
+        if (idea.atUserLocation()) return check("travel", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.travel.atLocation", idea.place()));
+        if (context.maxDistanceKm() == 0) return check("travel", Feasibility.INFEASIBLE, LocalizedMessage.of("discover.check.travel.noTravel", idea.place()));
+        if (!context.hasCoordinates()) return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.noCoordinates", idea.place()));
+        var evidence = idea.travel();
+        if (evidence.isEmpty()) return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.notChecked", idea.place()));
+        if (evidence.get().problem().isPresent()) return check("travel", Feasibility.UNVERIFIED, evidence.get().problem().get());
+        var km = evidence.get().straightLineKm();
+        if (km.isEmpty()) return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.notChecked", idea.place()));
+        double nearest = Collections.min(km), farthest = Collections.max(km);
+        if (nearest > context.maxDistanceKm())
+            return check("travel", Feasibility.INFEASIBLE, LocalizedMessage.of("discover.check.travel.beyond", idea.place(), num(nearest), max));
+        if (farthest <= context.maxDistanceKm())
+            return new Check("travel", Feasibility.FEASIBLE, List.of(LocalizedMessage.of("discover.check.travel.within", idea.place(), num(farthest), max),
+                LocalizedMessage.of("discover.check.travel.straightLine")));
+        return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.ambiguous", idea.place(), km.size(), max));
+    }
+
+    /** Hard capability needs compared with every UC14-verified owned loadout (F07's deterministic comparison). */
+    private static Check equipment(ActivitySuggestion idea, DiscoveryContext context) {
+        if (!context.inventoryReadable()) return check("equipment", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.gear.unreadable"));
+        if (context.gear().items().isEmpty()) return check("equipment", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.gear.empty"));
+        var loadouts = context.usableLoadouts();
+        if (loadouts.isEmpty()) return check("equipment", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.gear.noLoadout"));
+        if (idea.gearNeeds().isEmpty()) return check("equipment", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.gear.noNeeds", loadouts.size()));
+        var profile = new EquipmentRequirementProfile(idea.gearNeeds(), false);
+        List<NeedResult> unknownOnly = null, fewestUnmet = null;
+        for (Loadout loadout : loadouts) {
+            var results = CompatibilityValidator.evaluateNeeds(loadout, profile);
+            long unmet = results.stream().filter(r -> r.status() == NeedStatus.UNMET).count();
+            if (results.stream().allMatch(r -> r.status() == NeedStatus.MET)) {
+                var found = new ArrayList<LocalizedMessage>();
+                found.add(LocalizedMessage.of("discover.check.gear.met", bodiesAndLenses(loadout)));
+                results.forEach(r -> found.add(r.detail()));
+                return new Check("equipment", Feasibility.FEASIBLE, found);
+            }
+            if (unmet == 0 && unknownOnly == null) unknownOnly = results;
+            if (fewestUnmet == null || unmet < fewestUnmet.stream().filter(r -> r.status() == NeedStatus.UNMET).count()) fewestUnmet = results;
+        }
+        var found = new ArrayList<LocalizedMessage>();
+        if (unknownOnly != null) {
+            found.add(LocalizedMessage.of("discover.check.gear.unknown"));
+            unknownOnly.stream().filter(r -> r.status() == NeedStatus.UNKNOWN).forEach(r -> found.add(r.detail()));
+            return new Check("equipment", Feasibility.UNVERIFIED, found);
+        }
+        found.add(LocalizedMessage.of("discover.check.gear.unmet", loadouts.size()));
+        fewestUnmet.stream().filter(r -> r.status() == NeedStatus.UNMET).forEach(r -> found.add(r.detail()));
+        return new Check("equipment", Feasibility.INFEASIBLE, found);
+    }
+    private static String bodiesAndLenses(Loadout loadout) {
+        return String.join(" + ", loadout.gear().stream().filter(g -> g.type().equals("CAMERA") || g.type().equals("LENS"))
+            .map(g -> (g.selectedQuantity() > 1 ? g.selectedQuantity() + " x " : "") + CompatibilityValidator.name(g)).toList());
+    }
+
+    /** Sun-dependent light is checked like F09 windows; outdoor ideas need current forecast hours covering them. */
+    private Check environment(ActivitySuggestion idea, DiscoveryContext context) {
+        boolean lightDependent = !Set.of("any", "mixed", "").contains(idea.light());
+        if (!idea.outdoor() && !lightDependent) return check("environment", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.env.notApplicable"));
+        if (context.environment().isEmpty())
+            return check("environment", Feasibility.UNVERIFIED, LocalizedMessage.of(context.hasCoordinates() ? "discover.check.env.unavailable" : "discover.check.env.noCoordinates"));
+        if (idea.start().isEmpty()) return check("environment", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.time.noStart"));
+        var env = context.environment().get();
+        ZonedDateTime from = idea.start().get(), to = idea.end().orElseThrow();
+        var found = new ArrayList<LocalizedMessage>();
+        var status = Feasibility.FEASIBLE;
+        if (lightDependent) {
+            if (context.staleFields().contains(EnvironmentContext.SUN)) {
+                found.add(LocalizedMessage.of("discover.check.env.stale", EnvironmentContext.SUN)); status = worse(status, Feasibility.UNVERIFIED);
+            } else {
+                var window = new ShootingWindow(from, to, from, "", true, idea.subject(), idea.light(), "", List.of(), List.of());
+                var place = context.location().orElseThrow();
+                var request = new EnvironmentRequest(place, context.start().toLocalDate(), context.start().toLocalTime(), context.end().toLocalTime(),
+                    Optional.empty(), Optional.empty(), "", List.of());
+                var assessment = new EnvironmentAssessment(env, request, idea.subject(), Optional.of(context.availability()), context.lightPhases(),
+                    List.of(), List.of(), Optional.empty(), List.of(), context.staleFields(), clock.instant());
+                var problem = lightProblem(window, assessment);
+                if (problem.isEmpty()) found.add(LocalizedMessage.of("discover.check.env.lightOk", LocalizedMessage.of("discover.light." + idea.light())));
+                else if (problem.get().key().equals("env.reject.light")) {
+                    found.add(LocalizedMessage.of("discover.check.env.lightConflict", LocalizedMessage.of("discover.light." + idea.light()))); status = Feasibility.INFEASIBLE;
+                } else { found.add(LocalizedMessage.of("discover.check.env.lightUnverified", LocalizedMessage.of("discover.light." + idea.light()))); status = worse(status, Feasibility.UNVERIFIED); }
+            }
+        }
+        if (idea.outdoor()) {
+            var hours = env.hours(from.toInstant().truncatedTo(ChronoUnit.HOURS), to.toInstant());
+            if (context.staleFields().contains(EnvironmentContext.HOURLY)) {
+                found.add(LocalizedMessage.of("discover.check.env.stale", EnvironmentContext.HOURLY)); status = worse(status, Feasibility.UNVERIFIED);
+            } else if (hours.isEmpty()) {
+                found.add(LocalizedMessage.of("discover.check.env.noForecast", from.toLocalDate().toString())); status = worse(status, Feasibility.UNVERIFIED);
+            } else {
+                found.add(LocalizedMessage.of("discover.check.env.forecast", hours.size(), clock(env.retrievedAt().atZone(from.getZone())) + " " + from.getZone().getId()));
+                var clouds = hours.stream().flatMap(h -> h.value("cloudCoverPct").stream()).toList();
+                if (idea.needsClearSky()) {
+                    if (clouds.size() < hours.size()) { found.add(LocalizedMessage.of("discover.check.env.cloudUnknown")); status = worse(status, Feasibility.UNVERIFIED); }
+                    else if (clouds.stream().allMatch(c -> c >= OVERCAST_PCT)) {
+                        found.add(LocalizedMessage.of("discover.check.env.overcast", num(Collections.min(clouds)), num(Collections.max(clouds)), num(OVERCAST_PCT)));
+                        status = Feasibility.INFEASIBLE;
+                    } else found.add(LocalizedMessage.of("discover.check.env.cloud", num(Collections.min(clouds)), num(Collections.max(clouds))));
+                }
+                warnings(hours, found);
+            }
+        }
+        return new Check("environment", status, found);
+    }
+    /** Deterministic adverse-forecast warnings (same thresholds as F09); they lower the ranking but do not decide feasibility. */
+    private static void warnings(List<EnvironmentContext.Hour> hours, List<LocalizedMessage> found) {
+        if (hours.stream().anyMatch(h -> h.value("weatherCode").filter(c -> c >= 95).isPresent())) found.add(LocalizedMessage.of("discover.check.env.warn.thunder"));
+        hours.stream().flatMap(h -> h.value("precipitationProbabilityPct").stream()).max(Double::compare)
+            .filter(p -> p >= com.photopilot.service.EnvironmentService.LIKELY_PRECIPITATION_PCT)
+            .ifPresent(p -> found.add(LocalizedMessage.of("discover.check.env.warn.precipitation", num(p))));
+        hours.stream().flatMap(h -> h.value("windGustsKmh").stream()).max(Double::compare)
+            .filter(g -> g >= com.photopilot.service.EnvironmentService.STRONG_GUST_KMH)
+            .ifPresent(g -> found.add(LocalizedMessage.of("discover.check.env.warn.gusts", num(g))));
+        hours.stream().flatMap(h -> h.value("visibilityM").stream()).min(Double::compare)
+            .filter(v -> v < com.photopilot.service.EnvironmentService.LOW_VISIBILITY_M)
+            .ifPresent(v -> found.add(LocalizedMessage.of("discover.check.env.warn.visibility", num(v))));
+    }
+
+    private static Check avoid(ActivitySuggestion idea, DiscoveryContext context) {
+        if (context.avoid().isEmpty()) return check("avoid", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.avoid.none"));
+        String text = (idea.subject() + " " + idea.genre() + " " + idea.setting() + " " + idea.place()).toLowerCase(Locale.ROOT);
+        var conflicts = context.avoid().stream().filter(term -> term.length() >= 2 && text.contains(term.toLowerCase(Locale.ROOT))).toList();
+        return conflicts.isEmpty() ? check("avoid", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.avoid.ok"))
+            : check("avoid", Feasibility.INFEASIBLE, LocalizedMessage.of("discover.check.avoid.conflict", String.join(", ", conflicts)));
+    }
+
+    private static Check check(String criterion, Feasibility status, LocalizedMessage finding) { return new Check(criterion, status, List.of(finding)); }
+    private static Feasibility worse(Feasibility a, Feasibility b) { return a.ordinal() >= b.ordinal() ? a : b; }
+    private static String num(double value) { return CompatibilityValidator.num(Math.round(value * 10) / 10.0); }
+
+    /** Great-circle (straight-line) distance in km; never a route distance. */
+    public static double straightLineKm(double lat1, double lon1, double lat2, double lon2) {
+        double p1 = Math.toRadians(lat1), p2 = Math.toRadians(lat2), dp = p2 - p1, dl = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+        return 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    /** Distances and travel times, which no evidence ever contains; e.g. "15 km", "20-minute drive", "两小时车程". */
+    private static final Pattern TRAVEL = Pattern.compile(
+        "(?iu)\\d+(?:\\.\\d+)?\\s*(?:[-–]\\s*\\d+(?:\\.\\d+)?\\s*)?(?:km|kilomet(?:er|re)s?|mi|miles?|公里|千米|英里)(?![\\p{L}/])"
+        + "|\\d+\\s*(?:[-–]\\s*\\d+\\s*)?[- ]?(?:min(?:ute)?s?|h(?:ou)?rs?|hours?|分钟|小时)\\s*(?:drive|walk|ride|away|by car|by transit|车程|步行|路程)"
+        + "|(?:drive|walk|ride)\\s+of\\s+\\d+");
+    private static final Pattern FOCAL = Pattern.compile("(?i)\\d+(?:\\.\\d+)?(?:\\s*[-–]\\s*\\d+(?:\\.\\d+)?)?\\s*mm");
+    private static final EnvironmentContext NO_EVIDENCE = new EnvironmentContext(Map.of(), Optional.empty(), Optional.empty(), Map.of(), Map.of(), Set.of(), Instant.EPOCH);
+
+    /**
+     * F02 AI text check: distances and travel times are always unverified; other measurements must match provider
+     * values (focal lengths in mm are equipment values and are excluded). Empty when the text quotes nothing unverified.
+     */
+    public static List<String> unverifiedFigures(String text, Optional<EnvironmentContext> evidence) {
+        if (text == null || text.isBlank()) return List.of();
+        var found = new LinkedHashSet<String>();
+        var travel = TRAVEL.matcher(text);
+        while (travel.find()) found.add(travel.group().strip());
+        String masked = TRAVEL.matcher(FOCAL.matcher(text).replaceAll(" ")).replaceAll(" ");
+        found.addAll(unsupportedMeasurements(masked, evidence.orElse(NO_EVIDENCE)));
+        return List.copyOf(found);
     }
 
     /** The user's on-site period in the location zone, plus labels for any ambiguous local time. */

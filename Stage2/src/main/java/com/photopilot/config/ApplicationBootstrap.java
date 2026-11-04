@@ -100,7 +100,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
         tools.register(new SpecificationTool(specifications));
         facade = new PhotoPilotFacade(new SessionService(sessions),
             new InventoryService(inventory, sessions, new GearRecognitionService(agent, specifications)),
-            new DiscoveryService(agent, environmentService, feasibility, sessions),
+            // F02 reads F05 inventory and F07's deterministic loadout generation; it never ranks gear or writes inventory.
+            new DiscoveryService(agent, environmentService, feasibility, sessions, inventory, matching),
             new PlanningService(new RequirementService(agent), matching, environmentService, agent,
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
             new ReviewService(new ExifLibraryAdapter(Set.of()), new StatisticsCalculator(), agent, sessions),

@@ -16,6 +16,12 @@ final class RequirementCommands {
         private PhotographySession session;
         private String lastRequest = "";
         void clear() { draft = null; session = null; lastRequest = ""; }
+        boolean hasDraft() { return draft != null; }
+        /** F02 handoff: an unconfirmed draft for review here; refused while another draft is open. */
+        boolean open(ShootRequirement unconfirmed, PhotographySession target) {
+            if (draft != null || unconfirmed == null || unconfirmed.confirmed() || target == null) return false;
+            draft = unconfirmed; session = target; return true;
+        }
     }
     private final PhotoPilotFacade app;
     private final PrintStream output;

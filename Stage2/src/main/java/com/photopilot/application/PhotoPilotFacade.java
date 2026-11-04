@@ -68,6 +68,14 @@ public class PhotoPilotFacade {
         return discovery.suggest(context);
     }
 
+    /** F02 for the context the user reviewed; select/save/dismiss and saved ideas continue through discovery(). */
+    public Result<com.photopilot.model.DiscoveryResult> discover(com.photopilot.model.DiscoveryRequest request) {
+        return discovery.discover(request);
+    }
+
+    /** F02 operations shared by GUI and CLI (Stage 1 select/save/dismiss had no Facade route). */
+    public DiscoveryService discovery() { return discovery; }
+
     /** F03: AI-assisted, unconfirmed draft; review, clarification and confirmation continue through planning(). */
     public Result<ShootRequirement> parse(UUID id, String text) {
         return planning.parse(id, text);

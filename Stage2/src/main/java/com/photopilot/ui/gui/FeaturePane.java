@@ -18,6 +18,7 @@ final class FeaturePane extends VBox {
         if (requirements != null) requirements.dispose();
         if (matching != null) matching.dispose();
         if (environment != null) environment.dispose();
+        if (discovery != null) discovery.dispose();
         if (planning != null) planning.dispose();
         if (inventory != null) inventory.dispose();
         if (calculator != null) calculator.dispose();
@@ -45,6 +46,7 @@ final class FeaturePane extends VBox {
     private CapabilityPane capability;
     private GearMatchPane matching;
     private EnvironmentPane environment;
+    private DiscoveryPane discovery;
     private PlanPane planning;
 
     FeaturePane() { this(LocalizationService.english()); }
@@ -92,6 +94,7 @@ final class FeaturePane extends VBox {
         if (requirements != null) requirements.activate(false);
         if (matching != null) matching.activate(false);
         if (environment != null) environment.activate(false);
+        if (discovery != null) discovery.activate(false);
         if (planning != null) planning.activate(false);
         if (inventory != null) inventory.activate(false);
         if (calculator != null) calculator.activate(false);
@@ -108,13 +111,15 @@ final class FeaturePane extends VBox {
         boolean match = selected.id().equals("F07") && matching != null;
         boolean env = selected.id().equals("F09") && environment != null;
         boolean plan = selected.id().equals("F10") && planning != null;
+        boolean ideas = selected.id().equals("F02") && discovery != null;
         if (matching != null) { matching.setVisible(match); matching.setManaged(match); matching.activate(match); }
         if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
+        if (discovery != null) { discovery.setVisible(ideas); discovery.setManaged(ideas); discovery.activate(ideas); }
         if (planning != null) { planning.setVisible(plan); planning.setManaged(plan); planning.activate(plan); }
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan;
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan && !ideas;
         empty.setVisible(placeholder); empty.setManaged(placeholder);
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
@@ -173,6 +178,10 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+    void connectDiscovery(DiscoveryPane discovery) {
+        this.discovery = discovery; discovery.setVisible(false); discovery.setManaged(false); body.getChildren().add(1, discovery);
+        if (feature != null) show(feature);
+    }
 
     void connectPlanning(PlanPane planning) {
         this.planning = planning; planning.setVisible(false); planning.setManaged(false); body.getChildren().add(1, planning);
@@ -185,6 +194,7 @@ final class FeaturePane extends VBox {
         var selected = feature;
         if (selected.id().equals("F06")) { showFeedback(() -> localization.text("capability.scope")); return; }
         if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
+        if (selected.id().equals("F02") && discovery != null) { showFeedback(() -> localization.text("discover.ready")); return; }
         if (selected.id().equals("F03")) { showFeedback(() -> localization.text("requirement.ready")); return; }
         if (selected.id().equals("F07") && matching != null) { showFeedback(() -> localization.text("match.ready")); return; }
         if (selected.id().equals("F09") && environment != null) { showFeedback(() -> localization.text("env.ready")); return; }
@@ -211,6 +221,7 @@ final class FeaturePane extends VBox {
     boolean matchingConnected() { return matching != null; }
     boolean environmentConnected() { return environment != null; }
     boolean planningConnected() { return planning != null; }
+    boolean discoveryConnected() { return discovery != null; }
 
     static Label label(String text, String style) {
         Label label = new Label(text);

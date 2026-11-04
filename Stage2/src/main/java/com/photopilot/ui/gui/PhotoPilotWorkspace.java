@@ -189,6 +189,8 @@ final class PhotoPilotWorkspace extends BorderPane {
     void selectMatching() { navigation.get("F07").fire(); }
     void connectEnvironment(EnvironmentPane environment) { detail.connectEnvironment(environment); }
     void selectEnvironment() { navigation.get("F09").fire(); }
+    void connectDiscovery(DiscoveryPane discovery) { detail.connectDiscovery(discovery); }
+    void selectDiscovery() { navigation.get("F02").fire(); }
     void connectPlanning(PlanPane planning) { detail.connectPlanning(planning); }
     void selectPlanning() { navigation.get("F10").fire(); }
 
@@ -228,11 +230,13 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F03", "F05", "F07", "F08", "F09", "F10").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F02", "F03", "F05", "F07", "F08", "F09", "F10").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
             String expected = entry.getKey().equals("F01") ? localization.text("session.ready")
+                : entry.getKey().equals("F02") ? detail.discoveryConnected() ? localization.text("discover.ready")
+                    : localization.text("feature.noWorkflow", "F02", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F03") ? localization.text("requirement.ready")
                 : entry.getKey().equals("F05")
                 ? detail.inventoryConnected() ? localization.text("feature.inventoryReady")
