@@ -330,3 +330,9 @@
 .app-dialog .button-bar .button:focus-visible { -fx-border-color: white; }
 .app-dialog .button-bar .button:default { -fx-background-color: linear-gradient(to bottom, #fde5b8, #fbd69e); -fx-border-color: transparent; -fx-text-fill: -pp-pill-text; }
 .app-dialog .button-bar .button:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
+/* F04 AI gear import: scoped to its own content; reuses the shared tokens, cards and controls. */
+.import-content .import-preview { -fx-background-color: rgba(255,255,255,0.86); -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6; }
+.import-content #import-overlay { -fx-cursor: crosshair; }
+.import-content .import-redaction { -fx-fill: black; -fx-stroke: -pp-danger; -fx-stroke-width: 1; }
+.import-content .import-crop { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 2; -fx-stroke-dash-array: 6 4; }

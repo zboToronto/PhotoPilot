@@ -124,6 +124,25 @@ class GeminiAdapterTest {
         assertFailure(send(), "ai.error.blocked");
     }
 
+    @Test void approvedSanitizedImageIsSentInlineAndReleasedImagesAreRefusedLocally(@org.junit.jupiter.api.io.TempDir Path directory) throws Exception {
+        var privacy = new com.photopilot.ui.privacy.ImagePrivacyBoundary();
+        var review = privacy.open(com.photopilot.gearimport.ImportFixtures.png(directory, "camera.png", 300, 200),
+            com.photopilot.ui.privacy.ImageReview.Kind.PHOTO).value().orElseThrow();
+        var image = privacy.approveRedacted(privacy.sanitize(review).value().orElseThrow(), true).value().orElseThrow();
+        byte[] expected = image.approvedBytes().orElseThrow();
+        respond(200, "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{}\"}]}}]}");
+        var context = new AgentContext(UUID.randomUUID(), List.of("Identify the camera."), "{}", List.of(), Optional.of(image));
+        assertTrue(adapter(configured(), Duration.ofSeconds(5)).complete(context).isSuccess());
+        var inline = com.google.gson.JsonParser.parseString(sentBody.get()).getAsJsonObject().getAsJsonArray("contents").get(0).getAsJsonObject()
+            .getAsJsonArray("parts").get(0).getAsJsonObject().getAsJsonObject("inlineData");
+        assertEquals("image/png", inline.get("mimeType").getAsString());
+        assertArrayEquals(expected, java.util.Base64.getDecoder().decode(inline.get("data").getAsString()));
+        assertEquals(1, requests.get());
+        privacy.discard(image);
+        assertFailure(adapter(configured(), Duration.ofSeconds(5)).complete(context), "ai.error.imageNotApproved");
+        assertEquals(1, requests.get(), "a released image never reaches the provider");
+    }
+
     @Test void timeoutAndUnreachableHostAreReported() throws Exception {
         respond(200, "{}");
         delayMillis = 2_000;

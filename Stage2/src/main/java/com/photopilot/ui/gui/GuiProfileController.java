@@ -27,6 +27,7 @@ final class GuiProfileController implements AutoCloseable {
     private DiscoveryPane discovery;
     private PlanPane planning;
     private InventoryPane inventory;
+    private GearImportPane gearImport;
     private CalculatorPane calculator;
     private FxLocalizer texts;
     private UserSelectionPane picker;
@@ -43,7 +44,7 @@ final class GuiProfileController implements AutoCloseable {
     ApplicationBootstrap context() { return context; }
     UiOperations operations() { return operations; }
     boolean busy() { return switching || operations.busy(); }
-    boolean dirty() { return sessions.dirty() || requirements.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || inventory.dirty() || calculator.dirty(); }
+    boolean dirty() { return sessions.dirty() || requirements.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || inventory.dirty() || gearImport.dirty() || calculator.dirty(); }
     private void install(LocalProfile selected) {
         if (picker != null) { picker.dispose(); picker = null; }
         if (workspace != null) workspace.dispose();
@@ -58,10 +59,15 @@ final class GuiProfileController implements AutoCloseable {
         discovery = new DiscoveryPane(context.facade(), operations, language, this::reviewIdea);
         planning = new PlanPane(context.facade(), operations, language);
         inventory = new InventoryPane(context.facade(), operations, language);
+        var view = workspace;
+        // F04 shares the F05 services; each workspace has its own privacy boundary for temporary image copies.
+        gearImport = new GearImportPane(context.facade(), operations, language,
+            com.photopilot.ui.privacy.ImagePrivacyBoundary.fromEnvironment(System.getenv()), view::selectInventory);
+        inventory.onImport(view::selectImport);
         calculator = new CalculatorPane(context.facade(), operations, language);
         workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
-        workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectInventory(inventory); workspace.connectCalculator(calculator);
+        workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
         workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");

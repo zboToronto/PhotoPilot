@@ -29,6 +29,7 @@ public class PhotoPilotCLI {
     private final EnvironmentCommands.State environmentState = new EnvironmentCommands.State();
     private final PlanCommands.State planState = new PlanCommands.State();
     private final DiscoveryCommands.State discoveryState = new DiscoveryCommands.State();
+    private final ImportCommands.State importState = new ImportCommands.State();
 
     public PhotoPilotCLI(PhotoPilotFacade app, ImagePrivacyBoundary privacy) {
         this(app, privacy, new Scanner(System.in), System.out);
@@ -47,13 +48,14 @@ public class PhotoPilotCLI {
     }
 
     public PhotoPilotCLI(ProfileManager profiles, Scanner input, PrintStream output) {
-        this(profiles.activeContext().facade(), new ImagePrivacyBoundary(), input, output, profiles.activeContext().localization());
+        this(profiles.activeContext().facade(), ImagePrivacyBoundary.fromEnvironment(System.getenv()), input, output, profiles.activeContext().localization());
         this.profiles = profiles;
     }
     private void refreshContext() {
         String language = localization.language().tag();
         app = profiles.activeContext().facade(); localization = profiles.activeContext().localization();
         requirementDraft.clear(); matchState.clear(); environmentState.clear(); planState.clear(); discoveryState.clear(); // Drafts belong to the previous user's session data.
+        importState.clear(privacy); // An open F04 import releases its temporary image data.
         localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
     }
     public int exitCode() { return exitCode; }
@@ -152,6 +154,9 @@ public class PhotoPilotCLI {
         if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
             return new InventoryCommands(app, output, localization).execute(command.equals("f05") ? "gear list" : line.strip());
         }
+        if (command.equals("f04") || command.equals("import") || command.startsWith("import ")) {
+            return new ImportCommands(app, privacy, output, localization, importState).execute(command.equals("f04") ? "import help" : line.strip());
+        }
         if (command.equals("f01") || command.equals("session") || command.startsWith("session ")) {
             return new SessionCommands(app, output, localization).execute(command.equals("f01") ? "session list" : line.strip());
         }
@@ -177,10 +182,10 @@ public class PhotoPilotCLI {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
+            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
             case "ai-test" -> { return new AiTestCommands(app, output, localization).execute(); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
-            case "exit", "quit" -> { output.println(localization.text("cli.closed")); return 1; }
+            case "exit", "quit" -> { importState.clear(privacy); output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }
             default -> {
                 output.println(command.matches("f(0[1-9]|1[01])")

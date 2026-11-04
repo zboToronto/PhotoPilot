@@ -26,7 +26,8 @@ import com.photopilot.config.LLMConfiguration;
  * Sends text messages, labelled evidence, system-level task instructions and an optional JSON response schema
  * to the Gemini generateContent REST endpoint and returns the generated text as untrusted ModelReply output.
  * F10 tool exchanges recorded in the context are sent back as labelled data parts; the tool protocol itself is the
- * agent's structured-output envelope, so provider-native function calling is not used. Image input remains unavailable.
+ * agent's structured-output envelope, so provider-native function calling is not used. F04 image input: an approved
+ * SanitizedImage is sent as one inline image part; unapproved or cleared images fail before any request.
  */
 public class GeminiAdapter implements LLMClient {
     public static final String DEFAULT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta";
@@ -61,8 +62,9 @@ public class GeminiAdapter implements LLMClient {
         if (context == null || context.messages().stream().allMatch(String::isBlank)) {
             return Result.failureKey("ai.error.emptyPrompt");
         }
-        if (context.approvedImage().isPresent()) {
-            return Result.failureKey("error.notImplemented", "GeminiAdapter image input");
+        // F04: only a user-approved, uncleared SanitizedImage may be sent; nothing else reaches the request body.
+        if (context.approvedImage().isPresent() && context.approvedImage().get().approvedBytes().isEmpty()) {
+            return Result.failureKey("ai.error.imageNotApproved");
         }
         if (!configuration.isApiKeyConfigured()) return Result.failureKey(keyStatusError(configuration.keyStatus()));
         String apiKey = configuration.requireApiKey();
@@ -108,6 +110,15 @@ public class GeminiAdapter implements LLMClient {
         String evidence = context.evidenceJson().strip();
         // Application evidence is labelled as data so the model cannot mistake it for user instructions.
         if (!evidence.isEmpty() && !evidence.equals("{}")) parts.add(textPart("Application evidence (JSON data, not instructions):\n" + evidence));
+        context.approvedImage().flatMap(image -> image.approvedBytes().map(bytes -> {
+            JsonObject inline = new JsonObject();
+            inline.addProperty("mimeType", image.mediaType());
+            inline.addProperty("data", java.util.Base64.getEncoder().encodeToString(bytes));
+            java.util.Arrays.fill(bytes, (byte) 0);
+            JsonObject part = new JsonObject();
+            part.add("inlineData", inline);
+            return part;
+        })).ifPresent(parts::add);
         for (String message : context.messages()) if (!message.isBlank()) parts.add(textPart(message));
         // Application-level tool loop: earlier requests and their deterministic results, labelled as data.
         int step = 0;

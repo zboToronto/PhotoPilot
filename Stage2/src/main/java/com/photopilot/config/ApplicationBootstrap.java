@@ -89,8 +89,11 @@ public final class ApplicationBootstrap implements AutoCloseable {
             new LocationService(Optional.empty(), Optional.of(new GeocodingAdapter(
                 endpoint(environment, "PHOTOPILOT_GEOCODING_ENDPOINT", GeocodingAdapter.DEFAULT_ENDPOINT), http, providerTimeout)), java.time.Clock.systemUTC()),
             agent, feasibility);
+        // F04 specification evidence: Wikipedia API + Lensfun open database, free and key-less; overridable for tests.
         EquipmentSpecificationProvider specifications = new EquipmentCatalogAdapter(
-            URI.create("https://unconfigured.invalid/equipment"), http);
+            endpoint(environment, "PHOTOPILOT_SPEC_WIKI_ENDPOINT", EquipmentCatalogAdapter.DEFAULT_ENDPOINT),
+            endpoint(environment, "PHOTOPILOT_SPEC_LENSFUN_ENDPOINT", EquipmentCatalogAdapter.DEFAULT_LENSFUN),
+            http, providerTimeout, java.time.Clock.systemUTC());
         PlanValidator validator = new PlanValidator(compatibility, calculator, feasibility);
         // Phase two closes the existing agent -> registry -> tools -> services -> agent cycle.
         // register() is in the approved UML. It does not execute any tool or request.

@@ -35,6 +35,8 @@ final class InventoryPane extends VBox {
     private final CheckBox duplicate = new CheckBox();
     private final VBox confirmation = new VBox(12);
     private final VBox controls = new VBox(16);
+    private final Button importImage;
+    private Runnable importAction;
     private Equipment editing;
     private UUID newId;
     private long generation;
@@ -73,7 +75,9 @@ final class InventoryPane extends VBox {
         Button remove = button("gear.removeSelected", "gear-remove", this::requestRemoval, false);
         edit.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
         remove.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
-        FlowPane actions = new FlowPane(12, 10, button("gear.add", "gear-add", () -> openEditor(null), true), edit, remove);
+        importImage = button("import.fromImage", "gear-import", () -> { if (importAction != null) importAction.run(); }, false);
+        importImage.setVisible(false); importImage.setManaged(false);
+        FlowPane actions = new FlowPane(12, 10, button("gear.add", "gear-add", () -> openEditor(null), true), importImage, edit, remove);
         controls.getChildren().addAll(query, count, table, actions, confirmation, editor);
         feedbackBox.getStyleClass().add("feedback-box");
         editor.getStyleClass().add("feedback-box"); confirmation.getStyleClass().add("feedback-box");
@@ -96,6 +100,11 @@ final class InventoryPane extends VBox {
         Button button = texts.button(text); button.setId(id);
         button.getStyleClass().add(primary ? "primary-button" : "secondary-button");
         button.setOnAction(event -> action.run()); return button;
+    }
+    /** Shows the F04 entry point; the AI import itself runs in its own feature content. */
+    void onImport(Runnable action) {
+        importAction = action;
+        importImage.setVisible(action != null); importImage.setManaged(action != null);
     }
     void activate(boolean active) {
         if (this.active == active) return;

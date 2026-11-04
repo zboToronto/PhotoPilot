@@ -6,15 +6,17 @@ import java.util.Objects;
 import java.util.UUID;
 import com.photopilot.common.Result;
 import com.photopilot.model.Equipment;
+import com.photopilot.model.EquipmentType;
 import com.photopilot.model.GearImportDraft;
 import com.photopilot.model.GearInventory;
+import com.photopilot.model.GearNames;
 import com.photopilot.repository.InventoryRepository;
 import com.photopilot.repository.SessionRepository;
 import com.photopilot.ui.privacy.SanitizedImage;
 
 /**
  * Stage 1 UML element 7 (zero-based): {F04-F05; confirmation and validation}
- * F05 deterministic inventory operations; F04 recognition remains scaffolded.
+ * F05 deterministic inventory operations; F04 recognition, verification and explicit import reuse them.
  */
 public class InventoryService {
     private InventoryRepository repository;
@@ -61,12 +63,68 @@ public class InventoryService {
         });
     }
 
+    /** F04 (SD02): recognition of the approved image, then external verification of the first candidate. Never saves. */
     public Result<GearImportDraft> recognize(SanitizedImage image) {
-        return Result.failureKey("error.notImplemented", "InventoryService.recognize");
+        var recognized = recognition.recognize(image);
+        if (!recognized.isSuccess()) return recognized;
+        var verified = recognition.verify(recognized.value().orElseThrow());
+        return verified.isSuccess() ? verified : recognized;
     }
 
+    /** F04: re-runs specification verification after the user chose another candidate or corrected the identity. */
+    public Result<GearImportDraft> verify(GearImportDraft draft) {
+        return recognition.verify(draft);
+    }
+
+    /**
+     * F04 duplicate review: F05 duplicates (same type, brand and model) plus similar records whose names differ only
+     * in punctuation, spacing or order. Distinct variants (e.g. "II" versions) are not reported; nothing is merged.
+     */
+    public Result<List<Equipment>> importDuplicates(EquipmentType type, String brand, String model) {
+        var loaded = repository.load();
+        if (!loaded.isSuccess()) return Result.failure(loaded);
+        return Result.success(loaded.value().orElseThrow().items().stream().filter(item -> item.type() == type
+            && GearNames.sameBrand(item.brand(), brand) && (item.model().strip().equalsIgnoreCase(Objects.requireNonNullElse(model, "").strip())
+                || GearNames.sameModel(brand, item.model(), model))).toList());
+    }
+
+    /** Strict F04 confirmation: no unverified critical values, no duplicates accepted implicitly. */
     public Result<Equipment> confirm(GearImportDraft draft) {
-        return Result.failureKey("error.notImplemented", "InventoryService.confirm");
+        return confirm(draft, GearImportDraft.Decision.none());
+    }
+
+    /**
+     * F04 explicit import (SD02): deterministic validation of the reviewed draft, explicit acceptance of unverified
+     * critical values and of duplicates, then the existing F05 add (or F05 update of the chosen duplicate's quantity,
+     * which keeps that record's specifications and evidence). Failures leave the inventory unchanged.
+     */
+    public Result<Equipment> confirm(GearImportDraft draft, GearImportDraft.Decision decision) {
+        if (draft == null || decision == null) return Result.failureKey("import.error.noDraft");
+        if (draft.confirmed()) return Result.failureKey("import.error.alreadyImported");
+        var built = recognition.confirm(draft);
+        if (!built.isSuccess()) return built;
+        Equipment item = built.value().orElseThrow();
+        var unverified = draft.unverifiedCritical();
+        if (!unverified.isEmpty() && !decision.unverifiedAccepted()) return Result.failureKey("import.error.unverified", String.join(", ", unverified));
+        var similar = importDuplicates(item.type(), item.brand(), item.model());
+        if (!similar.isSuccess()) return Result.failure(similar);
+        Result<Equipment> saved;
+        if (decision.increaseQuantityOf().isPresent()) {
+            Equipment target = decision.increaseQuantityOf().orElseThrow();
+            if (similar.value().orElseThrow().stream().noneMatch(existing -> existing.id().equals(target.id())))
+                return Result.failureKey("import.error.notDuplicate");
+            var data = com.photopilot.model.EquipmentData.from(target);
+            var increased = new com.photopilot.model.EquipmentData(data.type(), data.id(), data.brand(), data.model(),
+                target.quantity() + item.quantity(), data.weightGrams(), data.verifiedFields(), data.sources(), data.verifiedAt(), data.specs()).toEquipment();
+            if (!increased.isSuccess()) return increased;
+            saved = update(increased.value().orElseThrow(), true, target);
+        } else {
+            if (!similar.value().orElseThrow().isEmpty() && !decision.duplicateAccepted())
+                return Result.failureKey("error.gear.duplicate", similar.value().orElseThrow().stream().map(e -> e.brand() + " " + e.model() + " (" + e.id() + ")").toList());
+            saved = add(item, decision.duplicateAccepted());
+        }
+        if (saved.isSuccess()) draft.markConfirmed();
+        return saved;
     }
 
     public Result<GearInventory> list(String query, com.photopilot.model.EquipmentType type) {

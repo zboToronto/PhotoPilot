@@ -21,6 +21,7 @@ final class FeaturePane extends VBox {
         if (discovery != null) discovery.dispose();
         if (planning != null) planning.dispose();
         if (inventory != null) inventory.dispose();
+        if (gearImport != null) gearImport.dispose();
         if (calculator != null) calculator.dispose();
     }
     private final FxLocalizer texts;
@@ -48,6 +49,7 @@ final class FeaturePane extends VBox {
     private EnvironmentPane environment;
     private DiscoveryPane discovery;
     private PlanPane planning;
+    private GearImportPane gearImport;
 
     FeaturePane() { this(LocalizationService.english()); }
     FeaturePane(LocalizationService localization) {
@@ -97,6 +99,7 @@ final class FeaturePane extends VBox {
         if (discovery != null) discovery.activate(false);
         if (planning != null) planning.activate(false);
         if (inventory != null) inventory.activate(false);
+        if (gearImport != null) gearImport.activate(false);
         if (calculator != null) calculator.activate(false);
     }
 
@@ -112,6 +115,8 @@ final class FeaturePane extends VBox {
         boolean env = selected.id().equals("F09") && environment != null;
         boolean plan = selected.id().equals("F10") && planning != null;
         boolean ideas = selected.id().equals("F02") && discovery != null;
+        boolean importing = selected.id().equals("F04") && gearImport != null;
+        if (gearImport != null) { gearImport.setVisible(importing); gearImport.setManaged(importing); gearImport.activate(importing); }
         if (matching != null) { matching.setVisible(match); matching.setManaged(match); matching.activate(match); }
         if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
         if (discovery != null) { discovery.setVisible(ideas); discovery.setManaged(ideas); discovery.activate(ideas); }
@@ -119,7 +124,7 @@ final class FeaturePane extends VBox {
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan && !ideas;
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan && !ideas && !importing;
         empty.setVisible(placeholder); empty.setManaged(placeholder);
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
@@ -188,10 +193,15 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+    void connectImport(GearImportPane gearImport) {
+        this.gearImport = gearImport; gearImport.setVisible(false); gearImport.setManaged(false); body.getChildren().add(1, gearImport);
+        if (feature != null) show(feature);
+    }
 
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
+        if (selected.id().equals("F04") && gearImport != null) { showFeedback(() -> localization.text("import.ready")); return; }
         if (selected.id().equals("F06")) { showFeedback(() -> localization.text("capability.scope")); return; }
         if (selected.id().equals("F01")) { showFeedback(() -> localization.text("session.ready")); return; }
         if (selected.id().equals("F02") && discovery != null) { showFeedback(() -> localization.text("discover.ready")); return; }
@@ -222,6 +232,7 @@ final class FeaturePane extends VBox {
     boolean environmentConnected() { return environment != null; }
     boolean planningConnected() { return planning != null; }
     boolean discoveryConnected() { return discovery != null; }
+    boolean importConnected() { return gearImport != null; }
 
     static Label label(String text, String style) {
         Label label = new Label(text);
