@@ -5,7 +5,7 @@ import com.photopilot.common.Result;
 
 /**
  * Stage 1 UML element 69 (zero-based): {Command contract; validated by invoker}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * One controlled plan modification. Commands only change a copyForRevision() draft; PlanEditor validates the result.
  */
 public interface PlanCommand {
 

@@ -1,5 +1,6 @@
 package com.photopilot.agent;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -7,7 +8,9 @@ import com.photopilot.common.Result;
 
 /**
  * Stage 1 UML element 16 (zero-based): {validated allowlist; no arbitrary execution}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Only registered tools can run, and a caller may narrow that further to the tools one task permits. Arguments are
+ * schema-checked before the tool's own strict validation. Tools are fixed application code (deterministic
+ * calculators and read-only providers); nothing here reaches the filesystem, processes or a shell.
  */
 public class ToolRegistry {
     private Map<String, AgentTool> allowedTools;
@@ -17,12 +20,30 @@ public class ToolRegistry {
     }
 
     public Result<String> execute(ToolCall call) {
-        return Result.failureKey("error.notImplemented", "ToolRegistry.execute");
+        return execute(call, allowedTools.keySet());
     }
 
-    public Map<String, String> schemas() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: ToolRegistry.schemas");
+    /** Runs a registered tool only if {@code permitted} also allows it for the current task. */
+    public Result<String> execute(ToolCall call, Collection<String> permitted) {
+        if (call == null) return Result.failureKey("ai.error.unknownTool", "");
+        AgentTool tool = allowedTools.get(call.toolName());
+        if (tool == null || permitted == null || !permitted.contains(call.toolName())) return Result.failureKey("ai.error.unknownTool", call.toolName());
+        var checked = call.validateAgainst(tool.inputSchema());
+        if (!checked.isSuccess()) return Result.failure(checked);
+        var result = tool.execute(call.argumentsJson());
+        return result == null ? Result.failureKey("ai.error.toolFailed", call.toolName(), "no result") : result;
     }
+
+    /** Input schemas of the registered tools that publish one; scaffolded tools without a schema are omitted. */
+    public Map<String, String> schemas() {
+        var schemas = new LinkedHashMap<String, String>();
+        allowedTools.forEach((name, tool) -> {
+            try { schemas.put(name, tool.inputSchema()); } catch (UnsupportedOperationException scaffolded) { /* not offered */ }
+        });
+        return schemas;
+    }
+
+    public boolean has(String name) { return allowedTools.containsKey(name); }
 
     public void register(AgentTool tool) {
         Objects.requireNonNull(tool, "tool");

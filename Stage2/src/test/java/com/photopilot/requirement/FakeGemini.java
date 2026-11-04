@@ -13,15 +13,18 @@ public final class FakeGemini implements AutoCloseable {
     public static final String KEY = "offline-gemini-test-key";
     private final HttpServer server;
     private final Deque<int[]> statuses = new ArrayDeque<>();
-    private final Deque<String> bodies = new ArrayDeque<>();
+    private final Deque<Object> bodies = new ArrayDeque<>();
     public final List<String> requests = new CopyOnWriteArrayList<>();
 
     public FakeGemini() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
-            requests.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            int status; String body;
-            synchronized (this) { status = statuses.isEmpty() ? 503 : statuses.poll()[0]; body = bodies.isEmpty() ? "" : bodies.poll(); }
+            String received = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            requests.add(received);
+            int status; Object queued;
+            synchronized (this) { status = statuses.isEmpty() ? 503 : statuses.poll()[0]; queued = bodies.isEmpty() ? "" : bodies.poll(); }
+            @SuppressWarnings("unchecked") String body = queued instanceof java.util.function.Function<?, ?> generator
+                ? wrap(((java.util.function.Function<String, String>) generator).apply(received)) : (String) queued;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(status, bytes.length == 0 ? -1 : bytes.length);
             if (bytes.length > 0) exchange.getResponseBody().write(bytes);
@@ -37,13 +40,20 @@ public final class FakeGemini implements AutoCloseable {
     }
     /** Queues a successful generateContent reply whose generated text is {@code text}. */
     public synchronized FakeGemini reply(String text) {
+        statuses.add(new int[]{200}); bodies.add(wrap(text)); return this;
+    }
+    /** Queues a successful reply whose generated text is computed from the received request body. */
+    public synchronized FakeGemini replyWith(java.util.function.Function<String, String> generator) {
+        statuses.add(new int[]{200}); bodies.add(generator); return this;
+    }
+    private static String wrap(String text) {
         JsonObject part = new JsonObject(); part.addProperty("text", text);
         JsonArray parts = new JsonArray(); parts.add(part);
         JsonObject content = new JsonObject(); content.add("parts", parts);
         JsonObject candidate = new JsonObject(); candidate.add("content", content);
         JsonArray candidates = new JsonArray(); candidates.add(candidate);
         JsonObject root = new JsonObject(); root.add("candidates", candidates);
-        statuses.add(new int[]{200}); bodies.add(root.toString()); return this;
+        return root.toString();
     }
     public synchronized FakeGemini status(int code, String body) { statuses.add(new int[]{code}); bodies.add(body); return this; }
 

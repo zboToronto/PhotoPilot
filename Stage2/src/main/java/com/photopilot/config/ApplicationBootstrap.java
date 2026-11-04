@@ -42,6 +42,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
         if (!Set.of("portability", "coverage").contains(environment.getOrDefault("PHOTOPILOT_RANKING", "portability")))
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
         URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
+        timeoutSeconds(environment);
         try {
             if (defaultProfile || requested.profileId().isPresent()) {
                 var registry = new JsonProfileRepository(requested.root());
@@ -70,7 +71,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
         LLMConfiguration llmConfiguration = LLMConfiguration.load(environment);
         // Constructing the client sends nothing; only explicit complete() calls (CLI ai-test) reach the provider.
         LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
-            geminiModel, http, Duration.ofSeconds(30), llmConfiguration), localization);
+            geminiModel, http, Duration.ofSeconds(timeoutSeconds(environment)), llmConfiguration), localization);
         PhotoPilotAgent agent = new PhotoPilotAgent(model, tools, new HistoryRetriever(sessions), 8);
         TechnicalCalculator calculator = new TechnicalCalculator();
         CompatibilityValidator compatibility = new CompatibilityValidator();
@@ -90,7 +91,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
             agent, feasibility);
         EquipmentSpecificationProvider specifications = new EquipmentCatalogAdapter(
             URI.create("https://unconfigured.invalid/equipment"), http);
-        PlanValidator validator = new PlanValidator(compatibility, calculator);
+        PlanValidator validator = new PlanValidator(compatibility, calculator, feasibility);
         // Phase two closes the existing agent -> registry -> tools -> services -> agent cycle.
         // register() is in the approved UML. It does not execute any tool or request.
         tools.register(new CalculationTool(calculator));
@@ -104,6 +105,17 @@ public final class ApplicationBootstrap implements AutoCloseable {
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
             new ReviewService(new ExifLibraryAdapter(Set.of()), new StatisticsCalculator(), agent, sessions),
             calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel));
+    }
+
+    /** Gemini request timeout; 30 s unless GEMINI_TIMEOUT_SECONDS (5-300) is set, e.g. for longer F10 planning replies. */
+    static int timeoutSeconds(Map<String, String> environment) {
+        String value = environment.getOrDefault("GEMINI_TIMEOUT_SECONDS", "").strip();
+        if (value.isEmpty()) return 30;
+        try {
+            int seconds = Integer.parseInt(value);
+            if (seconds >= 5 && seconds <= 300) return seconds;
+        } catch (NumberFormatException invalid) { /* reported below */ }
+        throw new IllegalArgumentException("GEMINI_TIMEOUT_SECONDS must be a whole number from 5 to 300");
     }
 
     private static URI endpoint(Map<String, String> environment, String name, URI fallback) {

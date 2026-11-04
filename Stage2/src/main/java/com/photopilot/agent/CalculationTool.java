@@ -24,6 +24,17 @@ public class CalculationTool implements AgentTool {
             """;
     }
     public Result<String> execute(String argumentsJson) {
+        var input=input(argumentsJson);
+        if(!input.isSuccess()) return Result.failure(input);
+        var result=calculator.calculate(input.value().orElseThrow());
+        if(!result.isSuccess()) return Result.failure(String.join("; ",result.errors()));
+        var value=result.value().orElseThrow();Gson gson=new Gson();JsonObject output=new JsonObject();JsonObject numbers=new JsonObject();
+        value.values().forEach((key,number) -> { if(number==Double.POSITIVE_INFINITY) numbers.addProperty(key,"Infinity");else numbers.addProperty(key,number); });
+        output.add("values",numbers);output.add("units",gson.toJsonTree(value.units()));output.addProperty("estimated",value.estimated());output.add("assumptions",gson.toJsonTree(value.assumptions()));output.add("input",gson.toJsonTree(input.value().orElseThrow()));
+        return Result.success(gson.toJson(output));
+    }
+    /** Strict decoding of the tool arguments into the F08 input (shared with F10, which recomputes tool evidence). */
+    public static Result<CalculationInput> input(String argumentsJson) {
         if (argumentsJson==null || argumentsJson.length()>16384) return Result.failure("Calculation JSON is required and limited to 16384 characters.");
         try (JsonReader reader=new JsonReader(new StringReader(argumentsJson))) {
             reader.setStrictness(Strictness.STRICT);
@@ -48,13 +59,7 @@ public class CalculationTool implements AgentTool {
             }
             reader.endObject();require(reader,JsonToken.END_DOCUMENT);
             if(!keys.equals(Set.of("operation","parameters","units"))) throw new IllegalArgumentException("operation, parameters and units are required.");
-            var input=new CalculationInput(CalculationKind.valueOf(operation),parameters,units);
-            var result=calculator.calculate(input);
-            if(!result.isSuccess()) return Result.failure(String.join("; ",result.errors()));
-            var value=result.value().orElseThrow();Gson gson=new Gson();JsonObject output=new JsonObject();JsonObject numbers=new JsonObject();
-            value.values().forEach((key,number) -> { if(number==Double.POSITIVE_INFINITY) numbers.addProperty(key,"Infinity");else numbers.addProperty(key,number); });
-            output.add("values",numbers);output.add("units",gson.toJsonTree(value.units()));output.addProperty("estimated",value.estimated());output.add("assumptions",gson.toJsonTree(value.assumptions()));output.add("input",gson.toJsonTree(input));
-            return Result.success(gson.toJson(output));
+            return Result.success(new CalculationInput(CalculationKind.valueOf(operation),parameters,units));
         } catch(IOException | IllegalArgumentException | IllegalStateException e) { return Result.failure("Invalid calculation: "+e.getMessage()); }
     }
     private static void require(JsonReader reader,JsonToken token) throws IOException {

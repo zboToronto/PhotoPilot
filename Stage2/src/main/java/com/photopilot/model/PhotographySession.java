@@ -168,8 +168,19 @@ public class PhotographySession {
         throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.attachStatistics");
     }
 
-    public void appendApprovedPlan(ShootPlan plan) {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.appendApprovedPlan");
+    /**
+     * F10: copy with one more approved plan revision appended to the history; earlier revisions are kept unchanged.
+     * Like attachRequirement it returns a Result copy instead of mutating; the state transition and the atomic save
+     * belong to the caller (PlanningService.approve).
+     */
+    public Result<PhotographySession> appendApprovedPlan(ShootPlan plan) {
+        if (plan == null || !plan.approved()) return Result.failureKey("plan.error.notApproved");
+        if (!state.canEditPlan()) return Result.failureKey("plan.error.historical");
+        if (plans.stream().anyMatch(saved -> saved.id().equals(plan.id()) && saved.revision() >= plan.revision()))
+            return Result.failureKey("plan.error.stale");
+        var history = new java.util.ArrayList<>(plans); history.add(plan);
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, history, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
     }
 
     public void appendReview(PostShootReview review) {

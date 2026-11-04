@@ -18,6 +18,7 @@ final class FeaturePane extends VBox {
         if (requirements != null) requirements.dispose();
         if (matching != null) matching.dispose();
         if (environment != null) environment.dispose();
+        if (planning != null) planning.dispose();
         if (inventory != null) inventory.dispose();
         if (calculator != null) calculator.dispose();
     }
@@ -44,6 +45,7 @@ final class FeaturePane extends VBox {
     private CapabilityPane capability;
     private GearMatchPane matching;
     private EnvironmentPane environment;
+    private PlanPane planning;
 
     FeaturePane() { this(LocalizationService.english()); }
     FeaturePane(LocalizationService localization) {
@@ -90,6 +92,7 @@ final class FeaturePane extends VBox {
         if (requirements != null) requirements.activate(false);
         if (matching != null) matching.activate(false);
         if (environment != null) environment.activate(false);
+        if (planning != null) planning.activate(false);
         if (inventory != null) inventory.activate(false);
         if (calculator != null) calculator.activate(false);
     }
@@ -104,12 +107,14 @@ final class FeaturePane extends VBox {
         boolean requirement = selected.id().equals("F03") && requirements != null;
         boolean match = selected.id().equals("F07") && matching != null;
         boolean env = selected.id().equals("F09") && environment != null;
+        boolean plan = selected.id().equals("F10") && planning != null;
         if (matching != null) { matching.setVisible(match); matching.setManaged(match); matching.activate(match); }
         if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
+        if (planning != null) { planning.setVisible(plan); planning.setManaged(plan); planning.activate(plan); }
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env;
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan;
         empty.setVisible(placeholder); empty.setManaged(placeholder);
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
@@ -168,6 +173,13 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+
+    void connectPlanning(PlanPane planning) {
+        this.planning = planning; planning.setVisible(false); planning.setManaged(false); body.getChildren().add(1, planning);
+        if (feature != null) show(feature);
+    }
+
+
     void inspectStatus() {
         refreshStatus();
         var selected = feature;
@@ -176,6 +188,7 @@ final class FeaturePane extends VBox {
         if (selected.id().equals("F03")) { showFeedback(() -> localization.text("requirement.ready")); return; }
         if (selected.id().equals("F07") && matching != null) { showFeedback(() -> localization.text("match.ready")); return; }
         if (selected.id().equals("F09") && environment != null) { showFeedback(() -> localization.text("env.ready")); return; }
+        if (selected.id().equals("F10") && planning != null) { showFeedback(() -> localization.text("plan.status")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED
@@ -197,6 +210,7 @@ final class FeaturePane extends VBox {
     boolean inventoryConnected() { return inventory != null; }
     boolean matchingConnected() { return matching != null; }
     boolean environmentConnected() { return environment != null; }
+    boolean planningConnected() { return planning != null; }
 
     static Label label(String text, String style) {
         Label label = new Label(text);

@@ -189,6 +189,8 @@ final class PhotoPilotWorkspace extends BorderPane {
     void selectMatching() { navigation.get("F07").fire(); }
     void connectEnvironment(EnvironmentPane environment) { detail.connectEnvironment(environment); }
     void selectEnvironment() { navigation.get("F09").fire(); }
+    void connectPlanning(PlanPane planning) { detail.connectPlanning(planning); }
+    void selectPlanning() { navigation.get("F10").fire(); }
 
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
 
@@ -226,12 +228,13 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!entry.getKey().equals(selectedId) || !detail.feedbackText().isEmpty() || contentScroll.getVvalue() != 0) {
                 throw new IllegalStateException("Feature selection did not reset content: " + entry.getKey());
             }
-            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F03", "F05", "F07", "F08", "F09").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
+            if (!detail.statusText().equals(localization.text("feature.status." + (java.util.Set.of("F01", "F03", "F05", "F07", "F08", "F09", "F10").contains(entry.getKey()) ? "IMPLEMENTED" : entry.getKey().equals("F06") ? "IN_PROGRESS" : "SCAFFOLDED"))) || !detail.workflowDisabled()) {
                 throw new IllegalStateException("Unexpected scaffold availability: " + entry.getKey());
             }
             detail.checkStatusButton().fire();
             String expected = entry.getKey().equals("F01") ? localization.text("session.ready")
-                : entry.getKey().equals("F03") ? localization.text("requirement.ready") : entry.getKey().equals("F05")
+                : entry.getKey().equals("F03") ? localization.text("requirement.ready")
+                : entry.getKey().equals("F05")
                 ? detail.inventoryConnected() ? localization.text("feature.inventoryReady")
                     : localization.text("feature.noWorkflow", "F05", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F08") ? localization.text("feature.calculatorReady", localization.text("feature.status.IMPLEMENTED"))
@@ -240,6 +243,8 @@ final class PhotoPilotWorkspace extends BorderPane {
                     : localization.text("feature.noWorkflow", "F07", localization.text("feature.status.IMPLEMENTED"))
                 : entry.getKey().equals("F09") ? detail.environmentConnected() ? localization.text("env.ready")
                     : localization.text("feature.noWorkflow", "F09", localization.text("feature.status.IMPLEMENTED"))
+                : entry.getKey().equals("F10") ? detail.planningConnected() ? localization.text("plan.status")
+                    : localization.text("feature.noWorkflow", "F10", localization.text("feature.status.IMPLEMENTED"))
                     : localization.text("feature.unavailable", entry.getKey());
             if (!detail.feedbackText().equals(expected)) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());

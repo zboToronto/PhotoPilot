@@ -70,7 +70,14 @@ final class SessionDomainAdapters {
                 read(o, "preparation", c, new TypeToken<List<String>>() {}),
                 read(o, "shotPriorities", c, new TypeToken<List<String>>() {}),
                 read(o, "fixedConstraints", c, new TypeToken<Map<String, String>>() {}),
-                read(o, "calculations", c, new TypeToken<List<CalculationResult>>() {}));
+                read(o, "calculations", c, new TypeToken<List<CalculationResult>>() {}),
+                read(o, "summary", c, new TypeToken<String>() {}),
+                read(o, "sessionInfo", c, new TypeToken<Map<String, String>>() {}),
+                read(o, "strategy", c, new TypeToken<Map<String, String>>() {}),
+                read(o, "equipmentNotes", c, new TypeToken<List<String>>() {}),
+                read(o, "tradeOffs", c, new TypeToken<List<String>>() {}),
+                read(o, "limitations", c, new TypeToken<List<String>>() {}),
+                read(o, "changeSummary", c, new TypeToken<String>() {}));
         });
         builder.registerTypeAdapter(PostShootReview.class, (JsonDeserializer<PostShootReview>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();

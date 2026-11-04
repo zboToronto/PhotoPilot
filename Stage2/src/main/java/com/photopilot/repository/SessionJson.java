@@ -99,12 +99,28 @@ final class SessionJson {
     private static JsonObject withRequirementAdditions(JsonObject object) {
         // F07 added an optional v1 selected loadout; older records simply have none.
         if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
+        object = withPlanAdditions(object);
         if (!(object.get("requirements") instanceof JsonObject requirement)
                 || requirement.has("date") && requirement.has("timeWindow") && requirement.has("portability")) return object;
         JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("requirements");
         if (!target.has("date")) target.add("date", JsonNull.INSTANCE);
         if (!target.has("timeWindow")) target.addProperty("timeWindow", "");
         if (!target.has("portability")) target.addProperty("portability", "");
+        return copy;
+    }
+    /** F10 added structured plan sections to v1 plans; plans written before them have none (empty, never invented). */
+    private static JsonObject withPlanAdditions(JsonObject object) {
+        if (!(object.get("plans") instanceof JsonArray plans)) return object;
+        var defaults = new LinkedHashMap<String, JsonElement>();
+        defaults.put("summary", new JsonPrimitive("")); defaults.put("sessionInfo", new JsonObject()); defaults.put("strategy", new JsonObject());
+        defaults.put("equipmentNotes", new JsonArray()); defaults.put("tradeOffs", new JsonArray()); defaults.put("limitations", new JsonArray());
+        defaults.put("changeSummary", new JsonPrimitive(""));
+        boolean complete = true;
+        for (JsonElement plan : plans) if (plan instanceof JsonObject o && !defaults.keySet().stream().allMatch(o::has)) complete = false;
+        if (complete) return object;
+        JsonObject copy = object.deepCopy();
+        for (JsonElement plan : copy.getAsJsonArray("plans"))
+            if (plan instanceof JsonObject o) defaults.forEach((key, value) -> { if (!o.has(key)) o.add(key, value.deepCopy()); });
         return copy;
     }
     private static void validateGraph(Object value) {

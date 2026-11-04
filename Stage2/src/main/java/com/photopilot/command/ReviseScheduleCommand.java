@@ -6,7 +6,7 @@ import com.photopilot.model.ShootingWindow;
 
 /**
  * Stage 1 UML element 71 (zero-based): {Concrete Command; timing change}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Replaces the draft's schedule windows; availability, time-zone and evidence checks belong to PlanValidator.
  */
 public class ReviseScheduleCommand implements PlanCommand {
     private List<ShootingWindow> windows;
@@ -16,6 +16,9 @@ public class ReviseScheduleCommand implements PlanCommand {
     }
 
     public Result<ShootPlan> applyTo(ShootPlan draft) {
-        return Result.failureKey("error.notImplemented", "ReviseScheduleCommand.applyTo");
+        if (draft == null) return Result.failureKey("plan.error.noDraft");
+        if (draft.approved()) return Result.failureKey("plan.error.immutable");
+        draft.reviseSchedule(windows);
+        return Result.success(draft);
     }
 }
