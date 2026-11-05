@@ -60,6 +60,15 @@ public class SessionService {
         var changed = expected.apply(event);
         return changed.isSuccess() ? save(changed.value().orElseThrow()) : changed;
     }
+
+    /** Events a photographer records directly; PLAN_APPROVED and REVIEW_SAVED are applied by F10 approval and F11 review saving. */
+    public static final List<SessionEvent> MANUAL_EVENTS = List.of(SessionEvent.SHOOT_COMPLETED);
+
+    /** GUI/CLI lifecycle action: workflow-owned events are refused before any state change; the State guards still decide the rest. */
+    public Result<PhotographySession> recordEvent(PhotographySession expected, SessionEvent event) {
+        if (event != null && !MANUAL_EVENTS.contains(event)) return Result.failureKey("error.session.workflowEvent", event);
+        return transition(expected, event);
+    }
     public Result<PhotographySession> update(PhotographySession expected, String title, LocalDate date, Optional<GeoLocation> location, String notes) {
         if (expected == null || title == null || date == null || location == null || notes == null) return Result.failureKey("error.session.details");
         return save(expected.edit(title, date, location, notes));

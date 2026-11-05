@@ -56,7 +56,7 @@ final class SessionCommands {
                 SessionEvent event;
                 try { event = SessionEvent.valueOf(options.getOrDefault("event", "").toUpperCase(Locale.ROOT)); }
                 catch (IllegalArgumentException error) { throw new LocalizedException("error.session.state"); }
-                saved = app.sessions().transition(original, event);
+                saved = app.sessions().recordEvent(original, event);
             } else {
                 var parsed = SessionForm.parse(options(words, 3, Set.of("title", "date", "location", "notes")), original);
                 if (!report(parsed)) return 2;

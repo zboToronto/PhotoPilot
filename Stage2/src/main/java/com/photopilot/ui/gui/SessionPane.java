@@ -115,7 +115,7 @@ final class SessionPane extends VBox {
         editor.getChildren().add(new FlowPane(12, 10, button("session.save", "session-save", this::save, true),
             button("button.cancel", "session-cancel", () -> guard(() -> { hide(editor); editing = null; }), false)));
         if (session != null) {
-            event.getItems().setAll(SessionEvent.values()); event.setValue(SessionEvent.SHOOT_COMPLETED); event.setId("session-event");
+            event.getItems().setAll(com.photopilot.service.SessionService.MANUAL_EVENTS); event.setValue(SessionEvent.SHOOT_COMPLETED); event.setId("session-event");
             texts.choices(event, e -> localization.text("session.event." + e.name())); texts.text(event.accessibleTextProperty(), "session.transition");
             editor.getChildren().addAll(texts.label("session.lifecycleHelp", "secondary-text"),
                 new FlowPane(12, 10, event, button("session.transition", "session-transition", this::transition, false)));
@@ -148,7 +148,7 @@ final class SessionPane extends VBox {
     private void transition() {
         if (dirty()) { message(() -> localization.text("session.saveFirst")); return; }
         PhotographySession expected = editing; SessionEvent selected = event.getValue();
-        run(() -> app.sessions().transition(expected, selected), saved -> { openEditor(saved); message(() -> localization.text("session.saved")); refresh(); });
+        run(() -> app.sessions().recordEvent(expected, selected), saved -> { openEditor(saved); message(() -> localization.text("session.saved")); refresh(); });
     }
     private void deleteSelected() {
         PhotographySession selected = table.getSelectionModel().getSelectedItem(); if (selected == null) return;

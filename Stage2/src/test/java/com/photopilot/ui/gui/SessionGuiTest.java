@@ -63,6 +63,8 @@ class SessionGuiTest {
             field("notes", "Edited GUI goals"); click("session-save"); ready();
             assertEquals("Edited GUI goals", app.facade().sessions().open(stored.id()).value().orElseThrow().notes());
             click("session-transition"); ready(); assertTrue(fx(() -> pane.feedbackText().contains("not allowed")));
+            assertEquals(List.of(com.photopilot.state.SessionEvent.SHOOT_COMPLETED), fx(() -> List.copyOf(((ComboBox<?>)pane.lookup("#session-event")).getItems())),
+                "PLAN_APPROVED and REVIEW_SAVED are applied by F10/F11, never offered manually");
             action(() -> ((TextField)pane.lookup("#session-search")).setText("unmatched")); click("session-refresh"); ready(); assertEquals(0, fx(() -> pane.table().getItems().size()));
             action(() -> ((TextField)pane.lookup("#session-search")).clear()); click("session-refresh"); ready();
             action(() -> ((ScrollPane)workspace.lookup(".content-scroll")).setVvalue(0)); snapshot("f01-history-wide");
