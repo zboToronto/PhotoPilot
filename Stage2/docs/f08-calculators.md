@@ -64,7 +64,7 @@ calc battery shotCount=1000 ratedShots=600
 - Six unspecified numeric schemas -> concrete documented keys/units above -> reproducible validation and meaningful results -> UC08 and the existing six enum values/methods preserved; no architectural diagram change.
 - Prompt labels log2(N²/t) EV100 -> camera setting EV plus ISO-normalized EV100 -> the bare formula has no ISO term and equals EV100 at ISO 100 -> prevents confusion with sensitivity/compensation; clearly labeled in both interfaces.
 - General battery/capacity estimate -> rated-shot model -> F05 has ratedShots but no voltage/usage power for a reliable mAh energy model -> manual rated shots supported; unsupported mAh-only inference rejected by omission.
-- Generic calculation JSON adapter -> strict 16,384-character, six-parameter schema and deterministic execution -> Stage1 shared tool route becomes independently usable -> F10 tool registry/LLM loop remains scaffolded and is not claimed complete.
+- Generic calculation JSON adapter -> strict 16,384-character, six-parameter schema and deterministic execution -> Stage1 shared tool route becomes independently usable -> F10's bounded tool loop now invokes it (`calculation` is the only registered agent tool; `AgentToolLoopTest`, `F10WorkflowTest`).
 
 ## Executed verification
 
@@ -78,4 +78,4 @@ calc battery shotCount=1000 ratedShots=600
 - `tools/verify_sources.py`: PASS, 87 UML types / 267 fields / 184 operations, 83 relationships recorded, 20 original source hashes unchanged. Its historical blanket business-unimplemented footer is not current F08 status.
 - Initial restricted compilation failed to access the existing JavaFX dependency cache; elevated runs succeeded. A later `clean test` was blocked by a locked `target/javafx-cache/vcruntime140_1.dll`. Only generated classes/test-classes were then removed and every source recompiled successfully, preserving the native cache and pre-existing GUI process. Final passing command above was not a successful Maven clean.
 
-Remaining limits: Windows desktop only; other platforms/display scales and a submission demonstration video are unverified. F10 agent orchestration and session persistence remain separate incomplete features; standalone F08 does not save results or require Gemini. Optical/capacity estimates retain the assumptions above. No claim of device calibration or real-world battery life.
+Remaining limits: Windows desktop only; other platforms/display scales and a submission demonstration video are unverified. Standalone F08 does not save results or require Gemini; F10 plans keep the calculations the agent requested. Parameters come from user input or a selected F05 item; values from a confirmed shoot reach the calculator through F10's agent tool, not through the standalone page. Optical/capacity estimates retain the assumptions above. No claim of device calibration or real-world battery life.

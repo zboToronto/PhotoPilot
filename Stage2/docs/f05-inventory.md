@@ -1,6 +1,6 @@
 # F05 gear inventory implementation and verification
 
-Verified on 2026-10-26, America/Toronto, Windows with JDK 21. F05 is implemented; F04 recognition and F06 capability analysis remain scaffolded. This is not a claim that all Stage 2 requirements are complete.
+Verified on 2026-10-26, America/Toronto, Windows with JDK 21. F05 is implemented. *Current status (2026-11-04): all of F01–F11 are implemented; statements below about F01, F04 and F06 being unavailable describe the state on 2026-10-26 and are marked historical. Current evidence: [feature status](../../docs/FEATURE_STATUS.md).*
 
 ## Usage and scope
 
@@ -41,10 +41,10 @@ F05 -> UC05 (plus future UC04 result) -> SD02 -> PhotoPilotFacade.inventory()/sa
 | GearInventory.search(query) | Retain search; add read-only items/find/revision access and service type filtering | Render typed inventory and protect persistence transactions | F05 and future F06/F07 consumers can read real values; no F06 behavior added |
 | Equipment types and immutable GearSnapshot | Implement validation/snapshot, final equipment fields, typed getters, EquipmentType definitions and EquipmentData mapping | Make existing domain classes usable without parallel equipment models or reflective domain loading | Original fields/constructors retained; missing data and evidence survive persistence |
 | JSON repository atomic write | Add versioned schema, strict decoding, bounded input, transact port and revisions | Serialize multi-process writes and prevent corrupt-file/stale-state data loss | Existing load/save preserved; requires file locking and atomic-move filesystem support |
-| Check sessions.referencingGear(id) and preserve snapshots | Empty/missing session store proves no references; nonempty/unreadable store blocks deletion; service honors returned references and acceptance | F01's saved-session schema is not implemented; inventing a scanner would risk history | Narrow F05 prerequisite guard only. Real saved-session scanning awaits F01. No session files are mutated |
+| Check sessions.referencingGear(id) and preserve snapshots | Empty/missing session store proves no references; nonempty/unreadable store blocks deletion; service honors returned references and acceptance | (Historical) F01's saved-session schema did not exist yet; inventing a scanner would risk history | Narrow F05 prerequisite guard only. Real saved-session scanning was added with F01 (`JsonSessionRepository.referencingGear`, `SessionTest.actualGearReferencesWarnAndConfirmedRemovalPreservesHistory`). No session files are mutated |
 | Existing GUI feature placeholder | InventoryPane connects inside FeaturePane with shared labels, button/card CSS and Task executor; InventoryCommands handles CLI syntax | Provide real workflows in the established shell | Sidebar, navigation groups, window behavior and unrelated pages preserved |
 
-These are implementation refinements/additive APIs rather than a replacement architecture. Stage1 report and UXF/PNG diagrams were not modified. The existing structural audit still finds every original declaration. F04 recognition and confirmation stay unavailable; future confirmed imports can use the shared deterministic save path. F06/F07 can consume typed getters, immutable item lists, optional values, verification metadata and copied snapshots; their business workflows were not implemented here.
+These are implementation refinements/additive APIs rather than a replacement architecture. Stage1 report and UXF/PNG diagrams were not modified. The existing structural audit still finds every original declaration. Confirmed F04 imports use the same deterministic save path (`InventoryService.confirm`). F06/F07 consume typed getters, immutable item lists, optional values, verification metadata and copied snapshots; their workflows live in their own features.
 
 ## Files
 
@@ -93,7 +93,7 @@ Initial restricted Maven dependency access failed (`getsockopt`); approved netwo
 
 ## Limits
 
-- Real nonempty saved-session reference resolution requires F01; deletion is blocked safely until then. Its warning/acceptance contract was tested with a controlled repository, not with a completed F01 workflow.
-- F04 recognition, F06 capability analysis and the remaining business features were not implemented. No provider calls, external verification, production user-data migration or final course demonstration video was performed.
+- Saved-session reference resolution now uses F01's real scan; the removal warning and accepted removal are tested against real saved sessions (see above). An unreadable session store still blocks deletion.
+- F05 itself makes no provider calls. No production user-data migration or final course demonstration video was performed. *(Historical, 2026-10-26: F04 recognition and F06 analysis were not yet implemented; both are now.)*
 - Verification covers Windows/JDK 21, current display scale and the local filesystem. macOS/Linux, other display scales, screen-reader speech, network filesystems and power-loss durability are not established.
 - Separate interfaces see external changes on reload, not automatic live synchronization. Brand and model are required by this first manual-entry form; unknown optional specifications remain explicit.

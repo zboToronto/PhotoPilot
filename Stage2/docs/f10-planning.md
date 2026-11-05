@@ -8,6 +8,8 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 
 ## Dependency audit (before implementation)
 
+*Historical snapshot from 2026-11-03, before F10 was built. F06 AI analysis was completed later that day.*
+
 | Dependency | Actual state | How F10 consumes it |
 | --- | --- | --- |
 | F01 sessions | Verified. Draft → Planned already required an approved, non-provisional plan; `appendApprovedPlan` was a stub. | `appendApprovedPlan` implemented (Result copy); `apply(PLAN_APPROVED)` unchanged. |
@@ -17,7 +19,7 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 | F07 matching / UC14 | Verified; `compatibleCandidates`, `evaluate`, `CompatibilityValidator.assess/availability`. | The F07 selection (if still current) and the best verified candidates meeting the requirement limits are offered under labels. F07's AI ranking is not re-run (no duplicate ranking, no extra model call). |
 | F08 calculator | Verified; `CalculationTool` strict JSON adapter. | Only tool permitted to the F10 agent; all plan calculations are recomputed by `TechnicalCalculator`. |
 | F09 environment | Verified; assessments are not persisted. | Latest successful assessment per session is kept in memory by `PlanningService` (same run only); stale forecast groups are withheld. `EnvironmentTool` is **not** permitted to F10 because it needs coordinates, which never go to Gemini. |
-| Agent / registry | `run` was single-step; `ToolRegistry.execute/schemas`, `ToolCall.validateAgainst`, `AgentContext.appendToolResult`, `HistoryRetriever.contextFor` were stubs. | Implemented (below). `GearMatchingTool` and `SpecificationTool` remain scaffolded and are never offered. |
+| Agent / registry | `run` was single-step; `ToolRegistry.execute/schemas`, `ToolCall.validateAgainst`, `AgentContext.appendToolResult`, `HistoryRetriever.contextFor` were stubs. | Implemented (below). `GearMatchingTool` and `SpecificationTool` are never offered; since 2026-11-04 they are also not registered (only `calculation` is). |
 | Command / validator | `ShootPlan` receiver methods, commands, `PlanEditor`, `PlanValidator` were stubs. | Implemented. |
 
 ## UC10 workflow (SD04)
@@ -76,7 +78,7 @@ GUI: **Workspace > Shoot Planning** (`PlanPane` inside the existing `FeaturePane
 * `PhotographySession.appendApprovedPlan(plan): void` → returns `Result<PhotographySession>` copy → same immutable-copy convention as `attachRequirement`/`attachProfile`; no in-memory state is published before the atomic save → F01/F10, State unchanged.
 * `PhotoPilotAgent.run` single step → added `runWithTools(task, ctx, type, permittedTools)` returning `Run<T>` (output + tool exchanges + history count); `run` unchanged → F03/F07/F09 keep rejecting tool calls; SD04 loop implemented without a new framework.
 * Native function calling → structured-output tool envelope; `GeminiAdapter` sends earlier tool exchanges as labelled data parts → works with `responseJsonSchema` and offline fakes.
-* `ToolRegistry.execute(call)` → also `execute(call, permitted)`; `schemas()` omits scaffolded tools → per-task allowlist.
+* `ToolRegistry.execute(call)` → also `execute(call, permitted)` → per-task allowlist. Since 2026-11-04 `register` refuses a tool without an input schema and the application registers only `calculation`.
 * `AgentContext.appendToolResult` implemented; added `withToolResult`, `withEvidence`, `withHistory` request-scoped copies → contexts already sent are never mutated.
 * `ShootPlan` 12-field constructor kept; full constructor adds 7 persisted sections; draft-only transient `revisedSections`/`regeneration`; `approvedCopy`, `withExplanation`, `sections/differingSections`, setting-key helpers → structured plan instead of free LLM text; revision diffing.
 * `ReviseStrategyCommand` original constructor kept; added a section-selective constructor; `ReplaceLoadoutCommand` optional equipment notes; `PlanEditor.preview(base, List<PlanCommand>)` → one request may change several sections; no new command subclasses.
@@ -117,8 +119,9 @@ Preparation: `.env` with `LLM_API_KEY`; optionally `$env:GEMINI_TIMEOUT_SECONDS=
 
 ## Known limitations
 
-* F06 AI profile derivation is still unfinished; F10 needs a manually confirmed profile.
-* F09 assessments are kept in memory only; F10 uses the latest assessment from the same application run (GUI or CLI process); otherwise timing falls back to the confirmed start time + duration or no schedule.
+* F10 needs a reviewed F06 profile (AI-assisted or manual) that still matches the confirmed requirement.
+* F09 assessments are kept in memory only; F10 uses the latest assessment from the same application run (GUI or CLI process); otherwise timing falls back to the confirmed start time + duration or no schedule, and the plan states that no current F09 assessment exists.
+* Related history includes earlier approved plans and, since 2026-11-04, the latest saved F11 reviews (EXIF facts kept apart from saved advice, bounded, labelled as background data; `HistoryMemoryTest`).
 * Only the F08 calculation tool is permitted; environment and specification tools are not offered to the model.
 * Settings are validated against recorded lens data (aperture, focal range) and physical bounds; camera-specific ISO/shutter limits are not recorded in F05 and are not checked.
 * Free-text equipment mentions are detected by keywords (English/Chinese) and reported as unverified; they are not semantically understood.

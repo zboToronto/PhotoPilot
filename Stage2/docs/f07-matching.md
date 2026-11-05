@@ -4,20 +4,11 @@ F07 / UC07 with included UC14 / SD03. Question answered: *which combinations of 
 
 ## Scope and dependency on F06
 
-F07 needs a reviewed `EquipmentRequirementProfile`. Stage 1 produces it in F06/UC06 by AI derivation plus confirmation, which was reserved and unimplemented. The user chose (2026-11-03) a **minimal deterministic F06 confirmation path**. Capability needs are entered manually, validated, explicitly confirmed and saved. They are labelled as manual and never as AI output.
+F07 needs a reviewed `EquipmentRequirementProfile`, produced by F06/UC06 (Gemini analysis or manual entry, review, explicit confirmation; see [F06](f06-capabilities.md), completed 2026-11-03). The earlier minimal manual path that lived only in F07 has been reconciled with it:
 
-| F06 element | Status after this change |
-| --- | --- |
-| `CapabilityNeed.validate()`, `problems()`, `of(...)`, getters, `SUPPORTED` definitions | Implemented (deterministic) |
-| `EquipmentRequirementProfile.validate(req)`, `confirm()`, `problems()`, `asDraft()`, `need()`, getters | Implemented (deterministic) |
-| `RequirementService.validateProfile(profile)` | Implemented (structural gate) |
-| `PhotographySession.attachProfile(profile)` | Implemented; returns a `Result` copy (see deviations) |
-| `PlanningService.confirmProfile(id/session, edited)`, new `profile(id)` | Implemented; atomic save with stale-revision protection |
-| **`PlanningService.analyzeNeeds(id)` / `PhotoPilotFacade.analyzeNeeds(id)`** | **Unfinished**: still `error.notImplemented` |
-| **`RequirementService.deriveProfile(req)`** | **Unfinished**: still `error.notImplemented` |
-| F06 GUI page (Capability Analysis) | Unchanged except the scope sentence, which now points to manual entry in F07 |
-
-Overall F06 remains **IN PROGRESS**. Its AI capability-requirement analysis workflow is out of scope here.
+- One editor (`CapabilityNeedEditor`) and one save path (`PlanningService.confirmProfile(expected, edited, replace)`). The F07 page can still adjust the saved profile; editing a saved profile is the explicit replacement. `match profile/need` are CLI aliases of the F06 `needs` commands and share their draft state.
+- F07 consumes a profile only through `PlanningService.usableProfile(session)`: reviewed **and** consistent with the current confirmed F03 requirement. A profile contradicted by a re-confirmed requirement yields `needs.error.stale` plus the specific findings instead of silently entering matching or selection.
+- Priority semantics are shared: 1 = most important; unmet needs are weighted `MAX_PRIORITY + 1 - priority`; mandatory needs count in `mandatoryUnmet`.
 
 ## Architecture
 
@@ -89,7 +80,7 @@ Each relationship is **COMPATIBLE**, **INCOMPATIBLE** (a known conflict) or **UN
 
 | Relationship | Rule |
 | --- | --- |
-| Camera–lens | Mount labels stripped, compared case-insensitively. Blank or `unknown` is UNVERIFIED. Differing mounts are INCOMPATIBLE; no adapter is ever assumed (the model records none). |
+| Camera–lens | Mount labels stripped, compared case-insensitively. Blank or a placeholder (`SpecificationValues.unknown`: `unknown`, `n/a`, `-`, `?`, `none`, `未知`, …) is UNVERIFIED, even when both sides carry the same placeholder. Differing mounts are INCOMPATIBLE; no adapter is ever assumed (the model records none). |
 | Lens–filter | Filter `diameterMm` must equal lens `filterDiameterMm`. No step ring is assumed. A missing thread is UNVERIFIED. |
 | Camera–battery | Battery `batteryType` must appear in the camera's `batteryTypes`. An empty list is UNVERIFIED. |
 | Camera–storage | Storage `format` must appear in the camera's `storageFormats`. An empty list is UNVERIFIED. Camera capacity/speed limits are not in the F05 model, so they are not checked. |
@@ -98,6 +89,8 @@ Each relationship is **COMPATIBLE**, **INCOMPATIBLE** (a known conflict) or **UN
 | Availability (selection) | Every item is still in inventory, unchanged (type, brand, model, all specs including weight) and the selected quantity is within the owned quantity. |
 
 `CompatibilityReport.isUsable()` requires `compatible` with no violations and nothing unverified. Unverified is never usable. `fullySuitable()` additionally requires no unmet needs.
+
+UC07 A1 (missing specifications prompt confirmation): when an item is excluded as unverified or a recommendation has an UNKNOWN need, `GearMatchReport.missingSpecifications()` is true and the shared match summary (GUI card and CLI) asks the user to record or confirm the missing values in Gear Inventory (F05) and match again (`match.summary.recordMissing`, added 2026-11-04; `GearMatchingTest`).
 
 ## Candidate generation and capability matching (`service/GearMatchingService`)
 
@@ -141,10 +134,10 @@ The selection is stored in a new optional v1 session field `selectedLoadout` (im
 | Strategy chosen at bootstrap via `setRanking` | `GearMatchingService` also keeps named alternatives; per-request `analyze(..., strategyName, ...)` | Runtime GUI/CLI choice without mutating shared state across threads | `setRanking` retained; `PlanningService.rankingStrategies()` added |
 | `match(profile, gear): List<Loadout>` | Retained; richer `analyze(...)`: `GearMatchReport` with rejections, counts and ranking notice; `evaluate`, `tradeOffs`, `candidateId` helpers | UI must show rejected/unverified items and the ranking source | `PlanningService.matchGear(id)` kept; `matchGear(id, strategy)` added |
 | `CompatibilityValidator.validate/matchNeeds` only | Plus `check(pair)`, `assess`, `availability`, static `evaluateNeeds`/`focalCoverage` | Reuse the same rules for generation, exclusions, selection revalidation and saved-selection status | No duplicated rules |
-| F06 analyzeNeeds/confirmProfile reserved | Minimal deterministic confirm path only (table above) | User decision 2026-11-03 | F06 stays IN PROGRESS; F06 AI methods unchanged |
+| F06 analyzeNeeds/confirmProfile reserved | Minimal deterministic confirm path only (table above) | User decision 2026-11-03 | Historical: F06 AI analysis was completed later on 2026-11-03 ([f06](f06-capabilities.md)); the manual path remains |
 | `Result` exposes rendered errors only | `Result.messages()` accessor | Carry a provider failure's localized reason into the fallback notice | Additive |
 
-Unchanged structural scaffolds: `GearMatchingTool` (agent tool for F10) and `PlanValidator` remain as before.
+`GearMatchingTool` is a Stage 1 class that is deliberately not registered with the agent: F07 candidates already reach F10 as labelled offers (see [design changes](stage2-design-changes.md)). `PlanValidator` was implemented with F10.
 
 ## Files
 
@@ -210,9 +203,9 @@ Use an isolated data root (`PHOTOPILOT_DATA_DIR`, `PHOTOPILOT_CONFIG_DIR`) and t
 
 ## Limitations
 
-- F06 AI capability analysis (`analyzeNeeds`, `deriveProfile`) is not implemented; profiles are manual only. No provenance field marks a profile as manual. Today every confirmed profile is manual, and the UI says so.
+- Profiles come from F06 (AI-assisted or entered manually); their `origin` is shown with the profile. F07 accepts only reviewed profiles that still match the current confirmed requirement.
 - No adapters, step rings, alias mounts, camera card-capacity/speed limits or image-circle data exist in F05, so those cases stay unverified or are not checked; nothing is assumed.
 - Assignments record one mounted lens per camera *record*. Two identical bodies stored as one record with quantity 2 get one recorded mounted lens. Lens-change and stabilization checks use those assignments.
 - Partial matches are ordered by count/priority of unmet needs, not by how close a value is (for example 2 of 3 bodies vs 1 of 3).
 - Search is capped at 5000 combinations (reported). Batteries, cards and filters are carried with their full owned quantity.
-- A live Gemini-ranked result, other OS/DPI, screen readers and a recorded video were not verified. `GearMatchingTool` (F10 agent tool) remains scaffolded.
+- F07's own live run fell back to the deterministic order (timeout); AI-ranked F07 results were reached in the F06 live run. Other OS/DPI, screen readers and a recorded video were not verified.

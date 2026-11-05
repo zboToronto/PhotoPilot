@@ -94,7 +94,7 @@ CLI (`env` / `F09`): `env show <id>`, `env place <name>`, `env device consent|de
 | `EnvironmentAssessment(context, windows, limitations)` | Additive fields: request, subject, availability, light phases, rejected windows, interpretation, notices, stale groups, assessed time | Separate facts, estimates, AI and limitations; F10 reuse | Original constructor retained; not persisted. |
 | `ShootingWindow(start, end, arrival, conditions, estimated)` | Added `transient` label, light, rationale, evidence, notes; `validate()` implemented | Validation and display need the declared light and cited evidence | Transient: the saved v1 session schema (ShootPlan windows) is unchanged; F10 decides whether to persist them. |
 | `LocationService(Optional<DeviceLocationProvider>)` | Overload with `PlaceLookupProvider` + clock; `search`, `deviceSupported`, `recordDenial`; new `PlaceLookupProvider`/`GeocodingAdapter`, `PlaceCandidate` | "Do not guess a location from a vague name; let the user choose among matches" | Additive; manual entry unchanged. |
-| `FeasibilityValidator()` | Clock overload; `resolveAvailability`, `resolveLocal`, `parseProposed`, `unsupportedMeasurements`; `checkTiming` implemented | Deterministic time and evidence gates | F02 `validate` remains NOT IMPLEMENTED. |
+| `FeasibilityValidator()` | Clock overload; `resolveAvailability`, `resolveLocal`, `parseProposed`, `unsupportedMeasurements`; `checkTiming` implemented | Deterministic time and evidence gates | F02 `validate` was implemented later with F02 ([f02](f02-discovery.md)). |
 | — | `SolarCalculator`, `EnvironmentInterpretation`, `EnvironmentRequest`, `EnvironmentForm`, `EnvironmentPresentation`, `EnvironmentPane`, `EnvironmentCommands` | Golden/blue-hour estimates from a documented model; shared GUI/CLI parsing and text | No new pattern; Facade/Adapter reused. |
 | Placeholder endpoints `unconfigured.invalid` | Real default endpoints, overridable by environment variables | Selected free, key-less providers | Constructing adapters still sends nothing. |
 
@@ -122,4 +122,4 @@ The structural UML audit (`tools/verify_sources.py`) was not run (no Python here
 - Light checks use overlap with phases, so a window may extend beyond the declared phase.
 - Requirement start times are F03 timestamps in the computer's zone; F09 compares their wall-clock time with the availability and only reports differences.
 - No travel-time, parking, crowd or event-schedule data exists; arrival suggestions exclude travel.
-- Assessments are not persisted; F10 must reassess or call `environmentStaleFields` before relying on an old one.
+- Assessments are kept only while PhotoPilot is open (by design: forecasts go stale within hours). F10 checks `environmentStaleFields`; after a restart F06 and F10 say that no current F09 assessment exists and ask the user to reassess (`F10WorkflowTest.anF09AssessmentDoesNotOutliveTheProcessAndItsAbsenceIsStatedNeverPresentedAsCurrent`).

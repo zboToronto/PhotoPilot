@@ -166,7 +166,7 @@ Constraints are never relaxed silently. Gemini's own `missingContext` / `adjustm
   - non-feasible findings are stored as English limitations, like other saved records
   - one atomic `SessionRepository.save` with the revision check; success is reported only after the write; requirements, plans and selections are untouched
 - `dismiss(id)` / Stage 1 `dismiss(idea)` removes an idea from the current in-memory results only; an unknown id fails or throws. There is no permanent exclusion list. Saved ideas are listed with `saved(sessionId)` and can be continued in F03.
-- GUI target: the chosen editable session, or (checkbox, default when none exist) a new Draft session created through F01 `SessionService.create`, named after the idea. CLI: `<session-id>` or `new`.
+- GUI target: the chosen editable session, or (checkbox, default when none exist) a new Draft session named after the idea. CLI: `<session-id>` or `new`. Since 2026-11-04 the new-session route is `selectInNewSession` / `saveInNewSession`: every check runs before anything is written, and saving inserts the session and the idea in one atomic write, so a refused idea or a failed write never leaves an empty session (`DiscoveryHandoffTest`).
 
 ## F02 → F03 handoff
 
@@ -263,7 +263,7 @@ For the live part, set `GEMINI_TIMEOUT_SECONDS=120`.
 - **Forecasts:** weather beyond 16 days is unavailable, and forecasts are not observations. Weather warnings affect ranking only.
 - **Process-local results:** results and dismissals live in memory in one process (GUI and CLI processes do not share them). Saved ideas persist in F01.
 - **Live quality:** answer quality and latency depend on Gemini. The adapter timeout defaults to 30 s.
-- **F06 dependency:** F06 AI capability analysis is still unfinished. F02 relies on F07's deterministic need comparison and does not derive profiles.
+- **F06 dependency:** F02 uses F07's deterministic need comparison and does not derive capability profiles itself (F06 AI analysis is a separate step for a planned shoot).
 - **Not run:** the UML structural audit and other OS/DPI checks were not run.
 
 ## Verification (2026-11-03, Windows / JDK 21)

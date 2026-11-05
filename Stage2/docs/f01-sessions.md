@@ -33,7 +33,7 @@ session delete <id> --confirm
 
 Draft/Planned permit plan editing; Completed/Reviewed prohibit replacing stored plans. Metadata can still be corrected. A direct repository save also checks state adjacency and protects historical plans; the UI is not the only guard. `PhotographySession.apply` returns a changed copy, preserving its caller on failed persistence.
 
-**F10 plan generation/approval and F11 review production remain unavailable.** A newly created Draft cannot be promoted merely by choosing an event. F01 reports the missing approved plan/review. Acceptance tests use explicitly constructed linked fixtures to test valid later transitions, not fabricated application history. These tests do not establish functioning F10/F11 workflows or their future deterministic validators.
+PLAN_APPROVED is produced only by F10 approval and REVIEW_SAVED only by saving an F11 review (both implemented). Since 2026-11-04 GUI and CLI offer only `SessionService.MANUAL_EVENTS` (SHOOT_COMPLETED) through `recordEvent`; a Draft cannot be promoted by choosing an event. *(Historical, 2026-10-31: F10/F11 did not exist yet, so the F01 acceptance tests used constructed linked fixtures for the later transitions.)*
 
 ## Persistence and data integrity
 
@@ -43,7 +43,7 @@ Draft/Planned permit plan editing; Completed/Reviewed prohibit replacing stored 
 - Every mutation loads fresh data under an OS lock (`sessions.lock`), validates, writes a same-directory temporary file, flushes its channel and atomically replaces the store. No non-atomic fallback. Readers observe the old or new complete file. Temporary files are removed after ordinary success/failure; a crash can leave an ignored `sessions-*.tmp` file. This is not a power-loss backup system.
 - SHA-256 revision tokens cover each stored session's content and are not serialized into the domain document. Saving/deleting compares the token with current content. Unrelated session changes do not invalidate another record. Insert and update are separate: duplicate insert and missing update fail instead of overwriting/upserting.
 - Strict JSON token parsing is reused from the inventory repository. Duplicate keys/IDs, unsupported schemas/fields/states, missing fields, malformed dates/UTF-8, excessive depth and files over 20 MiB fail visibly without resetting the store. Canonical typed round trips prevent silent field loss. Unknown legacy files in the sessions directory fail safely. A corrupt aggregate blocks all session writes and gear-reference checks; no partial salvage or automatic migration is claimed. Preserve the original file and restore a known-good backup manually.
-- The codec preserves all existing linked record structures, but does not implement the still-scaffolded F03/F06/F07/F10/F11 business validators. Their future services must validate and explicitly approve records before attaching them. Existing attach/append workflow methods remain unavailable until those features implement their contracts.
+- The codec preserves all linked record structures but holds no business rules: the F02/F03/F06/F07/F10/F11 services validate and explicitly confirm records before attaching them through the `attach*`/`append*` methods (all implemented). Later additive fields load through decode defaults (`SessionJson.with*Additions`).
 - `referencingGear` scans actual plan/loadout snapshots. F05 warns on affected session IDs before removal, requires acceptance, and retains copied historical gear after removal. Restored snapshot getters expose immutable collections. Missing live gear does not invalidate historical snapshots. No gear selection, inventory mutation, formula duplication or calculator change is introduced by F01.
 
 ## Participants and changed files
@@ -59,7 +59,7 @@ Paths below are relative to Stage2 unless prefixed otherwise.
 | New `application/SessionForm.java` | Shared GUI/CLI date, UUID and metadata parsing |
 | Four concrete states plus `state/SessionState.java`, `SessionEvent.java` | Existing State pattern implemented; contract comments corrected |
 | `model/GeoLocation.java`, `GearSnapshot.java`, `Loadout.java`; `command/ShootPlan.java` | Manual description/validation; immutable restored snapshot collections; minimal read-only history accessors |
-| `agent/HistoryRetriever.java` | `retrieve` delegates to persisted search; `contextFor` and agent execution remain scaffolded |
+| `agent/HistoryRetriever.java` | `retrieve` delegates to persisted search; `contextFor` (bounded plan and review memory for F10/F11) was added later |
 | New `ui/gui/SessionPane.java`; `FeaturePane.java`, `PhotoPilotWorkspace.java`, `PhotoPilotGUI.java` | Connected editor/history/lifecycle controls, retained drafts, close guard, async work, showSession route, accurate smoke/status wiring |
 | New `ui/cli/SessionCommands.java`; `PhotoPilotCLI.java`; `config/FeatureCatalog.java` | Session command family/help/F01 alias and real availability |
 | Shared `photopilot.css`, three `messages*.properties` | Same theme, multiline input extension and matching bilingual resource keys |
@@ -74,7 +74,7 @@ Java file entries refer to `src/main/java/com/photopilot/` unless marked test so
 | Original design | Implemented change | Reason | Impact |
 | --- | --- | --- | --- |
 | create(title,date), no optional-field mutation route | Create overload and revision-aware metadata update via SessionService/SessionForm | Fulfil UC01 optional location/goals without duplicating business rules | F01/UC01/SD01; Facade signatures retained |
-| GeoLocation always carries primitive coordinates | Explicit coordinatesPresent and manual description factory | Optional manual location must not fabricate coordinates or require device permission | F01 value/storage extension; F09 provider remains unavailable |
+| GeoLocation always carries primitive coordinates | Explicit coordinatesPresent and manual description factory | Optional manual location must not fabricate coordinates or require device permission | F01 value/storage extension; no desktop device-location provider exists |
 | Provisional JSON port, save only | Versioned aggregate, separate insert/update/delete, revision tokens and atomic locking | Actual persistence, duplicate/missing/stale protection and explicit deletion | F01 repository implementations; F05 reference gate becomes operational |
 | State declarations and event descriptions | Existing concrete State implementations with evidence guards and save-time checks | Enforce original lifecycle without arbitrary status editing | F01 direct; preserves F10/F11 producer responsibility |
 | Linked records private/unreadable | Minimal read-only getters and typed aggregate codec | Reopen linked history and scan stored gear IDs | F01/F05 history; no F07 matching or F08 formula change |
@@ -134,4 +134,4 @@ GUI acceptance drives real JavaFX controls for create/edit/save, errors, filters
 
 The structural/source audit passes all 87 baseline types / 267 fields / 184 operations and 20 original source hashes. Its historical blanket footer about unimplemented behavior is not current F01 status. Intermediate failures were a sandbox JAR-access issue, two test-fixture compilation mistakes, and numerical EXIF map-key decoding; these were corrected before the passing final run. Existing-cache compilation required sandbox escalation; no dependency changes or downloads were needed.
 
-Limits: Windows only; no macOS/Linux/display-scale or screen-reader certification, live AI/provider verification, power-loss simulation, or submission video. F10/F11 production of the records required for later lifecycle events remains future work. The 20 MiB aggregate and fail-closed corruption policy are explicit local-storage limits. This task is one meaningful implementation commit, not evidence that all weekly course commit quotas are met.
+Limits: Windows only; no macOS/Linux/display-scale or screen-reader certification, live AI/provider verification, power-loss simulation, or submission video. Device location has no desktop provider, so only manual locations are used. The 20 MiB aggregate and fail-closed corruption policy are explicit local-storage limits. This task is one meaningful implementation commit, not evidence that all weekly course commit quotas are met.
