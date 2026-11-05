@@ -64,6 +64,9 @@ class GearMatchingTest {
         assertTrue(reasons.stream().anyMatch(r -> r.startsWith("Excluded (incompatible)") && r.contains("Canon EF")), reasons.toString());
         assertTrue(reasons.stream().anyMatch(r -> r.startsWith("Excluded (unverified)") && r.contains("300mm f/4")), reasons.toString());
         assertTrue(reasons.stream().anyMatch(r -> r.contains("LP-E6NH")), reasons.toString());
+        assertTrue(report.missingSpecifications(), "UC07 A1: an unverified exclusion asks for the missing specification");
+        var summary = com.photopilot.application.LoadoutPresentation.summary(report, new com.photopilot.i18n.LocalizationService(com.photopilot.i18n.LocalePreferenceRepository.transientPreference()));
+        assertTrue(summary.stream().anyMatch(s -> s.contains("Gear Inventory (F05)")), summary.toString());
         assertFalse(report.aiRanked()); assertTrue(report.rankingNotice().isPresent(), "AI failure is labelled");
         var trade = best.tradeOffs().stream().map(t -> t.key()).toList();
         assertTrue(trade.contains("trade.weight") && trade.contains("trade.noLensChanges"));
@@ -104,6 +107,7 @@ class GearMatchingTest {
         assertEquals(Set.of("A1", "FE 24-105mm G", "FE 100-400mm GM", "FE 200-600mm G", "NP-FZ100", "Extreme 128GB"), names(wide.recommendations().getFirst()),
             "widest verified focal coverage first");
         assertEquals("portability", light.strategy()); assertEquals("coverage", wide.strategy());
+        assertFalse(light.missingSpecifications(), "fully recorded gear asks for nothing");
     }
 
     @Test void validGeminiRankingIsAcceptedButCannotLiftPartialAboveFullOrSeeIdentifiers() {

@@ -39,6 +39,7 @@ public class GearMatchingService {
         return report.isSuccess() ? Result.success(report.value().orElseThrow().recommendations().stream().map(Candidate::loadout).toList()) : Result.failure(report);
     }
 
+    /** Stage 1 Strategy setter: replaces the default strategy. GUI and CLI choose a strategy per request instead. */
     public void setRanking(LoadoutRankingStrategy strategy) {
         this.ranking = Objects.requireNonNull(strategy, "strategy");
         strategies.put(strategy.name(), strategy);
@@ -64,6 +65,7 @@ public class GearMatchingService {
         var found = generated.value().orElseThrow();
         var usable = new ArrayList<Candidate>(); var rejected = new LinkedHashMap<LocalizedMessage, Integer>();
         found.inventoryFindings().forEach(message -> rejected.putIfAbsent(message, 0));
+        boolean unverified = found.inventoryFindings().stream().anyMatch(m -> m.key().equals("match.excluded.unverified"));
         int rejectedCount = 0;
         for (Loadout raw : found.raw()) {
             if (raw.compatibility().isUsable()) { usable.add(evaluate(raw, profile)); continue; }
@@ -71,6 +73,7 @@ public class GearMatchingService {
             var assessment = validator.assess(raw);
             for (var reason : assessment.violations()) rejected.merge(reason, 1, Integer::sum);
             for (var reason : assessment.unverified()) rejected.merge(reason, 1, Integer::sum);
+            unverified |= !assessment.unverified().isEmpty();
         }
         var ranked = strategy.rankCandidates(usable, profile, Objects.toString(shootContext, ""));
         if (!ranked.isSuccess()) return Result.failure(ranked);
@@ -84,7 +87,7 @@ public class GearMatchingService {
         if (!returned.equals(expected)) return Result.failureKey("match.error.rankingIntegrity");
         var reasons = rejected.keySet().stream().limit(MAX_REJECTIONS).toList();
         return Result.success(new GearMatchReport(strategy.name(), outcome.ranked(), found.raw().size(), rejectedCount, reasons,
-            outcome.aiRanked(), outcome.aiSummary(), outcome.notice(), found.limited()));
+            outcome.aiRanked(), outcome.aiSummary(), outcome.notice(), found.limited(), unverified));
     }
 
     /** Capability comparison, essentials and deterministic trade-offs of one already validated loadout. */

@@ -3,6 +3,7 @@ package com.photopilot.service;
 import com.photopilot.common.Result;
 import com.photopilot.model.*;
 import com.photopilot.model.GearCapabilityAnalysis.*;
+import com.photopilot.validation.SpecificationValues;
 import java.util.*;
 
 /** Deterministic, read-only inventory analysis, deliberately separate from Stage 1 requirement derivation. */
@@ -80,9 +81,9 @@ public final class GearCapabilityService {
     }
 
     private static MountStatus mountStatus(String camera, String lens) {
+        // Same placeholder policy as UC14 (CompatibilityValidator), so the report and matching never disagree.
+        if (SpecificationValues.unknown(camera) || SpecificationValues.unknown(lens)) return MountStatus.UNKNOWN;
         String c = camera.strip().toLowerCase(Locale.ROOT), l = lens.strip().toLowerCase(Locale.ROOT);
-        var unknown = Set.of("", "unknown", "unspecified", "n/a", "na", "?", "未知", "不详", "none", "-", "other");
-        if (unknown.contains(c) || unknown.contains(l)) return MountStatus.UNKNOWN;
         // Compare recorded labels only. No alias database, adapter, image-circle or electronic inference.
         return c.equals(l) ? MountStatus.MATCH_RECORDED : MountStatus.DIFFERENT_RECORDED;
     }

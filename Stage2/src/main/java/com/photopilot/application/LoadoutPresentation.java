@@ -50,6 +50,7 @@ public final class LoadoutPresentation {
         else lines.add(l.text("match.summary.full", full));
         if (report.recommendations().size() > SHOWN) lines.add(l.text("match.summary.more", report.recommendations().size() - SHOWN));
         if (report.searchLimited()) lines.add(l.text("match.summary.limited", com.photopilot.service.GearMatchingService.MAX_COMBINATIONS));
+        if (report.missingSpecifications()) lines.add(l.text("match.summary.recordMissing"));
         return lines;
     }
     public static List<String> rejections(GearMatchReport report, LocalizationService l) {

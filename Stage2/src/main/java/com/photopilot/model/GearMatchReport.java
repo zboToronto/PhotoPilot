@@ -11,10 +11,19 @@ import java.util.Optional;
  * AI text is advisory only and is never copied into saved loadouts.
  */
 public record GearMatchReport(String strategy, List<Candidate> recommendations, int combinationsChecked, int rejectedCombinations,
-        List<LocalizedMessage> rejections, boolean aiRanked, String aiSummary, Optional<LocalizedMessage> rankingNotice, boolean searchLimited) {
+        List<LocalizedMessage> rejections, boolean aiRanked, String aiSummary, Optional<LocalizedMessage> rankingNotice, boolean searchLimited,
+        boolean unverifiedExclusions) {
     public GearMatchReport {
         Objects.requireNonNull(strategy); recommendations = List.copyOf(recommendations); rejections = List.copyOf(rejections);
         Objects.requireNonNull(aiSummary); Objects.requireNonNull(rankingNotice);
+    }
+
+    /**
+     * UC07 A1: true when an item was excluded as unverified or a recommendation has an UNKNOWN need, so the user must
+     * record or confirm the missing specification in F05 before it can be verified.
+     */
+    public boolean missingSpecifications() {
+        return unverifiedExclusions || recommendations.stream().anyMatch(c -> c.needs().stream().anyMatch(n -> n.status() == NeedStatus.UNKNOWN));
     }
 
     public enum NeedStatus { MET, UNMET, UNKNOWN }

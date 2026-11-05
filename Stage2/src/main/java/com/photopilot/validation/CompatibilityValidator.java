@@ -17,7 +17,8 @@ import com.photopilot.model.Loadout;
 /**
  * Stage 1 UML element 58 (zero-based): {F07; deterministic mount/filter/battery/storage rules}
  * UC14: the final authority on physical compatibility, independent of any AI. It reads only recorded F05
- * specifications (via immutable snapshots). Missing data is UNVERIFIED and never treated as compatible; no
+ * specifications (via immutable snapshots). Missing data, including placeholder text such as "n/a" or "未知"
+ * (SpecificationValues), is UNVERIFIED and never treated as compatible, even when both sides match; no
  * adapter, step ring or interchangeable battery is ever assumed, because the inventory model records none.
  */
 public class CompatibilityValidator {
@@ -242,7 +243,7 @@ public class CompatibilityValidator {
     /** Battery type / storage format must be listed exactly (case-insensitive) by the camera; names alone prove nothing. */
     private static Check listed(GearSnapshot camera, GearSnapshot item, String cameraSpec, String itemSpec, String kind) {
         var supported = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
-        for (String value : text(camera, cameraSpec).split(",")) if (!value.isBlank()) supported.add(value.strip());
+        for (String value : text(camera, cameraSpec).split(",")) if (!unknown(value)) supported.add(value.strip());
         String value = text(item, itemSpec);
         if (supported.isEmpty() || unknown(value)) return new Check(Status.UNVERIFIED, LocalizedMessage.of("compat." + kind + "Unknown", name(item), name(camera)));
         if (supported.contains(value)) return new Check(Status.COMPATIBLE, LocalizedMessage.of("compat." + kind + "Match", name(item), name(camera), value));
@@ -252,7 +253,7 @@ public class CompatibilityValidator {
     private static EquipmentType type(GearSnapshot item) {
         try { return item == null ? null : EquipmentType.valueOf(item.type()); } catch (IllegalArgumentException unknown) { return null; }
     }
-    private static boolean unknown(String value) { return value.isBlank() || value.equalsIgnoreCase("unknown"); }
+    private static boolean unknown(String value) { return SpecificationValues.unknown(value); }
     private static String text(GearSnapshot item, String spec) { return Objects.toString(item.specs().get(spec), "").strip(); }
     private static Optional<Double> number(GearSnapshot item, String spec) {
         try {
