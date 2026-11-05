@@ -101,6 +101,7 @@ final class SessionJson {
         if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
         object = withPlanAdditions(object);
         object = withIdeaAdditions(object);
+        object = withReviewAdditions(object);
         if (!(object.get("requirements") instanceof JsonObject requirement)
                 || requirement.has("date") && requirement.has("timeWindow") && requirement.has("portability")) return object;
         JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("requirements");
@@ -148,6 +149,36 @@ final class SessionJson {
             defaults.forEach((key, value) -> { if (!o.has(key)) o.add(key, value.deepCopy()); });
         }
         return copy;
+    }
+    /**
+     * F11 added import context to v1 statistics and structured sections to v1 reviews. Records written before them get
+     * empty values: no capture span, no fingerprint, no recorded owner id, empty sections and status SAVED (a stored
+     * review was always a saved one). Nothing is derived from other data, so the remaining strictness checks apply.
+     */
+    private static JsonObject withReviewAdditions(JsonObject object) {
+        var statistics = new LinkedHashMap<String, JsonElement>();
+        statistics.put("invalidCounts", new JsonObject()); statistics.put("compensationCounts", new JsonObject());
+        statistics.put("failedFileCount", new JsonPrimitive(0)); statistics.put("timedCount", new JsonPrimitive(0)); statistics.put("zonedCount", new JsonPrimitive(0));
+        statistics.put("firstCapture", JsonNull.INSTANCE); statistics.put("lastCapture", JsonNull.INSTANCE); statistics.put("captureOffset", JsonNull.INSTANCE);
+        statistics.put("analyzedAt", JsonNull.INSTANCE); statistics.put("sourceFingerprint", new JsonPrimitive(""));
+        var review = new LinkedHashMap<String, JsonElement>();
+        review.put("sessionId", JsonNull.INSTANCE); review.put("summary", new JsonPrimitive(""));
+        for (String list : List.of("technicalObservations", "equipmentObservations", "exposureObservations", "improvements", "evidence")) review.put(list, new JsonArray());
+        review.put("status", new JsonPrimitive("SAVED"));
+        var targets = new ArrayList<JsonObject>();
+        if (object.get("statistics") instanceof JsonObject stats) targets.add(stats);
+        if (object.get("reviews") instanceof JsonArray reviews)
+            for (JsonElement item : reviews) if (item instanceof JsonObject o) { targets.add(o); if (o.get("statistics") instanceof JsonObject s) targets.add(s); }
+        boolean complete = targets.stream().allMatch(t -> (t.has("importedCount") ? statistics : review).keySet().stream().allMatch(t::has));
+        if (complete) return object;
+        JsonObject copy = object.deepCopy();
+        if (copy.get("statistics") instanceof JsonObject stats) fill(stats, statistics);
+        if (copy.get("reviews") instanceof JsonArray reviews)
+            for (JsonElement item : reviews) if (item instanceof JsonObject o) { fill(o, review); if (o.get("statistics") instanceof JsonObject s) fill(s, statistics); }
+        return copy;
+    }
+    private static void fill(JsonObject target, Map<String, JsonElement> defaults) {
+        defaults.forEach((key, value) -> { if (!target.has(key)) target.add(key, value.deepCopy()); });
     }
     private static void validateGraph(Object value) {
         Objects.requireNonNull(value, "Missing required session/linked-record value");

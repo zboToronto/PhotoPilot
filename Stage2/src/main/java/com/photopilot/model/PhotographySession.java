@@ -117,6 +117,8 @@ public class PhotographySession {
         if (savedIdeas.stream().map(ActivitySuggestion::id).distinct().count() != savedIdeas.size()) return Result.failureKey("error.session.links");
         var reviewIds = new java.util.HashSet<UUID>();
         for (PostShootReview review : reviews) {
+            if (!review.status().equals(PostShootReview.SAVED) || review.sessionId().filter(owner -> !owner.equals(id)).isPresent())
+                return Result.failureKey("error.session.links");
             if (!reviewIds.add(review.id()) || plans.stream().noneMatch(plan -> plan.approved()
                     && plan.id().equals(review.comparedPlanId()) && plan.revision() == review.comparedRevision()))
                 return Result.failureKey("error.session.links");
@@ -181,8 +183,17 @@ public class PhotographySession {
         return now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1);
     }
 
-    public void attachStatistics(ExifStatistics stats) {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.attachStatistics");
+    /**
+     * F11 UC12: copy carrying validated statistics of a completed session (like attachRequirement it returns a Result
+     * copy). Replacement policy belongs to ReviewService; a reviewed session keeps the evidence it was reviewed with.
+     */
+    public Result<PhotographySession> attachStatistics(ExifStatistics stats) {
+        if (stats == null) return Result.failureKey("review.error.noUsable");
+        var valid = stats.validate();
+        if (!valid.isSuccess()) return Result.failure(valid);
+        if (!(state instanceof com.photopilot.state.CompletedState)) return Result.failureKey("review.error.notCompleted", status());
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, reviews, profile, Optional.of(stats), savedIdeas, selectedLoadout).withRevision(revision()));
     }
 
     /**
@@ -200,7 +211,19 @@ public class PhotographySession {
             requirements, history, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
     }
 
-    public void appendReview(PostShootReview review) {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: PhotographySession.appendReview");
+    /**
+     * F11 UC13: copy with one more explicitly saved review of an approved plan revision of this session. The
+     * REVIEW_SAVED transition and the atomic save belong to the caller (ReviewService.save).
+     */
+    public Result<PhotographySession> appendReview(PostShootReview review) {
+        if (review == null || !review.status().equals(PostShootReview.SAVED)) return Result.failureKey("review.error.noDraft");
+        if (review.sessionId().filter(owner -> !owner.equals(id)).isPresent()) return Result.failureKey("review.error.foreign");
+        if (!(state instanceof com.photopilot.state.CompletedState)) return Result.failureKey("review.error.notCompleted", status());
+        if (reviews.stream().anyMatch(saved -> saved.id().equals(review.id()))) return Result.failureKey("review.error.alreadySaved");
+        var valid = review.validate();
+        if (!valid.isSuccess()) return Result.failure(valid);
+        var history = new java.util.ArrayList<>(reviews); history.add(review);
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, history, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
     }
 }

@@ -20,6 +20,7 @@ final class FeaturePane extends VBox {
         if (environment != null) environment.dispose();
         if (discovery != null) discovery.dispose();
         if (planning != null) planning.dispose();
+        if (review != null) review.dispose();
         if (inventory != null) inventory.dispose();
         if (gearImport != null) gearImport.dispose();
         if (calculator != null) calculator.dispose();
@@ -49,6 +50,7 @@ final class FeaturePane extends VBox {
     private EnvironmentPane environment;
     private DiscoveryPane discovery;
     private PlanPane planning;
+    private ReviewPane review;
     private GearImportPane gearImport;
 
     FeaturePane() { this(LocalizationService.english()); }
@@ -98,6 +100,7 @@ final class FeaturePane extends VBox {
         if (environment != null) environment.activate(false);
         if (discovery != null) discovery.activate(false);
         if (planning != null) planning.activate(false);
+        if (review != null) review.activate(false);
         if (inventory != null) inventory.activate(false);
         if (gearImport != null) gearImport.activate(false);
         if (calculator != null) calculator.activate(false);
@@ -114,6 +117,7 @@ final class FeaturePane extends VBox {
         boolean match = selected.id().equals("F07") && matching != null;
         boolean env = selected.id().equals("F09") && environment != null;
         boolean plan = selected.id().equals("F10") && planning != null;
+        boolean reviewing = selected.id().equals("F11") && review != null;
         boolean ideas = selected.id().equals("F02") && discovery != null;
         boolean importing = selected.id().equals("F04") && gearImport != null;
         if (gearImport != null) { gearImport.setVisible(importing); gearImport.setManaged(importing); gearImport.activate(importing); }
@@ -121,10 +125,11 @@ final class FeaturePane extends VBox {
         if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
         if (discovery != null) { discovery.setVisible(ideas); discovery.setManaged(ideas); discovery.activate(ideas); }
         if (planning != null) { planning.setVisible(plan); planning.setManaged(plan); planning.activate(plan); }
+        if (review != null) { review.setVisible(reviewing); review.setManaged(reviewing); review.activate(reviewing); }
         if (sessions != null) { sessions.setVisible(session); sessions.setManaged(session); sessions.activate(session); }
         if (requirements != null) { requirements.setVisible(requirement); requirements.setManaged(requirement); requirements.activate(requirement); }
         if (calculator != null) { calculator.setVisible(calc); calculator.setManaged(calc); calculator.activate(calc); }
-        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan && !ideas && !importing;
+        boolean placeholder = !gear && !calc && !session && !analysis && !requirement && !match && !env && !plan && !ideas && !importing && !reviewing;
         empty.setVisible(placeholder); empty.setManaged(placeholder);
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
@@ -193,6 +198,11 @@ final class FeaturePane extends VBox {
         if (feature != null) show(feature);
     }
 
+    void connectReview(ReviewPane review) {
+        this.review = review; review.setVisible(false); review.setManaged(false); body.getChildren().add(1, review);
+        if (feature != null) show(feature);
+    }
+
     void connectImport(GearImportPane gearImport) {
         this.gearImport = gearImport; gearImport.setVisible(false); gearImport.setManaged(false); body.getChildren().add(1, gearImport);
         if (feature != null) show(feature);
@@ -209,6 +219,7 @@ final class FeaturePane extends VBox {
         if (selected.id().equals("F07") && matching != null) { showFeedback(() -> localization.text("match.ready")); return; }
         if (selected.id().equals("F09") && environment != null) { showFeedback(() -> localization.text("env.ready")); return; }
         if (selected.id().equals("F10") && planning != null) { showFeedback(() -> localization.text("plan.status")); return; }
+        if (selected.id().equals("F11") && review != null) { showFeedback(() -> localization.text("review.ready.status")); return; }
         if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED
@@ -231,6 +242,7 @@ final class FeaturePane extends VBox {
     boolean matchingConnected() { return matching != null; }
     boolean environmentConnected() { return environment != null; }
     boolean planningConnected() { return planning != null; }
+    boolean reviewConnected() { return review != null; }
     boolean discoveryConnected() { return discovery != null; }
     boolean importConnected() { return gearImport != null; }
 

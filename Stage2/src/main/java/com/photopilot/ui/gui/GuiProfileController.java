@@ -26,6 +26,7 @@ final class GuiProfileController implements AutoCloseable {
     private EnvironmentPane environment;
     private DiscoveryPane discovery;
     private PlanPane planning;
+    private ReviewPane review;
     private InventoryPane inventory;
     private GearImportPane gearImport;
     private CalculatorPane calculator;
@@ -44,7 +45,7 @@ final class GuiProfileController implements AutoCloseable {
     ApplicationBootstrap context() { return context; }
     UiOperations operations() { return operations; }
     boolean busy() { return switching || operations.busy(); }
-    boolean dirty() { return sessions.dirty() || requirements.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || inventory.dirty() || gearImport.dirty() || calculator.dirty(); }
+    boolean dirty() { return sessions.dirty() || requirements.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || review.dirty() || inventory.dirty() || gearImport.dirty() || calculator.dirty(); }
     private void install(LocalProfile selected) {
         if (picker != null) { picker.dispose(); picker = null; }
         if (workspace != null) workspace.dispose();
@@ -58,6 +59,7 @@ final class GuiProfileController implements AutoCloseable {
         environment = new EnvironmentPane(context.facade(), operations, language);
         discovery = new DiscoveryPane(context.facade(), operations, language, this::reviewIdea);
         planning = new PlanPane(context.facade(), operations, language);
+        review = new ReviewPane(context.facade(), operations, language);
         inventory = new InventoryPane(context.facade(), operations, language);
         var view = workspace;
         // F04 shares the F05 services; each workspace has its own privacy boundary for temporary image copies.
@@ -67,7 +69,7 @@ final class GuiProfileController implements AutoCloseable {
         calculator = new CalculatorPane(context.facade(), operations, language);
         workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
-        workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
+        workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
         workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
@@ -162,6 +164,7 @@ final class GuiProfileController implements AutoCloseable {
     GearMatchPane matching() { return matching; }
     EnvironmentPane environment() { return environment; }
     PlanPane planning() { return planning; }
+    ReviewPane review() { return review; }
     void showFailure(String text) { if (!closed) workspace.showFeedback(text); }
     void whenIdle(Runnable action) { waitIdle(action, System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(20)); }
     private void waitIdle(Runnable action, long deadline) {

@@ -108,7 +108,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
             new DiscoveryService(agent, environmentService, feasibility, sessions, inventory, matching),
             new PlanningService(new RequirementService(agent), matching, environmentService, agent,
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
-            new ReviewService(new ExifLibraryAdapter(Set.of()), new StatisticsCalculator(), agent, sessions),
+            // F11: local JPEG EXIF + ExifTool JSON reading; statistics never involve the agent, which only interprets them.
+            new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.DEFAULT_FORMATS), new StatisticsCalculator(), agent, sessions),
             calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel));
     }
 

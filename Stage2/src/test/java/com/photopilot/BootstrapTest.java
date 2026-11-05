@@ -69,6 +69,8 @@ class BootstrapTest {
             assertTrue(created.isSuccess(), created.errors().toString());
             assertEquals("DRAFT", created.value().orElseThrow().status());
             assertFalse(facade.generatePlan(UUID.randomUUID()).isSuccess());
+            assertFalse(facade.analyze(UUID.randomUUID(), java.util.List.of()).isSuccess(), "F11 needs files and a completed session");
+            assertFalse(facade.review(created.value().orElseThrow().id()).isSuccess(), "F11 review needs statistics, a plan and a completed session");
             assertFalse(facade.calculate(null).isSuccess());
             LLMClient model = (LLMClient) field(field(facade.planning(), "agent"), "model");
             assertFalse(model.complete(null).isSuccess());
@@ -88,7 +90,7 @@ class BootstrapTest {
             assertTrue(output.contains("Unknown command"));
             assertTrue(output.endsWith("PhotoPilot closed." + System.lineSeparator()));
             assertFalse(output.contains("Not implemented: F02"));
-            for (int i = 1; i <= 11; i++) assertEquals(i == 1 || i == 2 || i == 3 || i == 4 || i == 5 || i == 6 || i == 7 || i == 8 || i == 9 || i == 10 ? 0 : 2, cli.execute("F%02d".formatted(i)));
+            for (int i = 1; i <= 11; i++) assertEquals(0, cli.execute("F%02d".formatted(i)), "F%02d".formatted(i));
             assertEquals(11, FeatureCatalog.lines().size());
             assertEquals(1, cli.execute("exit"));
         }

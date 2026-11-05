@@ -35,9 +35,12 @@ public class PhotoPilotAgent {
         Available tools and their input schemas:
         """;
 
-    /** Final validated-schema output of a tool-assisted run with every tool exchange that produced evidence. */
-    public record Run<T>(T output, List<AgentContext.ToolExchange> tools, int historySessions) {
-        public Run { Objects.requireNonNull(output); tools = List.copyOf(tools); }
+    /**
+     * Final validated-schema output of a tool-assisted run with every tool exchange that produced evidence, and the
+     * related-history JSON actually added to the request ("" when none), so callers can check citations against it.
+     */
+    public record Run<T>(T output, List<AgentContext.ToolExchange> tools, int historySessions, String historyEvidence) {
+        public Run { Objects.requireNonNull(output); tools = List.copyOf(tools); historyEvidence = Objects.toString(historyEvidence, ""); }
     }
     /** Untrusted reply envelope of the tool protocol, decoded strictly. */
     record Envelope(String step, Tool tool, JsonElement result) { }
@@ -81,6 +84,7 @@ public class PhotoPilotAgent {
         int related = retrieved.isSuccess() ? retrieved.value().orElseThrow().history().size() : 0;
         AgentContext request = context;
         if (related > 0) request = withHistory(context, retrieved.value().orElseThrow());
+        String sentHistory = request == context ? "" : retrieved.value().orElseThrow().evidenceJson();
         var catalogue = new StringBuilder(TOOL_PROTOCOL);
         if (permitted.isEmpty()) catalogue.append("(none: reply with step final)\n");
         for (String name : permitted) catalogue.append("- ").append(name).append(": ").append(schemas.get(name).strip()).append('\n');
@@ -98,7 +102,7 @@ public class PhotoPilotAgent {
             if (value.step().equals("final")) {
                 if (value.result() == null || !value.result().isJsonObject()) return Result.failureKey("ai.error.malformedOutput");
                 var output = validateOutput(value.result().toString(), type);
-                return output.isSuccess() ? Result.success(new Run<>(output.value().orElseThrow(), exchanges, related)) : Result.failure(output);
+                return output.isSuccess() ? Result.success(new Run<>(output.value().orElseThrow(), exchanges, related, sentHistory)) : Result.failure(output);
             }
             if (step == maxSteps) break;
             var selected = selectTool(reply.value().orElseThrow());

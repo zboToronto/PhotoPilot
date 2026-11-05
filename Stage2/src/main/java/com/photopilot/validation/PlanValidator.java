@@ -221,6 +221,20 @@ public class PlanValidator {
         }
         return true;
     }
+    /**
+     * F11: the numbers of a plan setting value read exactly as {@link #settings} checked them (shutter in seconds, focal
+     * length in mm, signed exposure compensation); empty for descriptive values such as "auto".
+     */
+    public static List<Double> settingNumbers(String name, String value) {
+        String text = Objects.toString(value, "").strip();
+        return switch (name) {
+            case "shutterSpeed" -> numbers(text, true, text.toLowerCase(Locale.ROOT).contains("ms") ? 0.001 : 1);
+            case "iso", "aperture" -> numbers(text, false, 1);
+            case "focalLength" -> numbers(text, false, text.toLowerCase(Locale.ROOT).contains("cm") ? 10 : 1);
+            case "exposureCompensation" -> signed(text);
+            default -> List.of();
+        };
+    }
     private static final Pattern FRACTION = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*/\\s*(\\d+(?:\\.\\d+)?)|(\\d+(?:\\.\\d+)?)");
     private static final Pattern SIGNED = Pattern.compile("([+\\-−]?)\\s*(\\d+(?:\\.\\d+)?)(?:\\s*/\\s*(\\d+))?");
     private static List<Double> numbers(String value, boolean fractions, double scale) {

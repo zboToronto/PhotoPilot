@@ -89,7 +89,15 @@ final class SessionDomainAdapters {
                 read(o, "comparedRevision", c, new TypeToken<Integer>() {}),
                 read(o, "planDifferences", c, new TypeToken<List<String>>() {}),
                 read(o, "lessons", c, new TypeToken<List<String>>() {}),
-                read(o, "limitations", c, new TypeToken<List<String>>() {}));
+                read(o, "limitations", c, new TypeToken<List<String>>() {}),
+                read(o, "sessionId", c, new TypeToken<Optional<UUID>>() {}),
+                read(o, "summary", c, new TypeToken<String>() {}),
+                read(o, "technicalObservations", c, new TypeToken<List<String>>() {}),
+                read(o, "equipmentObservations", c, new TypeToken<List<String>>() {}),
+                read(o, "exposureObservations", c, new TypeToken<List<String>>() {}),
+                read(o, "improvements", c, new TypeToken<List<String>>() {}),
+                read(o, "evidence", c, new TypeToken<List<String>>() {}),
+                read(o, "status", c, new TypeToken<String>() {}));
         });
         builder.registerTypeAdapter(EquipmentRequirementProfile.class, (JsonDeserializer<EquipmentRequirementProfile>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();
@@ -109,7 +117,17 @@ final class SessionDomainAdapters {
                 read(o, "isoCounts", c, new TypeToken<Map<Integer, Integer>>() {}),
                 read(o, "cameraCounts", c, new TypeToken<Map<String, Integer>>() {}),
                 read(o, "lensCounts", c, new TypeToken<Map<String, Integer>>() {}),
-                read(o, "limitations", c, new TypeToken<List<String>>() {}));
+                read(o, "limitations", c, new TypeToken<List<String>>() {}),
+                read(o, "invalidCounts", c, new TypeToken<Map<String, Integer>>() {}),
+                read(o, "compensationCounts", c, new TypeToken<Map<Double, Integer>>() {}),
+                read(o, "failedFileCount", c, new TypeToken<Integer>() {}),
+                read(o, "timedCount", c, new TypeToken<Integer>() {}),
+                read(o, "zonedCount", c, new TypeToken<Integer>() {}),
+                read(o, "firstCapture", c, new TypeToken<Optional<String>>() {}),
+                read(o, "lastCapture", c, new TypeToken<Optional<String>>() {}),
+                read(o, "captureOffset", c, new TypeToken<Optional<String>>() {}),
+                read(o, "analyzedAt", c, new TypeToken<Optional<Instant>>() {}),
+                read(o, "sourceFingerprint", c, new TypeToken<String>() {}));
         });
         builder.registerTypeAdapter(ActivitySuggestion.class, (JsonDeserializer<ActivitySuggestion>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();
