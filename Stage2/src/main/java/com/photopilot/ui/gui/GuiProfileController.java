@@ -22,6 +22,7 @@ final class GuiProfileController implements AutoCloseable {
     private PhotoPilotWorkspace workspace;
     private SessionPane sessions;
     private RequirementPane requirements;
+    private CapabilityPane capability;
     private GearMatchPane matching;
     private EnvironmentPane environment;
     private DiscoveryPane discovery;
@@ -45,7 +46,7 @@ final class GuiProfileController implements AutoCloseable {
     ApplicationBootstrap context() { return context; }
     UiOperations operations() { return operations; }
     boolean busy() { return switching || operations.busy(); }
-    boolean dirty() { return sessions.dirty() || requirements.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || review.dirty() || inventory.dirty() || gearImport.dirty() || calculator.dirty(); }
+    boolean dirty() { return sessions.dirty() || requirements.dirty() || capability.dirty() || matching.dirty() || environment.dirty() || discovery.dirty() || planning.dirty() || review.dirty() || inventory.dirty() || gearImport.dirty() || calculator.dirty(); }
     private void install(LocalProfile selected) {
         if (picker != null) { picker.dispose(); picker = null; }
         if (workspace != null) workspace.dispose();
@@ -67,7 +68,8 @@ final class GuiProfileController implements AutoCloseable {
             com.photopilot.ui.privacy.ImagePrivacyBoundary.fromEnvironment(System.getenv()), view::selectInventory);
         inventory.onImport(view::selectImport);
         calculator = new CalculatorPane(context.facade(), operations, language);
-        workspace.connectCapabilities(new CapabilityPane(context.facade(), operations, language));
+        capability = new CapabilityPane(context.facade(), operations, language);
+        workspace.connectCapabilities(capability);
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
         workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
@@ -162,6 +164,7 @@ final class GuiProfileController implements AutoCloseable {
     RequirementPane requirements() { return requirements; }
     DiscoveryPane discovery() { return discovery; }
     GearMatchPane matching() { return matching; }
+    CapabilityPane capability() { return capability; }
     EnvironmentPane environment() { return environment; }
     PlanPane planning() { return planning; }
     ReviewPane review() { return review; }

@@ -8,16 +8,16 @@ import com.photopilot.model.GearMatchReport.Candidate;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.*;
-import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
 /**
- * F07 content in the existing feature surface: session -> confirmed capability profile (minimal manual F06 entry)
- * -> Match My Gear with a chosen ranking -> verified recommendations -> explicit selection. Reuses RequirementPane's
- * controls, feedback cards, confirmation pattern and background Task lifecycle; all rules live in the services.
+ * F07 content in the existing feature surface: session -> confirmed F06 capability profile (adjustable here with the
+ * shared F06 editor) -> Match My Gear with a chosen ranking -> verified recommendations -> explicit selection. Reuses
+ * RequirementPane's controls, feedback cards, confirmation pattern and background Task lifecycle; all rules live in
+ * the services.
  */
 final class GearMatchPane extends VBox {
     private final PhotoPilotFacade app;
@@ -25,17 +25,15 @@ final class GearMatchPane extends VBox {
     private final LocalizationService localization;
     private final FxLocalizer texts;
     private final ComboBox<PhotographySession> session = new ComboBox<>();
-    private final ComboBox<String> strategy = new ComboBox<>(), capability = new ComboBox<>();
-    private final TextField minimum = new TextField(), maximum = new TextField(), priority = new TextField(), note = new TextField();
-    private final CheckBox mandatory = new CheckBox();
+    private final ComboBox<String> strategy = new ComboBox<>();
     private final Label sessionHint = FeaturePane.label("", "secondary-text"), feedback = FeaturePane.label("", "feedback-text");
     private final Label requirementLine = FeaturePane.label("", "secondary-text"), profileLines = FeaturePane.label("", "secondary-text");
-    private final Label accepted = FeaturePane.label("", "secondary-text"), validation = FeaturePane.label("", "feedback-text");
     private final Label savedLines = FeaturePane.label("", "secondary-text");
-    private final VBox controls = new VBox(16), profileBox = new VBox(10), editor = new VBox(14), draftList = new VBox(8),
+    private final VBox controls = new VBox(16), profileBox = new VBox(10), editor = new VBox(14),
         matchBox = new VBox(12), results = new VBox(18), confirmation = new VBox(12), saved = new VBox(10), feedbackBox = new VBox(8);
     private final Button editProfile;
-    private EquipmentRequirementProfile draft;
+    private final CapabilityNeedEditor needs;
+    private boolean draft;
     private PhotographySession draftSession, matchedSession;
     private GearMatchReport report;
     private GearMatchReport.SelectionStatus savedStatus;
@@ -46,7 +44,7 @@ final class GearMatchPane extends VBox {
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
         session.setId("match-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "match.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
-        session.valueProperty().addListener((o, old, value) -> { if (draft == null) { clearResults(); showSession(); } });
+        session.valueProperty().addListener((o, old, value) -> { if (!draft) { clearResults(); showSession(); } });
         Label sessionCaption = texts.label("match.session", "section-title"); sessionCaption.setLabelFor(session);
         Button refresh = button("gear.refresh", "match-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
 
@@ -55,17 +53,8 @@ final class GearMatchPane extends VBox {
         profileBox.getChildren().addAll(texts.label("needs.title", "section-title"), requirementLine, profileLines,
             texts.label("needs.manualNotice", "secondary-text"), new FlowPane(12, 10, editProfile));
 
-        capability.setId("match-need-capability"); capability.getItems().addAll(CapabilityNeed.SUPPORTED.keySet()); capability.setMaxWidth(Double.MAX_VALUE);
-        texts.choices(capability, c -> localization.text("needs.capability." + c), () -> localization.text("needs.choose"));
-        capability.valueProperty().addListener((o, old, value) -> texts.bind(accepted.textProperty(), () -> value == null ? "" : CapabilityNeedForm.capabilityHelp(value, localization)));
-        mandatory.setId("match-need-mandatory"); mandatory.setSelected(true); texts.text(mandatory.textProperty(), "needs.field.mandatory");
-        priority.setText(CapabilityNeedForm.DEFAULT_PRIORITY);
-        var fields = new FlowPane(16, 14);
-        field(fields, "capability", capability); field(fields, "minimum", minimum); field(fields, "maximum", maximum);
-        field(fields, "priority", priority); field(fields, "note", note);
-        editor.getChildren().addAll(texts.label("needs.editorTitle", "empty-title"), texts.label("needs.manualNotice", "secondary-text"),
-            fields, accepted, mandatory, new FlowPane(12, 10, button("needs.addNeed", "match-need-add", this::addNeed, false)),
-            texts.label("needs.draftNeeds", "section-title"), draftList, validation,
+        needs = new CapabilityNeedEditor("match", texts, localization, this::message);
+        editor.getChildren().addAll(texts.label("needs.editorTitle", "empty-title"), texts.label("needs.manualNotice", "secondary-text"), needs,
             new FlowPane(12, 10, button("needs.confirm", "match-profile-confirm", this::confirmProfile, true),
                 button("button.cancel", "match-profile-cancel", this::closeEditor, false)));
 
@@ -82,15 +71,6 @@ final class GearMatchPane extends VBox {
         getChildren().addAll(controls, results, confirmation, feedbackBox);
         texts.onRefresh(this::render);
     }
-    private void field(FlowPane fields, String key, Control input) {
-        input.setId("match-need-" + key); texts.bind(input.accessibleTextProperty(), () -> localization.text("needs.field." + key));
-        if (input instanceof TextField text) { texts.inputMenu(text); texts.text(text.promptTextProperty(), "needs.prompt." + key); }
-        Label caption = FeaturePane.label("", "section-title"); caption.setLabelFor(input);
-        texts.bind(caption.textProperty(), () -> localization.text("needs.field." + key));
-        VBox box = new VBox(7, caption, input); box.setMinWidth(0);
-        box.prefWidthProperty().bind(Bindings.createDoubleBinding(() -> fields.getWidth() < 560 ? Math.max(160, fields.getWidth()) : (fields.getWidth() - 16) / 2, fields.widthProperty()));
-        fields.getChildren().add(box);
-    }
     private static Region grow(Region region) { HBox.setHgrow(region, Priority.ALWAYS); return region; }
     private Button button(String key, String id, Runnable action, boolean primary) {
         Button button = texts.button(key); button.setId(id); button.getStyleClass().add(primary ? "primary-button" : "secondary-button");
@@ -99,7 +79,7 @@ final class GearMatchPane extends VBox {
 
     void activate(boolean active) { if (active && !busy) refresh(); }
     void dispose() { disposed = true; texts.close(); }
-    boolean dirty() { return draft != null || !confirmation.getChildren().isEmpty() && confirmation.isVisible(); }
+    boolean dirty() { return draft || !confirmation.getChildren().isEmpty() && confirmation.isVisible(); }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
     GearMatchReport report() { return report; }
@@ -127,7 +107,9 @@ final class GearMatchPane extends VBox {
         texts.bind(requirementLine.textProperty(), () -> requirement.map(r -> localization.text("match.requirement", r.subject()))
             .orElse(localization.text("match.noRequirement")));
         var profile = selected.profile().filter(EquipmentRequirementProfile::reviewed);
-        texts.bind(profileLines.textProperty(), () -> profile.map(p -> localization.text("needs.savedTitle") + "\n" + String.join("\n", CapabilityNeedForm.describe(p, localization)))
+        var usable = com.photopilot.service.PlanningService.usableProfile(selected);
+        texts.bind(profileLines.textProperty(), () -> profile.map(p -> localization.text("needs.savedTitle") + "\n" + String.join("\n", CapabilityNeedForm.profile(p, localization))
+                + (usable.isSuccess() ? "" : "\n" + localization.text("needs.inconsistent", String.join(" ", usable.errors(localization)))))
             .orElse(localization.text("needs.noneSaved")));
         texts.text(editProfile.textProperty(), profile.isPresent() ? "needs.edit" : "needs.enter");
         editProfile.setDisable(requirement.isEmpty());
@@ -143,57 +125,28 @@ final class GearMatchPane extends VBox {
 
     private void openEditor() {
         var selected = session.getValue();
-        if (selected == null || draft != null) return;
-        if (selected.requirements().filter(ShootRequirement::confirmed).isEmpty()) { message(() -> localization.text("needs.error.requirement")); return; }
-        draftSession = selected; draft = selected.profile().map(EquipmentRequirementProfile::asDraft).orElse(new EquipmentRequirementProfile(List.of(), false));
-        session.setDisable(true); hide(matchBox); clearResults(); show(editor); renderDraft();
+        if (selected == null || draft) return;
+        var requirement = selected.requirements().filter(ShootRequirement::confirmed);
+        if (requirement.isEmpty()) { message(() -> localization.text("needs.error.requirement")); return; }
+        draftSession = selected; draft = true;
+        needs.open(selected.profile().filter(EquipmentRequirementProfile::reviewed).orElse(new EquipmentRequirementProfile(List.of(), false)), requirement);
+        session.setDisable(true); hide(matchBox); clearResults(); show(editor);
         message(() -> localization.text("needs.editing")); SessionPane.reveal(this, editor);
     }
     private void closeEditor() {
-        draft = null; draftSession = null; session.setDisable(false); hide(editor); show(matchBox);
+        draft = false; draftSession = null; needs.close(); session.setDisable(false); hide(editor); show(matchBox);
         message(() -> localization.text("needs.cancelled"));
     }
-    private void addNeed() {
-        if (draft == null) return;
-        var values = new LinkedHashMap<String, String>();
-        values.put("capability", Objects.toString(capability.getValue(), "")); values.put("minimum", minimum.getText());
-        values.put("maximum", maximum.getText()); values.put("priority", priority.getText());
-        values.put("mandatory", mandatory.isSelected() ? "yes" : "no"); values.put("note", note.getText());
-        var parsed = CapabilityNeedForm.parse(values);
-        if (!parsed.isSuccess()) { message(() -> String.join(" ", parsed.errors(localization))); return; }
-        draft = CapabilityNeedForm.put(draft, parsed.value().orElseThrow());
-        minimum.clear(); maximum.clear(); note.clear(); priority.setText(CapabilityNeedForm.DEFAULT_PRIORITY); mandatory.setSelected(true);
-        renderDraft(); message(() -> localization.text("needs.needAdded"));
-    }
-    private void renderDraft() {
-        draftList.getChildren().clear();
-        if (draft == null) return;
-        if (draft.needs().isEmpty()) draftList.getChildren().add(texts.label("needs.noNeeds", "secondary-text"));
-        for (CapabilityNeed need : draft.needs()) {
-            Label text = FeaturePane.label(CapabilityNeedForm.describe(need, localization), "secondary-text");
-            Button edit = button("needs.editNeed", "match-need-edit-" + need.capability(), () -> {
-                var values = CapabilityNeedForm.format(need);
-                capability.setValue(need.capability()); minimum.setText(values.get("minimum")); maximum.setText(values.get("maximum"));
-                priority.setText(values.get("priority")); mandatory.setSelected(need.hardConstraint()); note.setText(values.get("note"));
-            }, false);
-            Button remove = button("needs.removeNeed", "match-need-remove-" + need.capability(), () -> {
-                draft = CapabilityNeedForm.remove(draft, need.capability()); renderDraft();
-            }, false);
-            draftList.getChildren().add(new VBox(6, text, new FlowPane(10, 8, edit, remove)));
-        }
-        var requirement = draftSession.requirements().filter(ShootRequirement::confirmed);
-        var checked = requirement.map(r -> draft.validate(r)).orElse(Result.failureKey("needs.error.requirement"));
-        texts.bind(validation.textProperty(), () -> checked.isSuccess() ? localization.text("needs.valid")
-            : localization.text("needs.problems", String.join(" ", checked.errors(localization))));
-    }
+    /** Editing the saved profile here is the explicit replacement; the revision check still rejects concurrent changes. */
     private void confirmProfile() {
-        if (draft == null) return;
-        PhotographySession expected = draftSession; var edited = draft;
+        if (!draft) return;
+        PhotographySession expected = draftSession; var edited = needs.draft();
+        boolean replace = expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent();
         message(() -> localization.text("needs.saving"));
-        run(() -> app.planning().confirmProfile(expected, edited), stored -> {
-            draft = null; draftSession = null; session.setDisable(false); hide(editor); show(matchBox);
+        run(() -> app.planning().confirmProfile(expected, edited, replace), stored -> {
+            draft = false; draftSession = null; needs.close(); session.setDisable(false); hide(editor); show(matchBox);
             message(() -> localization.text("needs.saved", expected.title())); refresh();
-        }, failure -> { renderDraft(); message(() -> String.join(" ", failure.errors(localization))); });
+        }, failure -> { needs.render(); message(() -> String.join(" ", failure.errors(localization))); });
     }
 
     private void match() {
@@ -212,7 +165,7 @@ final class GearMatchPane extends VBox {
     /** Rebuilds the localized cards from the last service results (also on language change). */
     private void render() {
         if (savedStatus != null) savedLines.setText(String.join("\n", LoadoutPresentation.selection(savedStatus, localization)));
-        if (draft != null) renderDraft();
+        if (draft) needs.render();
         results.getChildren().clear();
         if (report == null) return;
         results.getChildren().add(card("match.summary.title", "match-summary", LoadoutPresentation.summary(report, localization), null));

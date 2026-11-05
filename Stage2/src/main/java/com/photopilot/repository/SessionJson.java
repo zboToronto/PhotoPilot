@@ -100,6 +100,7 @@ final class SessionJson {
         // F07 added an optional v1 selected loadout; older records simply have none.
         if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
         object = withPlanAdditions(object);
+        object = withProfileAdditions(object);
         object = withIdeaAdditions(object);
         object = withReviewAdditions(object);
         if (!(object.get("requirements") instanceof JsonObject requirement)
@@ -108,6 +109,14 @@ final class SessionJson {
         if (!target.has("date")) target.add("date", JsonNull.INSTANCE);
         if (!target.has("timeWindow")) target.addProperty("timeWindow", "");
         if (!target.has("portability")) target.addProperty("portability", "");
+        return copy;
+    }
+    /** F06 added provenance and trade-off notes to v1 profiles; earlier profiles were entered manually and have none. */
+    private static JsonObject withProfileAdditions(JsonObject object) {
+        if (!(object.get("profile") instanceof JsonObject profile) || profile.has("origin") && profile.has("tradeOffs")) return object;
+        JsonObject copy = object.deepCopy(); JsonObject target = copy.getAsJsonObject("profile");
+        if (!target.has("origin")) target.addProperty("origin", "MANUAL");
+        if (!target.has("tradeOffs")) target.add("tradeOffs", new JsonArray());
         return copy;
     }
     /** F10 added structured plan sections to v1 plans; plans written before them have none (empty, never invented). */

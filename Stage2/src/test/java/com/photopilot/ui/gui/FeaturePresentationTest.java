@@ -18,7 +18,7 @@ class FeaturePresentationTest {
         assertEquals(List.of("F01", "F02", "F03", "F10"), features.stream()
             .filter(feature -> feature.group().equals("Workspace")).map(FeaturePresentation::id).toList());
         assertEquals("AI Gear Import", features.stream().filter(feature -> feature.id().equals("F04")).findFirst().orElseThrow().title());
-        for (var feature : features) assertEquals(Set.of("F01", "F02", "F03", "F04", "F05", "F07", "F08", "F09", "F10", "F11").contains(feature.id()) ? FeaturePresentation.Status.IMPLEMENTED : feature.id().equals("F06") ? FeaturePresentation.Status.IN_PROGRESS : FeaturePresentation.Status.SCAFFOLDED, feature.status());
+        for (var feature : features) assertEquals(FeaturePresentation.Status.IMPLEMENTED, feature.status(), feature.id());
     }
 
     @Test void missingOrAmbiguousStatusesNeverClaimImplementation() {

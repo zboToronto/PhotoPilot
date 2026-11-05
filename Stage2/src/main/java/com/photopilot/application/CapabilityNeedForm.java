@@ -8,8 +8,8 @@ import java.math.BigDecimal;
 import java.util.*;
 
 /**
- * Shared GUI/CLI text format for manually entered F06 capability needs. Parsing only: the deterministic rules
- * live in {@link CapabilityNeed} and {@link EquipmentRequirementProfile}. Nothing here is AI output.
+ * Shared GUI/CLI text format for F06 capability needs and proposals. Parsing and formatting only: the deterministic
+ * rules live in {@link CapabilityNeed} and {@link EquipmentRequirementProfile}, AI conversion in RequirementService.
  */
 public final class CapabilityNeedForm {
     private CapabilityNeedForm() { }
@@ -35,18 +35,56 @@ public final class CapabilityNeedForm {
         } catch (LocalizedException error) { return Result.failure(error); }
     }
 
-    /** Draft with {@code need} added, or replacing the need for the same capability; always unreviewed. */
+    /** Draft with {@code need} added, or replacing the need for the same capability; always unreviewed, provenance kept. */
     public static EquipmentRequirementProfile put(EquipmentRequirementProfile profile, CapabilityNeed need) {
+        var base = profile == null ? new EquipmentRequirementProfile(List.of(), false) : profile;
         var needs = new ArrayList<CapabilityNeed>();
         boolean replaced = false;
-        for (CapabilityNeed existing : profile == null ? List.<CapabilityNeed>of() : profile.needs()) {
+        for (CapabilityNeed existing : base.needs()) {
             if (existing.capability().equals(need.capability())) { needs.add(need); replaced = true; } else needs.add(existing);
         }
         if (!replaced) needs.add(need);
-        return new EquipmentRequirementProfile(needs, false);
+        return base.withNeeds(needs);
     }
     public static EquipmentRequirementProfile remove(EquipmentRequirementProfile profile, String capability) {
-        return new EquipmentRequirementProfile(profile.needs().stream().filter(n -> !n.capability().equals(capability)).toList(), false);
+        return profile.withNeeds(profile.needs().stream().filter(n -> !n.capability().equals(capability)).toList());
+    }
+
+    /** Saved or draft profile: provenance, one line per need and the reviewed trade-off explanations. */
+    public static List<String> profile(EquipmentRequirementProfile profile, LocalizationService l) {
+        var lines = new ArrayList<String>();
+        lines.add(l.text("needs.origin." + profile.origin()));
+        describe(profile, l).forEach(line -> lines.add("  " + line));
+        if (!profile.tradeOffs().isEmpty()) {
+            lines.add(l.text("needs.tradeOffs"));
+            profile.tradeOffs().forEach(text -> lines.add("  - " + text));
+        }
+        return lines;
+    }
+
+    /** What the user must see before confirming a proposal, besides the needs themselves. Empty sections are omitted. */
+    public static List<String> review(com.photopilot.service.CapabilityProposal proposal, LocalizationService l) {
+        var lines = new ArrayList<String>();
+        if (proposal.environmentUsed()) lines.add(l.text("needs.review.environment"));
+        else if (proposal.profile().aiAssisted()) lines.add(l.text("needs.review.noEnvironment")); // F09 results last only while the app runs
+        if (!proposal.adjustments().isEmpty()) {
+            lines.add(l.text("needs.review.adjustments"));
+            proposal.adjustments().forEach(message -> lines.add("  - " + message.render(l)));
+        }
+        if (!proposal.unsupportedNeeds().isEmpty()) {
+            lines.add(l.text("needs.review.unsupported"));
+            proposal.unsupportedNeeds().forEach(text -> lines.add("  - " + text));
+        }
+        if (!proposal.missingFields().isEmpty())
+            lines.add(l.text("needs.review.missing", String.join(", ", proposal.missingFields().stream().map(f -> l.text("requirement.field." + f)).toList())));
+        return lines;
+    }
+
+    /** Questions of the proposal, numbered for answering. */
+    public static List<String> questions(com.photopilot.service.CapabilityProposal proposal) {
+        var lines = new ArrayList<String>();
+        for (int i = 0; i < proposal.clarificationQuestions().size(); i++) lines.add((i + 1) + ". " + proposal.clarificationQuestions().get(i));
+        return lines;
     }
 
     /** Field text of an existing need, for editing it again. */

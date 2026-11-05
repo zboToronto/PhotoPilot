@@ -48,8 +48,11 @@ class F07WorkflowTest {
         var saved = ok(app.facade().planning().confirmProfile(id, airshowProfile().asDraft()));
         assertTrue(saved.reviewed()); assertEquals(6, saved.needs().size());
         assertTrue(ok(app.facade().planning().profile(id)).reviewed());
-        assertTrue(gemini.requests.isEmpty(), "the minimal F06 path never calls Gemini");
-        assertFalse(app.facade().analyzeNeeds(id).isSuccess(), "AI capability analysis remains unavailable");
+        assertTrue(gemini.requests.isEmpty(), "manual F06 confirmation never calls Gemini");
+        byte[] stored = Files.readAllBytes(store());
+        gemini.status(503, "");
+        assertFalse(app.facade().analyzeNeeds(id).isSuccess(), "an unavailable provider is reported, never presented as analysis");
+        assertArrayEquals(stored, Files.readAllBytes(store()), "a failed analysis changes nothing");
     }
 
     @Test void airshowAcceptanceMatchesRanksSelectsSavesAndRestores() throws Exception {

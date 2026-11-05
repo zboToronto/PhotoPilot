@@ -27,6 +27,7 @@ public class PhotoPilotCLI {
     private boolean failedProfileCommand;
     private final RequirementCommands.State requirementDraft = new RequirementCommands.State();
     private final MatchCommands.State matchState = new MatchCommands.State();
+    private final NeedsCommands.State needsState = new NeedsCommands.State();
     private final EnvironmentCommands.State environmentState = new EnvironmentCommands.State();
     private final PlanCommands.State planState = new PlanCommands.State();
     private final DiscoveryCommands.State discoveryState = new DiscoveryCommands.State();
@@ -56,7 +57,7 @@ public class PhotoPilotCLI {
     private void refreshContext() {
         String language = localization.language().tag();
         app = profiles.activeContext().facade(); localization = profiles.activeContext().localization();
-        requirementDraft.clear(); matchState.clear(); environmentState.clear(); planState.clear(); discoveryState.clear(); reviewState.clear(); // Drafts belong to the previous user's session data.
+        requirementDraft.clear(); matchState.clear(); needsState.clear(); environmentState.clear(); planState.clear(); discoveryState.clear(); reviewState.clear(); // Drafts belong to the previous user's session data.
         importState.clear(privacy); // An open F04 import releases its temporary image data.
         localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
     }
@@ -188,11 +189,19 @@ public class PhotoPilotCLI {
         if (command.equals("f02") || command.equals("discover") || command.startsWith("discover ")) {
             return new DiscoveryCommands(app, output, localization, discoveryState, requirementDraft).execute(command.equals("f02") ? "discover help" : line);
         }
-        if (command.equals("f06") || command.equals("capability") || command.startsWith("capability ")) {
-            return new CapabilityCommands(app, output, localization).execute(command.equals("f06") ? "capability all" : line);
+        if (command.equals("needs") || command.startsWith("needs ")) {
+            return new NeedsCommands(app, output, localization, needsState).execute(line);
+        }
+        if (command.equals("f06")) {
+            // F06 overview: the shoot capability workflow commands, then the inventory capability report.
+            output.println(localization.text("needs.cli.help"));
+            return new CapabilityCommands(app, output, localization).execute("capability all");
+        }
+        if (command.equals("capability") || command.startsWith("capability ")) {
+            return new CapabilityCommands(app, output, localization).execute(line);
         }
         if (command.equals("f07") || command.equals("match") || command.startsWith("match ")) {
-            return new MatchCommands(app, output, localization, matchState).execute(command.equals("f07") ? "match help" : line);
+            return new MatchCommands(app, output, localization, matchState, needsState).execute(command.equals("f07") ? "match help" : line);
         }
         if (command.equals("f09") || command.equals("env") || command.startsWith("env ")) {
             return new EnvironmentCommands(app, output, localization, environmentState).execute(command.equals("f09") ? "env help" : line);
@@ -207,7 +216,7 @@ public class PhotoPilotCLI {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); output.println(localization.text("review.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
+            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("needs.cli.summaryHelp")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); output.println(localization.text("review.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
             case "ai-test" -> { return new AiTestCommands(app, output, localization).execute(); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { importState.clear(privacy); output.println(localization.text("cli.closed")); return 1; }

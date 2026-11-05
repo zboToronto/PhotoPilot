@@ -23,9 +23,8 @@ import com.photopilot.validation.PlanValidator;
 
 /**
  * Stage 1 UML element 6 (zero-based): {F03, F06-F10; workflow coordination}
- * F03 parse/clarify/confirm/retrieve, F07 match/select/selection, F09 assessEnvironment and F10 generate/proposeChange/
- * approve (SD04) are implemented, with the minimal deterministic F06 confirmProfile/profile path they depend on.
- * F06 analyzeNeeds (AI derivation) remains NOT IMPLEMENTED.
+ * F03 parse/clarify/confirm/retrieve, F06 analyzeNeeds/proposeNeeds/clarifyNeeds/manualNeeds/confirmProfile/profile
+ * (SD02), F07 match/select/selection, F09 assessEnvironment and F10 generate/proposeChange/approve (SD04).
  */
 public class PlanningService {
     private RequirementService requirements;
@@ -110,25 +109,101 @@ public class PlanningService {
         return session.value().orElseThrow().state().canEditPlan() ? session : Result.failureKey("requirement.error.historical");
     }
 
+    /** F06/UC06 Stage 1 entry: Gemini-proposed, unreviewed capability profile for the session. Nothing is saved. */
     public Result<EquipmentRequirementProfile> analyzeNeeds(UUID id) {
-        return Result.failureKey("error.notImplemented", "PlanningService.analyzeNeeds");
+        var proposal = proposeNeeds(id);
+        return proposal.isSuccess() ? Result.success(proposal.value().orElseThrow().profile()) : Result.failure(proposal);
     }
 
     /**
-     * F06 minimal confirmation path (no AI): validates manually entered capability needs deterministically and
-     * against the session's confirmed requirement, then saves the reviewed profile atomically.
+     * F06 analysis for review: the session's confirmed F03 requirement plus this run's F09 light/weather summary (if
+     * any) go to Gemini; the reply is converted and checked deterministically into an unreviewed draft.
      */
+    public Result<CapabilityProposal> proposeNeeds(UUID id) {
+        var session = needsSession(id);
+        if (!session.isSuccess()) return Result.failure(session);
+        return requirements.analyzeProfile(confirmedRequirement(session.value().orElseThrow()), environmentEvidence(id));
+    }
+
+    /** F06 clarification: the current draft (with manual edits) and the answers are resubmitted; still unreviewed. */
+    public Result<CapabilityProposal> clarifyNeeds(UUID id, CapabilityProposal current, String answers) {
+        var session = needsSession(id);
+        if (!session.isSuccess()) return Result.failure(session);
+        return requirements.clarifyProfile(confirmedRequirement(session.value().orElseThrow()), environmentEvidence(id), current, answers);
+    }
+
+    /** Manual entry (also when Gemini is unavailable): the saved profile as a draft, or an empty one. No AI involved. */
+    public Result<CapabilityProposal> manualNeeds(UUID id) {
+        var session = needsSession(id);
+        if (!session.isSuccess()) return Result.failure(session);
+        var found = session.value().orElseThrow();
+        var draft = found.profile().filter(EquipmentRequirementProfile::reviewed)
+            .orElse(new EquipmentRequirementProfile(List.of(), false));
+        return Result.success(CapabilityProposal.manual(draft, RequirementService.capabilityGaps(confirmedRequirement(found))));
+    }
+
+    private Result<PhotographySession> needsSession(UUID id) {
+        if (id == null) return Result.failureKey("error.session.id");
+        var found = sessions.find(id);
+        if (!found.isSuccess()) return found;
+        var session = found.value().orElseThrow();
+        if (!session.state().canEditPlan()) return Result.failureKey("needs.error.historical");
+        return session.requirements().filter(ShootRequirement::confirmed).isPresent() ? found : Result.failureKey("needs.error.requirement");
+    }
+    private static ShootRequirement confirmedRequirement(PhotographySession session) {
+        return session.requirements().filter(ShootRequirement::confirmed).orElseThrow();
+    }
+
+    /** Light phases, accepted windows and fresh weather of this process's F09 assessment; no place or coordinates. */
+    private String environmentEvidence(UUID id) {
+        var found = environmentFor(id);
+        if (found.isEmpty()) return "";
+        var assessment = found.get();
+        var json = new com.google.gson.JsonObject();
+        var windows = new com.google.gson.JsonArray();
+        for (var window : assessment.windows()) {
+            var item = new com.google.gson.JsonObject();
+            item.addProperty("start", window.start().toLocalDateTime().toString()); item.addProperty("end", window.end().toLocalDateTime().toString());
+            item.addProperty("light", window.light()); windows.add(item);
+        }
+        var phases = new com.google.gson.JsonArray();
+        for (var phase : assessment.lightPhases()) {
+            var item = new com.google.gson.JsonObject();
+            item.addProperty("kind", phase.kind()); item.addProperty("start", phase.start().toLocalDateTime().toString());
+            item.addProperty("end", phase.end().toLocalDateTime().toString()); phases.add(item);
+        }
+        if (!windows.isEmpty()) json.add("shootingWindows", windows);
+        if (!phases.isEmpty()) json.add("lightPhases", phases);
+        if (assessment.staleFields().isEmpty() && !assessment.context().weather().isEmpty()) {
+            var weather = new com.google.gson.JsonObject();
+            assessment.context().weather().forEach(weather::addProperty);
+            json.add("weather", weather);
+        }
+        return json.isEmpty() ? "" : json.toString();
+    }
+
     public Result<EquipmentRequirementProfile> confirmProfile(UUID id, EquipmentRequirementProfile edited) {
         var session = sessions.find(id);
         return session.isSuccess() ? confirmProfile(session.value().orElseThrow(), edited) : Result.failure(session);
     }
 
-    /** Confirms against the reviewed session version; a concurrent change is rejected by the revision check. */
+    /** Confirmation that never replaces an existing confirmed profile; see the three-argument form. */
     public Result<EquipmentRequirementProfile> confirmProfile(PhotographySession expected, EquipmentRequirementProfile edited) {
+        return confirmProfile(expected, edited, false);
+    }
+
+    /**
+     * F06 confirmation (AI-assisted or manual drafts alike): structural rules, consistency with the confirmed
+     * requirement, explicit confirmation, then an atomic save against the reviewed session version (a concurrent
+     * change is rejected by the revision check). An existing confirmed profile is replaced only when {@code replace}.
+     * Success is reported only after the save succeeded.
+     */
+    public Result<EquipmentRequirementProfile> confirmProfile(PhotographySession expected, EquipmentRequirementProfile edited, boolean replace) {
         if (expected == null) return Result.failureKey("error.session.id");
         if (!expected.state().canEditPlan()) return Result.failureKey("needs.error.historical");
         var requirement = expected.requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) return Result.failureKey("needs.error.requirement");
+        if (expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent() && !replace) return Result.failureKey("needs.error.replaceRequired");
         var structural = requirements.validateProfile(edited);
         if (!structural.isSuccess()) return structural;
         var consistent = edited.validate(requirement.get());
@@ -150,6 +225,22 @@ public class PlanningService {
             .orElseGet(() -> Result.failureKey("needs.error.none"));
     }
 
+    /**
+     * The confirmed profile only while it is still consistent with the session's current confirmed requirement
+     * (F03 may have been re-confirmed since). F07 matching and selection use nothing else.
+     */
+    public static Result<EquipmentRequirementProfile> usableProfile(PhotographySession session) {
+        var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
+        if (profile.isEmpty()) return Result.failureKey("needs.error.none");
+        var requirement = session.requirements().filter(ShootRequirement::confirmed);
+        if (requirement.isEmpty()) return Result.failureKey("needs.error.requirement");
+        var checked = profile.get().validate(requirement.get());
+        if (checked.isSuccess()) return checked;
+        var problems = new ArrayList<com.photopilot.i18n.LocalizedMessage>();
+        problems.add(com.photopilot.i18n.LocalizedMessage.of("needs.error.stale")); problems.addAll(checked.messages());
+        return Result.failures(problems);
+    }
+
     public Result<List<Loadout>> matchGear(UUID id) {
         var report = matchGear(id, matching.defaultStrategy());
         return report.isSuccess() ? Result.success(report.value().orElseThrow().recommendations().stream()
@@ -163,11 +254,11 @@ public class PlanningService {
         if (!found.isSuccess()) return Result.failure(found);
         var session = found.value().orElseThrow();
         if (!session.state().canEditPlan()) return Result.failureKey("match.error.historical");
-        var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
-        if (profile.isEmpty()) return Result.failureKey("needs.error.none");
+        var profile = usableProfile(session);
+        if (!profile.isSuccess()) return Result.failure(profile);
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
-        return matching.analyze(profile.get(), gear.value().orElseThrow(), strategy, shootContext(session));
+        return matching.analyze(profile.value().orElseThrow(), gear.value().orElseThrow(), strategy, shootContext(session));
     }
 
     public Result<Loadout> selectLoadout(UUID id, Loadout selected) {
@@ -186,8 +277,9 @@ public class PlanningService {
         if (selected == null) return Result.failureKey("match.error.noSelection");
         if (!expected.state().canEditPlan()) return Result.failureKey("match.error.historical");
         if (expected.selectedLoadout().isPresent() && !replace) return Result.failureKey("match.error.alreadySelected");
-        var profile = expected.profile().filter(EquipmentRequirementProfile::reviewed);
-        if (profile.isEmpty()) return Result.failureKey("needs.error.none");
+        var usable = usableProfile(expected);
+        if (!usable.isSuccess()) return Result.failure(usable);
+        var profile = usable.value();
         var loaded = inventory.load();
         if (!loaded.isSuccess()) return Result.failure(loaded);
         var gear = loaded.value().orElseThrow();

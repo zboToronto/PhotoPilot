@@ -22,7 +22,7 @@ class CapabilityCliTest {
             String text=bytes.toString(StandardCharsets.UTF_8);assertTrue(text.contains("20–70 mm"));assertTrue(text.contains("f/2.8"));assertTrue(text.contains("f/4"));
             assertEquals(2,cli.execute("capability bogus"));assertEquals(2,cli.execute("capability all extra"));
             bytes.reset();app.localization().useLanguage("zh-CN");assertEquals(0,cli.execute("capability coverage"));assertTrue(bytes.toString(StandardCharsets.UTF_8).contains("覆盖区间"));
-            assertFalse(app.facade().analyzeNeeds(UUID.randomUUID()).isSuccess(),"Stage 1 reserved route must not be replaced by inventory analysis");
+            assertFalse(app.facade().analyzeNeeds(UUID.randomUUID()).isSuccess(),"UC06 analysis needs an existing session; it is never replaced by inventory analysis");
         }
     }
 }

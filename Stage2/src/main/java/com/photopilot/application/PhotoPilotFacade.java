@@ -91,8 +91,14 @@ public class PhotoPilotFacade {
         return inventory.save(item);
     }
 
+    /** F06 (Stage 1): Gemini-proposed, unreviewed capability profile; review, clarification and confirmation continue through planning(). */
     public Result<EquipmentRequirementProfile> analyzeNeeds(UUID id) {
         return planning.analyzeNeeds(id);
+    }
+
+    /** F06 analysis with its review context (questions, deterministic adjustments, unsupported needs) for GUI and CLI. */
+    public Result<com.photopilot.service.CapabilityProposal> proposeNeeds(UUID id) {
+        return planning.proposeNeeds(id);
     }
 
     public Result<List<Loadout>> matchGear(UUID id) {

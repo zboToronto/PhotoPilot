@@ -9,12 +9,17 @@ import javafx.concurrent.Task;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
-/** Read-only F06 extension using the existing feature surfaces, controls and worker lifecycle. */
+/**
+ * F06 page in the existing feature surface: the UC06 shoot capability-requirement workflow
+ * ({@link CapabilityProfilePane}) followed by the read-only inventory capability report, with the existing controls
+ * and worker lifecycle.
+ */
 final class CapabilityPane extends VBox {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
     private final FxLocalizer texts;
+    private final CapabilityProfilePane profile;
     private final Button refresh;
     private final Label feedback = FeaturePane.label("", "feedback-text");
     private final VBox results = new VBox(18);
@@ -24,18 +29,23 @@ final class CapabilityPane extends VBox {
     CapabilityPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
+        profile = new CapabilityProfilePane(app, operations, localization);
         refresh = texts.button("capability.refresh"); refresh.setId("capability-refresh"); refresh.getStyleClass().add("primary-button");
         refresh.setOnAction(event -> analyze());
         var notice = texts.label("capability.scope", "secondary-text");
         var box = new VBox(8, feedback); box.getStyleClass().add("feedback-box");
-        getChildren().addAll(notice, refresh, box, results);
+        getChildren().addAll(profile, new Separator(), texts.label("capability.inventoryTitle", "empty-title"), notice, refresh, box, results);
         texts.onRefresh(this::render);
     }
     void activate(boolean value) {
         active = value; generation++; refresh.setDisable(false);
+        profile.activate(value);
         if (active) analyze();
     }
-    void dispose() { active = false; generation++; texts.close(); }
+    void dispose() { active = false; generation++; profile.dispose(); texts.close(); }
+    boolean dirty() { return profile.dirty(); }
+    boolean busy() { return profile.busy(); }
+    CapabilityProfilePane profile() { return profile; }
     private void analyze() {
         long request = ++generation; report = null; results.getChildren().clear(); refresh.setDisable(true);
         texts.text(feedback.textProperty(), "capability.loading");

@@ -103,7 +103,9 @@ final class SessionDomainAdapters {
             JsonObject o = json.getAsJsonObject();
             return new EquipmentRequirementProfile(
                 read(o, "needs", c, new TypeToken<List<CapabilityNeed>>() {}),
-                read(o, "reviewed", c, new TypeToken<Boolean>() {}));
+                read(o, "reviewed", c, new TypeToken<Boolean>() {}),
+                read(o, "origin", c, new TypeToken<String>() {}),
+                read(o, "tradeOffs", c, new TypeToken<List<String>>() {}));
         });
         builder.registerTypeAdapter(ExifStatistics.class, (JsonDeserializer<ExifStatistics>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();

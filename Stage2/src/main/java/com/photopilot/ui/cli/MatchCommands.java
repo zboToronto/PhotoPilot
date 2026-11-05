@@ -9,26 +9,26 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * F07 command adapter (with the minimal F06 capability-profile entry it depends on). Shares PlanningService,
- * CapabilityNeedForm and LoadoutPresentation with the GUI, so both interfaces produce the same findings.
+ * F07 command adapter. Shares PlanningService and LoadoutPresentation with the GUI, so both interfaces produce the
+ * same findings. {@code match profile/need} are kept as aliases of the F06 {@code needs} commands (same draft state).
  */
 final class MatchCommands {
-    /** Process-local drafts and the last match; never persisted and cleared when the user switches. */
+    /** Process-local last match; never persisted and cleared when the user switches. */
     static final class State {
-        private EquipmentRequirementProfile profileDraft;
-        private PhotographySession profileSession;
         private GearMatchReport report;
         private PhotographySession reportSession;
         private Candidate pending;
-        void clear() { profileDraft = null; profileSession = null; report = null; reportSession = null; pending = null; }
+        void clear() { report = null; reportSession = null; pending = null; }
     }
     private static final int DETAILED = 3;
     private final PhotoPilotFacade app;
     private final PrintStream output;
     private final LocalizationService localization;
     private final State state;
-    MatchCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization, State state) {
+    private final NeedsCommands needs;
+    MatchCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization, State state, NeedsCommands.State needsState) {
         this.app = app; this.output = output; this.localization = localization; this.state = state;
+        this.needs = new NeedsCommands(app, output, localization, needsState);
     }
 
     int execute(String line) {
@@ -37,7 +37,7 @@ final class MatchCommands {
             String action = words.length < 2 ? "help" : words[1].toLowerCase(Locale.ROOT);
             switch (action) {
                 case "help" -> { output.println(localization.text("match.cli.help")); return 0; }
-                case "capabilities" -> { CapabilityNeed.SUPPORTED.keySet().forEach(c -> output.println("  " + CapabilityNeedForm.capabilityHelp(c, localization))); return 0; }
+                case "capabilities" -> { return needs.execute("needs capabilities"); }
                 case "show" -> { return show(words); }
                 case "profile" -> { return profile(words); }
                 case "need" -> { return need(line, words); }
@@ -71,61 +71,29 @@ final class MatchCommands {
         var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
         if (profile.isEmpty()) { output.println(localization.text("needs.noneSaved")); return; }
         output.println(localization.text("needs.savedTitle"));
-        CapabilityNeedForm.describe(profile.get(), localization).forEach(text -> output.println("  " + text));
-        output.println(localization.text("needs.manualNotice"));
+        CapabilityNeedForm.profile(profile.get(), localization).forEach(text -> output.println("  " + text));
+        var usable = com.photopilot.service.PlanningService.usableProfile(session);
+        if (!usable.isSuccess()) output.println(localization.text("needs.inconsistent", String.join(" ", usable.errors(localization))));
     }
 
+    /** Aliases of the F06 commands: {@code match profile <id>} opens the saved profile (or an empty one) for editing. */
     private int profile(String[] words) {
         String sub = words.length < 3 ? "show" : words[2].toLowerCase(Locale.ROOT);
-        switch (sub) {
-            case "show" -> { if (!requireDraft()) return 2; showDraft(); return 0; }
-            case "cancel" -> { if (!requireDraft()) return 2; state.profileDraft = null; state.profileSession = null; output.println(localization.text("needs.cancelled")); return 0; }
+        return switch (sub) {
+            case "show" -> needs.execute("needs draft");
+            case "cancel" -> needs.execute("needs cancel");
             case "confirm" -> {
-                if (!requireDraft()) return 2;
-                var saved = app.planning().confirmProfile(state.profileSession, state.profileDraft);
-                if (!report(saved)) return 2;
-                String title = state.profileSession.title(); state.profileDraft = null; state.profileSession = null; state.report = null; state.pending = null;
-                output.println(localization.text("needs.saved", title));
-                CapabilityNeedForm.describe(saved.value().orElseThrow(), localization).forEach(text -> output.println("  " + text));
-                return 0;
+                int status = needs.execute(String.join(" ", "needs", "confirm", words.length > 3 ? words[3] : "").strip());
+                if (status == 0) { state.report = null; state.pending = null; }
+                yield status;
             }
-            default -> {
-                if (state.profileDraft != null) { output.println(localization.text("needs.cli.open")); return 2; }
-                var session = open(words[2]); if (session == null) return 2;
-                if (!session.state().canEditPlan()) { report(Result.failureKey("needs.error.historical")); return 2; }
-                if (session.requirements().filter(ShootRequirement::confirmed).isEmpty()) { report(Result.failureKey("needs.error.requirement")); return 2; }
-                state.profileSession = session;
-                state.profileDraft = session.profile().map(EquipmentRequirementProfile::asDraft).orElse(new EquipmentRequirementProfile(List.of(), false));
-                output.println(localization.text("needs.editing")); showDraft(); return 0;
-            }
-        }
+            default -> needs.execute("needs manual " + words[2]);
+        };
     }
     private int need(String line, String[] words) {
-        if (!requireDraft()) return 2;
-        if (words.length >= 4 && words[2].equalsIgnoreCase("remove")) {
-            state.profileDraft = CapabilityNeedForm.remove(state.profileDraft, words[3]); showDraft(); return 0;
-        }
+        if (words.length >= 4 && words[2].equalsIgnoreCase("remove")) return needs.execute("needs remove " + words[3]);
         if (words.length < 3) throw new LocalizedException("error.session.command");
-        var tokens = InventoryCommands.tokenize(line);
-        var values = new LinkedHashMap<String, String>(); values.put("capability", tokens.get(2));
-        for (String token : tokens.subList(3, tokens.size())) {
-            int split = token.indexOf('=');
-            if (split <= 0) throw new LocalizedException("error.cli.option", token);
-            if (values.putIfAbsent(token.substring(0, split), token.substring(split + 1)) != null) throw new LocalizedException("error.cli.repeated", token.substring(0, split));
-        }
-        var parsed = CapabilityNeedForm.parse(values);
-        if (!report(parsed)) return 2;
-        state.profileDraft = CapabilityNeedForm.put(state.profileDraft, parsed.value().orElseThrow()); showDraft(); return 0;
-    }
-    private void showDraft() {
-        output.println(localization.text("needs.cli.draft", state.profileSession.title(), state.profileSession.id()));
-        output.println(localization.text("needs.manualNotice"));
-        if (state.profileDraft.needs().isEmpty()) output.println("  " + localization.text("needs.noNeeds"));
-        CapabilityNeedForm.describe(state.profileDraft, localization).forEach(text -> output.println("  " + text));
-        var problems = state.profileSession.requirements().filter(ShootRequirement::confirmed)
-            .map(r -> state.profileDraft.validate(r)).orElse(Result.failureKey("needs.error.requirement"));
-        output.println(problems.isSuccess() ? localization.text("needs.valid") : localization.text("needs.problems", String.join(" ", problems.errors(localization))));
-        output.println(localization.text("needs.cli.next"));
+        return needs.execute("needs set " + RequirementCommands.remainder(line, 2));
     }
 
     private int run(String[] words) {
@@ -194,10 +162,6 @@ final class MatchCommands {
     private PhotographySession open(String id) {
         var session = app.sessions().open(SessionForm.id(id));
         return report(session) ? session.value().orElseThrow() : null;
-    }
-    private boolean requireDraft() {
-        if (state.profileDraft != null) return true;
-        output.println(localization.text("needs.cli.noDraft")); return false;
     }
     private boolean report(Result<?> result) {
         if (result.isSuccess()) return true;
