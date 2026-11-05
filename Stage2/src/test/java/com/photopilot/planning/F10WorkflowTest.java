@@ -5,6 +5,7 @@ import com.photopilot.command.ShootPlan;
 import com.photopilot.config.ApplicationBootstrap;
 import com.photopilot.environment.FakeEnvironmentProviders;
 import com.photopilot.i18n.LocalizationService;
+import com.photopilot.i18n.LocalizedMessage;
 import com.photopilot.model.*;
 import com.photopilot.requirement.FakeGemini;
 import com.photopilot.service.PlanPreview;
@@ -50,6 +51,21 @@ class F10WorkflowTest {
     }
     static Set<String> lenses(ShootPlan plan) {
         var models = new TreeSet<String>(); plan.loadout().orElseThrow().ofType(EquipmentType.LENS).forEach(l -> models.add(l.model())); return models;
+    }
+
+    @Test void anF09AssessmentDoesNotOutliveTheProcessAndItsAbsenceIsStatedNeverPresentedAsCurrent() throws Exception {
+        var id = session(app, gear, true); assess(app, gemini, id);
+        assertTrue(ok(app.facade().planning().planInputs(id)).notes().stream().anyMatch(m -> m.key().equals("plan.env.used")));
+        app.close(); app = boot();
+        var inputs = ok(app.facade().planning().planInputs(id));
+        assertTrue(inputs.environment().isEmpty(), "F09 assessments are never persisted (AUD-005, by design)");
+        var keys = inputs.notes().stream().map(LocalizedMessage::key).toList();
+        assertFalse(keys.contains("plan.env.used"), "missing evidence is never presented as current");
+        assertTrue(keys.contains("plan.env.requirementTiming") || keys.contains("plan.env.noTiming"), keys::toString);
+        String text = String.join(" ", inputs.notes().stream().map(m -> com.photopilot.i18n.EnglishMessages.text(m.key(), m.arguments().toArray())).toList());
+        assertTrue(text.contains("kept only while PhotoPilot is open") && text.contains("Environment Planning (F09)"), "the user is told how to reassess: " + text);
+        assess(app, gemini, id);
+        assertTrue(ok(app.facade().planning().planInputs(id)).notes().stream().anyMatch(m -> m.key().equals("plan.env.used")), "reassessing restores the evidence");
     }
 
     @Test void missingRequirementsOrProfileBlockPlanningWithoutCallingGemini() throws Exception {
