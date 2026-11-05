@@ -37,6 +37,10 @@ public class InventoryService {
         return save(item, false);
     }
 
+    /**
+     * Stage 1 signature (a List, not a Result), kept for UML traceability: a storage failure surfaces as
+     * IllegalStateException. GUI and CLI use the Result-returning save/confirm paths, which report it instead.
+     */
     public List<Equipment> duplicates(Equipment item) {
         var loaded = repository.load();
         if (!loaded.isSuccess()) throw new IllegalStateException(String.join("; ", loaded.errors()));

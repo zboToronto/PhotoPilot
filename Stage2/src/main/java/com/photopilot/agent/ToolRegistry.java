@@ -34,20 +34,23 @@ public class ToolRegistry {
         return result == null ? Result.failureKey("ai.error.toolFailed", call.toolName(), "no result") : result;
     }
 
-    /** Input schemas of the registered tools that publish one; scaffolded tools without a schema are omitted. */
+    /** Input schemas of the registered tools (every registered tool publishes one; see register). */
     public Map<String, String> schemas() {
         var schemas = new LinkedHashMap<String, String>();
-        allowedTools.forEach((name, tool) -> {
-            try { schemas.put(name, tool.inputSchema()); } catch (UnsupportedOperationException scaffolded) { /* not offered */ }
-        });
+        allowedTools.forEach((name, tool) -> schemas.put(name, tool.inputSchema()));
         return schemas;
     }
 
     public boolean has(String name) { return allowedTools.containsKey(name); }
 
+    /** Registers a complete tool. A tool without an input schema cannot be offered or checked, so it is refused here. */
     public void register(AgentTool tool) {
         Objects.requireNonNull(tool, "tool");
         String name = Objects.requireNonNull(tool.name(), "tool.name");
+        String schema;
+        try { schema = tool.inputSchema(); }
+        catch (UnsupportedOperationException incomplete) { throw new IllegalArgumentException("Tool " + name + " publishes no input schema and cannot be registered", incomplete); }
+        if (schema == null || schema.isBlank()) throw new IllegalArgumentException("Tool " + name + " publishes no input schema and cannot be registered");
         if (name.isBlank() || allowedTools.putIfAbsent(name, tool) != null) {
             throw new IllegalArgumentException("Blank or duplicate tool name: " + name);
         }

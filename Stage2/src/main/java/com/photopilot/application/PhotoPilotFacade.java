@@ -32,15 +32,17 @@ import com.photopilot.ui.privacy.SanitizedImage;
 
 /**
  * Stage 1 UML element 3 (zero-based): {Facade}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Shared GUI/CLI entry point to the F01-F11 application services; it holds no business rules of its own.
  */
 public class PhotoPilotFacade {
-    private SessionService sessions;
-    private InventoryService inventory;
-    private DiscoveryService discovery;
-    private PlanningService planning;
-    private ReviewService review;
-    private TechnicalCalculator calculations;
+    // Fixed at construction: one Facade always delegates to the same profile-scoped services.
+    private final SessionService sessions;
+    private final InventoryService inventory;
+    private final DiscoveryService discovery;
+    private final PlanningService planning;
+    private final ReviewService review;
+    private final TechnicalCalculator calculations;
+    // Read-only F06 inventory report over the injected InventoryService; it holds no state of its own.
     private final com.photopilot.service.GearCapabilityService capabilities;
     private final LLMDiagnosticService aiDiagnostics;
 

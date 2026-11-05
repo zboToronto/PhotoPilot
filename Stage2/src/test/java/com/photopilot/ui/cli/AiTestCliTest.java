@@ -100,4 +100,20 @@ class AiTestCliTest {
         }
         assertEquals(0, calls.get());
     }
+
+    @Test void theKeySourceLocationIsReportedButNeverTheKey() throws Exception {
+        java.nio.file.Files.writeString(temporary.resolve(".env"), "LLM_API_KEY=" + KEY + "\n");
+        var fromFile = LLMConfiguration.load(Map.of(), temporary);
+        assertEquals(java.util.Optional.of(temporary.resolve(".env").toAbsolutePath().normalize()), fromFile.envFile(), "AUD-013: the consulted file is known");
+        assertTrue(LLMConfiguration.load(Map.of("LLM_API_KEY", KEY), temporary).envFile().isEmpty(), "the environment variable decided");
+        var service = new LLMDiagnosticService(context -> Result.failure("unused"), LLMConfiguration.load(Map.of(), temporary.resolve("elsewhere")), "test-model");
+        var bytes = new java.io.ByteArrayOutputStream();
+        var localization = com.photopilot.i18n.LocalizationService.english();
+        int code = new AiTestCommands(null, new java.io.PrintStream(bytes, true, StandardCharsets.UTF_8), localization).execute(service);
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        assertEquals(2, code);
+        assertTrue(output.contains("Key source: no LLM_API_KEY environment variable is set, so " + temporary.resolve("elsewhere").resolve(".env").toAbsolutePath().normalize() + " was read"), output);
+        assertTrue(output.contains("LLM_API_KEY is missing or empty"), output);
+        assertFalse(output.contains(KEY));
+    }
 }

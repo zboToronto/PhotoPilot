@@ -14,6 +14,8 @@ import javafx.stage.Stage;
 /** Stage 1 UML element 2. JavaFX presentation over the unchanged shared application. */
 public class PhotoPilotGUI extends Application {
     private PhotoPilotFacade app;
+    // Stage 1 UML attributes kept for traceability: the panes hold the live draft, and GuiProfileController gives each
+    // F04 pane its own ImagePrivacyBoundary, so these two are not read elsewhere.
     private String draftInput = "";
     private ImagePrivacyBoundary privacy;
     private ApplicationBootstrap bootstrap;

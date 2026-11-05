@@ -12,9 +12,12 @@ final class AiTestCommands {
     AiTestCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization) {
         this.app = app; this.output = output; this.localization = localization;
     }
-    int execute() {
-        var diagnostics = app.aiDiagnostics();
+    int execute() { return execute(app.aiDiagnostics()); }
+    int execute(com.photopilot.service.LLMDiagnosticService diagnostics) {
         output.println(localization.text("ai.test.checking"));
+        // Location only, so a launch from another directory (a different .env) is visible; never the key itself.
+        output.println(diagnostics.configurationFile().map(file -> localization.text("ai.test.sourceFile", file.toString()))
+            .orElseGet(() -> localization.text("ai.test.sourceEnvironment")));
         var configured = diagnostics.checkConfiguration();
         if (!configured.isSuccess()) return fail(configured.errors(localization));
         output.println(localization.text("ai.test.sending", diagnostics.modelName()));

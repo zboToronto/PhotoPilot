@@ -29,6 +29,9 @@ public final class LLMDiagnosticService {
 
     public String modelName() { return modelName; }
 
+    /** Where the key was looked up: the .env file consulted, or empty when the LLM_API_KEY variable decided. */
+    public Optional<java.nio.file.Path> configurationFile() { return configuration.envFile(); }
+
     /** Offline check of the local key configuration; never returns or displays the key. */
     public Result<LLMConfiguration.KeyStatus> checkConfiguration() {
         return configuration.isApiKeyConfigured() ? Result.success(configuration.keyStatus())

@@ -290,7 +290,7 @@ public class PlanningService {
 
     // ---------------------------------------------------------------- F10 / UC10, UC11, UC14 (SD04)
 
-    /** Tools the F10 agent may call: deterministic F08 calculations. EnvironmentTool needs coordinates, which never go to Gemini. */
+    /** Tools the F10 agent may call: deterministic F08 calculations. EnvironmentTool needs coordinates, which never go to Gemini, so it is not registered. */
     public static final Set<String> PLAN_TOOLS = Set.of("calculation");
     public static final int MAX_CHANGE_REQUEST = 2000;
     private static final int MAX_ISSUED = 64;

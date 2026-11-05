@@ -6,7 +6,9 @@ import com.photopilot.integration.EquipmentSpecificationProvider;
 
 /**
  * Stage 1 UML element 97 (zero-based): {AgentTool; factual equipment lookup}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Retained for Stage 1 traceability and deliberately not registered: F04 queries EquipmentCatalogAdapter directly for
+ * the identity the user reviewed, while a model-callable lookup would send model-chosen names to external catalogues.
+ * It publishes no schema, so ToolRegistry refuses to register it.
  */
 public class SpecificationTool implements AgentTool {
     private EquipmentSpecificationProvider provider;
@@ -20,7 +22,7 @@ public class SpecificationTool implements AgentTool {
     }
 
     public String inputSchema() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: SpecificationTool.inputSchema");
+        throw new UnsupportedOperationException("SpecificationTool is not offered to the model; see the class documentation");
     }
 
     public Result<String> execute(String argumentsJson) {

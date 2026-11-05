@@ -6,7 +6,8 @@ import java.util.Optional;
 
 /**
  * Stage 1 UML element 20 (zero-based): {untrusted AI response}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * GeminiAdapter fills only structuredOutput. Tool requests travel inside that text as the PhotoPilotAgent step
+ * envelope, so the Stage 1 toolCalls and clarificationQuestions fields stay empty for provider replies.
  */
 public class ModelReply {
     private Optional<String> structuredOutput;

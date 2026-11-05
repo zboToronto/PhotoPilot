@@ -18,6 +18,7 @@ public class PhotoPilotCLI {
     private ImagePrivacyBoundary privacy;
     private final Scanner input;
     private final PrintStream output;
+    private PrintStream diagnostics = System.err;
     private LocalizationService localization;
     private ProfileManager profiles;
     private int exitCode;
@@ -59,6 +60,8 @@ public class PhotoPilotCLI {
         localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
     }
     public int exitCode() { return exitCode; }
+    /** Where unexpected command failures write their stack trace (stderr by default). */
+    public void diagnostics(PrintStream stream) { diagnostics = Objects.requireNonNull(stream); }
 
     public static void main(String[] args) {
         int status;
@@ -136,8 +139,26 @@ public class PhotoPilotCLI {
         return result;
     }
 
-    /** 0: handled; 1: exit requested; 2: unavailable or unknown command. */
+    /**
+     * 0: handled; 1: exit requested; 2: unavailable, unknown or failed command. One failed command never ends the
+     * session: validation errors keep their localized text, and an unexpected runtime failure is reported by type (its
+     * message may quote file content or provider text) with the stack trace on stderr. Drafts held by this CLI are kept.
+     * Errors such as OutOfMemoryError are not caught.
+     */
     public int execute(String line) {
+        try {
+            return route(line);
+        } catch (LocalizedException expected) {
+            output.println(expected.localizedMessage().render(localization));
+            return 2;
+        } catch (RuntimeException unexpected) {
+            output.println(localization.text("cli.internalError", unexpected.getClass().getSimpleName()));
+            unexpected.printStackTrace(diagnostics);
+            return 2;
+        }
+    }
+
+    private int route(String line) {
         String command = Objects.requireNonNull(line).strip().toLowerCase(Locale.ROOT);
         if (command.equals("profile") || command.startsWith("profile ")) {
             if (profiles == null) { output.println(localization.text("error.profile.unavailable")); return 2; }

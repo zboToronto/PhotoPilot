@@ -7,7 +7,9 @@ import com.photopilot.service.GearMatchingService;
 
 /**
  * Stage 1 UML element 95 (zero-based): {AgentTool; returns verified candidates; no AI recursion}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Retained for Stage 1 traceability and deliberately not registered: F07's UC14-verified candidates already reach F10
+ * as labelled offers (PlanAssembly), so a model-callable re-match would duplicate GearMatchingService without adding
+ * evidence. It publishes no schema, so ToolRegistry refuses to register it.
  */
 public class GearMatchingTool implements AgentTool {
     private GearMatchingService matching;
@@ -23,7 +25,7 @@ public class GearMatchingTool implements AgentTool {
     }
 
     public String inputSchema() {
-        throw new UnsupportedOperationException("NOT IMPLEMENTED: GearMatchingTool.inputSchema");
+        throw new UnsupportedOperationException("GearMatchingTool is not offered to the model; see the class documentation");
     }
 
     public Result<String> execute(String argumentsJson) {

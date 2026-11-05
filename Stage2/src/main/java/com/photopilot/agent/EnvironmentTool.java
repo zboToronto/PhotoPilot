@@ -17,8 +17,9 @@ import com.photopilot.service.EnvironmentService;
 
 /**
  * Stage 1 UML element 96 (zero-based): {AgentTool; invokes retrieve(), not assess()}
- * Bounded JSON adapter for the future F10 tool loop: factual provider evidence only, with sources, timestamps and
- * unavailable fields. No model call and no AI interpretation.
+ * Bounded JSON adapter: factual provider evidence only, with sources, timestamps and unavailable fields. No model call
+ * and no AI interpretation. Implemented and tested but not registered: its arguments are coordinates, and
+ * coordinates never go to Gemini. F10 receives the F09 assessment the user requested as evidence instead.
  */
 public class EnvironmentTool implements AgentTool {
     private EnvironmentService environment;

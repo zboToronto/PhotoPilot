@@ -7,6 +7,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Local, offline key configuration. Never logs, persists, or verifies credentials with a provider. */
 public final class LLMConfiguration {
@@ -15,10 +16,15 @@ public final class LLMConfiguration {
 
     private final String apiKey;
     private final KeyStatus keyStatus;
+    private final Optional<Path> envFile;
 
     private LLMConfiguration(String apiKey, KeyStatus keyStatus) {
+        this(apiKey, keyStatus, Optional.empty());
+    }
+    private LLMConfiguration(String apiKey, KeyStatus keyStatus, Optional<Path> envFile) {
         this.apiKey = apiKey;
         this.keyStatus = keyStatus;
+        this.envFile = envFile;
     }
 
     public static LLMConfiguration unconfigured() {
@@ -37,8 +43,14 @@ public final class LLMConfiguration {
         String systemKey = environment.get(API_KEY_VARIABLE);
         // A nonblank environment value always wins, even if invalid; never silently switch identities.
         if (systemKey != null && !systemKey.isBlank()) return validate(systemKey);
+        Path file = projectRoot.resolve(".env").toAbsolutePath().normalize();
+        var loaded = fromFile(file);
+        return new LLMConfiguration(loaded.apiKey, loaded.keyStatus, Optional.of(file));
+    }
+
+    private static LLMConfiguration fromFile(Path file) {
         try {
-            String content = Files.readString(projectRoot.resolve(".env"), StandardCharsets.UTF_8);
+            String content = Files.readString(file, StandardCharsets.UTF_8);
             if (content.startsWith("\uFEFF")) content = content.substring(1);
             String key = null;
             for (String line : content.split("\\R")) {
@@ -89,6 +101,11 @@ public final class LLMConfiguration {
 
     public KeyStatus keyStatus() { return keyStatus; }
     public boolean isApiKeyConfigured() { return keyStatus == KeyStatus.CONFIGURED; }
+    /**
+     * The .env file consulted because no LLM_API_KEY environment variable was set; empty when the variable decided.
+     * Its location only (it follows the launch directory), never its content.
+     */
+    public Optional<Path> envFile() { return envFile; }
 
     /** Future transport boundary only. Never display, log, serialize, or put the result in a URI. */
     public String requireApiKey() {

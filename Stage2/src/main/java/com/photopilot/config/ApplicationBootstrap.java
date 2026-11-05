@@ -69,7 +69,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
         InventoryRepository inventory = profileAccess == null ? new JsonInventoryRepository(storageScope.inventoryFile()) : profileAccess.inventory();
         ToolRegistry tools = new ToolRegistry(Map.of());
         LLMConfiguration llmConfiguration = LLMConfiguration.load(environment);
-        // Constructing the client sends nothing; only explicit complete() calls (CLI ai-test) reach the provider.
+        // Constructing the client sends nothing; only user-started AI operations (and CLI ai-test) reach the provider.
         LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
             geminiModel, http, Duration.ofSeconds(timeoutSeconds(environment)), llmConfiguration), localization);
         PhotoPilotAgent agent = new PhotoPilotAgent(model, tools, new HistoryRetriever(sessions), 8);
@@ -96,11 +96,12 @@ public final class ApplicationBootstrap implements AutoCloseable {
             http, providerTimeout, java.time.Clock.systemUTC());
         PlanValidator validator = new PlanValidator(compatibility, calculator, feasibility);
         // Phase two closes the existing agent -> registry -> tools -> services -> agent cycle.
-        // register() is in the approved UML. It does not execute any tool or request.
+        // register() is in the approved UML. It does not execute any tool or request. Only tools a task permits are
+        // registered: F10 may call the F08 calculator. The other Stage 1 tools stay unregistered by design:
+        // EnvironmentTool takes coordinates, which never go to Gemini (F10 receives the F09 evidence the user asked
+        // for instead); F07's verified candidates already reach F10 as labelled offers, so GearMatchingTool would
+        // duplicate GearMatchingService; SpecificationTool would let model-chosen names reach external catalogues.
         tools.register(new CalculationTool(calculator));
-        tools.register(new GearMatchingTool(matching, inventory));
-        tools.register(new EnvironmentTool(environmentService));
-        tools.register(new SpecificationTool(specifications));
         facade = new PhotoPilotFacade(new SessionService(sessions),
             new InventoryService(inventory, sessions, new GearRecognitionService(agent, specifications)),
             // F02 reads F05 inventory and F07's deterministic loadout generation; it never ranks gear or writes inventory.

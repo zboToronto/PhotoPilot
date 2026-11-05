@@ -5,7 +5,7 @@ import com.photopilot.common.Result;
 
 /**
  * Stage 1 UML element 17 (zero-based): {tool contract; all inputs validated}
- * SCAFFOLDED: business behavior is NOT IMPLEMENTED.
+ * Tools run only through ToolRegistry, after their arguments are checked against inputSchema().
  */
 public interface AgentTool {
 

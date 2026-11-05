@@ -50,9 +50,9 @@ class BootstrapTest {
             Object agent = field(planning, "agent");
             Object registry = field(agent, "tools");
             Map<?, ?> tools = (Map<?, ?>) field(registry, "allowedTools");
-            assertEquals(4, tools.size());
-            assertSame(field(planning, "matching"), field(tools.get("gearMatching"), "matching"));
-            assertSame(field(planning, "environment"), field(tools.get("environment"), "environment"));
+            // AUD-003: only tools a task permits are registered; the calculator tool shares the application's calculator.
+            assertEquals(java.util.Set.of("calculation"), tools.keySet());
+            assertSame(field(planning, "calculator"), field(tools.get("calculation"), "calculator"));
             assertSame(agent, field(field(planning, "matching"), "ranking") instanceof com.photopilot.strategy.PortabilityRanking ranking
                 ? field(ranking, "agent") : null);
             assertTrue(Files.exists(data.resolve("profiles.json")));
