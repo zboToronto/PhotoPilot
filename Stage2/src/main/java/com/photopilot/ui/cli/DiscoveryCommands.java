@@ -165,10 +165,20 @@ final class DiscoveryCommands {
         var idea = idea(words, 4); if (idea == null) return 2;
         if (idea.feasibility() == ActivitySuggestion.Feasibility.INFEASIBLE) { report(Result.failureKey("discover.error.infeasible")); return 2; }
         if (requirement.hasDraft()) { output.println(localization.text("discover.error.draftOpen")); return 2; }
-        var session = target(words.get(3), idea); if (session == null) return 2;
-        var draft = app.discovery().select(session.id(), idea);
-        if (!report(draft)) return 2;
-        if (!requirement.open(draft.value().orElseThrow(), session)) { output.println(localization.text("discover.error.draftOpen")); return 2; }
+        PhotographySession session; ShootRequirement draft;
+        if (words.get(3).equalsIgnoreCase("new")) {
+            // DiscoveryService checks the idea before it creates the session, so a refusal leaves no empty session.
+            var made = app.discovery().selectInNewSession(idea);
+            if (!report(made)) return 2;
+            session = made.value().orElseThrow().session(); draft = made.value().orElseThrow().draft();
+            created(session);
+        } else {
+            session = existing(words.get(3)); if (session == null) return 2;
+            var selected = app.discovery().select(session.id(), idea);
+            if (!report(selected)) return 2;
+            draft = selected.value().orElseThrow();
+        }
+        if (!requirement.open(draft, session)) { output.println(localization.text("discover.error.draftOpen")); return 2; }
         output.println(localization.text("discover.selected", idea.subject(), session.title()));
         output.println(localization.text("discover.cli.handoff", session.id()));
         return new RequirementCommands(app, output, localization, requirement).execute("requirement draft");
@@ -177,9 +187,17 @@ final class DiscoveryCommands {
         if (words.size() != 4) throw new LocalizedException("error.session.command");
         var idea = idea(words, 4); if (idea == null) return 2;
         if (idea.feasibility() == ActivitySuggestion.Feasibility.INFEASIBLE) { report(Result.failureKey("discover.error.infeasible")); return 2; }
-        var session = target(words.get(3), idea); if (session == null) return 2;
-        var saved = app.discovery().save(session, idea);
-        if (!report(saved)) return 2;
+        PhotographySession session;
+        if (words.get(3).equalsIgnoreCase("new")) {
+            // One atomic insert of the new session together with the idea, or nothing.
+            var stored = app.discovery().saveInNewSession(idea);
+            if (!report(stored)) return 2;
+            session = stored.value().orElseThrow(); created(session);
+        } else {
+            session = existing(words.get(3)); if (session == null) return 2;
+            var saved = app.discovery().save(session, idea);
+            if (!report(saved)) return 2;
+        }
         output.println(localization.text("discover.saved", idea.subject(), session.title()));
         output.println(localization.text("discover.cli.savedIn", session.id()));
         return 0;
@@ -200,17 +218,13 @@ final class DiscoveryCommands {
         return 0;
     }
 
-    /** An existing session, or "new": a Draft session (F01) named after the idea on its date. */
-    private PhotographySession target(String word, ActivitySuggestion idea) {
-        if (word.equalsIgnoreCase("new")) {
-            String title = idea.subject().length() > 200 ? idea.subject().substring(0, 200) : idea.subject();
-            var created = app.sessions().create(title, idea.start().map(s -> s.toLocalDate()).orElse(LocalDate.now()));
-            if (!report(created)) return null;
-            output.println(localization.text("discover.sessionCreated", created.value().orElseThrow().title(), created.value().orElseThrow().id()));
-            return created.value().orElseThrow();
-        }
+    /** An existing session named by its id ("new" is handled by DiscoveryService's new-session operations). */
+    private PhotographySession existing(String word) {
         var session = app.sessions().open(SessionForm.id(word));
         return report(session) ? session.value().orElseThrow() : null;
+    }
+    private void created(PhotographySession session) {
+        output.println(localization.text("discover.sessionCreated", session.title(), session.id()));
     }
     /** The numbered idea from the last result, if it is still there (not dismissed). */
     private ActivitySuggestion idea(List<String> words, int expected) {

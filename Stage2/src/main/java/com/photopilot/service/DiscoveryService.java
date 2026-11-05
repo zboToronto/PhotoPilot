@@ -258,6 +258,36 @@ public class DiscoveryService {
         return Result.success(chosen.toRequirement());
     }
 
+    /** A Draft session created for an idea together with the unconfirmed F03 draft that F03 then reviews. */
+    public record NewSessionDraft(PhotographySession session, ShootRequirement draft) { }
+
+    /**
+     * select into a new Draft session (F01) named after the idea. The idea is checked before the session exists, and
+     * nothing can fail after the insert, so a refused selection never leaves an empty session behind.
+     */
+    public Result<NewSessionDraft> selectInNewSession(ActivitySuggestion idea) {
+        var session = newSession(idea);
+        if (!session.isSuccess()) return Result.failure(session);
+        var stored = sessions.insert(session.value().orElseThrow());
+        return stored.isSuccess() ? Result.success(new NewSessionDraft(stored.value().orElseThrow(), idea.toRequirement())) : Result.failure(stored);
+    }
+
+    /** save into a new Draft session: the session and the saved idea are written by one atomic insert, or not at all. */
+    public Result<PhotographySession> saveInNewSession(ActivitySuggestion idea) {
+        var session = newSession(idea);
+        if (!session.isSuccess()) return Result.failure(session);
+        var attached = session.value().orElseThrow().attachIdea(idea.forStorage());
+        return attached.isSuccess() ? sessions.insert(attached.value().orElseThrow()) : Result.failure(attached);
+    }
+
+    private Result<PhotographySession> newSession(ActivitySuggestion idea) {
+        if (idea == null) return Result.failureKey("discover.error.idea");
+        if (!issuedNow(idea)) return Result.failureKey("discover.error.unknownIdea");
+        if (idea.feasibility() == Feasibility.INFEASIBLE) return Result.failureKey("discover.error.infeasible");
+        String title = idea.subject().length() > 200 ? idea.subject().substring(0, 200) : idea.subject();
+        return SessionService.draft(title, idea.start().map(start -> start.toLocalDate()).orElse(java.time.LocalDate.now()), Optional.empty(), "");
+    }
+
     /** Stage 1 dismiss: removes the idea from the current results only; saved records are never touched. */
     public void dismiss(ActivitySuggestion idea) {
         var removed = dismiss(idea == null ? null : idea.id());

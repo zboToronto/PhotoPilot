@@ -261,22 +261,26 @@ final class DiscoveryPane extends VBox {
     }
 
     private record Target(PhotographySession session, boolean created) { }
-    /** The chosen editable session, or a new Draft session (F01) named after the idea. */
-    private Result<Target> target(ActivitySuggestion idea) {
-        if (!newSession.isSelected() && session.getValue() != null) return Result.success(new Target(session.getValue(), false));
-        String title = idea.subject().length() > 200 ? idea.subject().substring(0, 200) : idea.subject();
-        var created = app.sessions().create(title, idea.start().map(s -> s.toLocalDate()).orElse(LocalDate.now()));
-        return created.isSuccess() ? Result.success(new Target(created.value().orElseThrow(), true)) : Result.failure(created);
+    /** The chosen editable session, or empty when a new Draft session (F01) named after the idea is wanted. */
+    private Optional<PhotographySession> chosenSession() {
+        return newSession.isSelected() ? Optional.empty() : Optional.ofNullable(session.getValue());
     }
     private record Handoff(Target target, ShootRequirement draft) { }
-    /** Unconfirmed F03 draft opened in the requirement page; F03 owns review, clarification and confirmation. */
+    /**
+     * Unconfirmed F03 draft opened in the requirement page; F03 owns review, clarification and confirmation. A new
+     * session is created by DiscoveryService only once the idea passed its checks, so a refusal leaves no empty session.
+     */
     private void continueIdea(ActivitySuggestion idea) {
         message(() -> localization.text("discover.preparing"));
+        var chosen = chosenSession();
         run(() -> {
-            var target = target(idea);
-            if (!target.isSuccess()) return Result.<Handoff>failure(target);
-            var draft = app.discovery().select(target.value().orElseThrow().session().id(), idea);
-            return draft.isSuccess() ? Result.success(new Handoff(target.value().orElseThrow(), draft.value().orElseThrow())) : Result.<Handoff>failure(draft);
+            if (chosen.isEmpty()) {
+                var made = app.discovery().selectInNewSession(idea);
+                return made.isSuccess() ? Result.success(new Handoff(new Target(made.value().orElseThrow().session(), true), made.value().orElseThrow().draft()))
+                    : Result.<Handoff>failure(made);
+            }
+            var draft = app.discovery().select(chosen.get().id(), idea);
+            return draft.isSuccess() ? Result.success(new Handoff(new Target(chosen.get(), false), draft.value().orElseThrow())) : Result.<Handoff>failure(draft);
         }, done -> {
             if (done.target().created()) loadSessions();
             message(() -> localization.text("discover.selected", idea.subject(), done.target().session().title()));
@@ -291,11 +295,11 @@ final class DiscoveryPane extends VBox {
     }
     private void save(ActivitySuggestion idea) {
         message(() -> localization.text("discover.saving"));
+        var chosen = chosenSession();
         run(() -> {
-            var target = target(idea);
-            if (!target.isSuccess()) return Result.<PhotographySession>failure(target);
-            var saved = app.discovery().save(target.value().orElseThrow().session().id(), idea);
-            return saved.isSuccess() ? Result.success(target.value().orElseThrow().session()) : Result.<PhotographySession>failure(saved);
+            if (chosen.isEmpty()) return app.discovery().saveInNewSession(idea);
+            var saved = app.discovery().save(chosen.get().id(), idea);
+            return saved.isSuccess() ? Result.success(chosen.get()) : Result.<PhotographySession>failure(saved);
         }, stored -> {
             message(() -> localization.text("discover.saved", idea.subject(), stored.title()));
             newSession.setSelected(false); loadSessionsSelecting(stored.id());

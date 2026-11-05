@@ -28,12 +28,18 @@ public class SessionService {
     }
 
     public Result<PhotographySession> create(String title, LocalDate date, Optional<GeoLocation> location, String notes) {
+        var session = draft(title, date, location, notes);
+        return session.isSuccess() ? repository.insert(session.value().orElseThrow()) : session;
+    }
+
+    /** A validated new Draft session that is not stored yet (shared with F02, which inserts it together with an idea). */
+    public static Result<PhotographySession> draft(String title, LocalDate date, Optional<GeoLocation> location, String notes) {
         if (title == null || date == null || location == null || notes == null) return Result.failureKey("error.session.details");
         Instant now = Instant.now();
         var session = new PhotographySession(UUID.randomUUID(), title, date, location, notes, now, now,
             new com.photopilot.state.DraftState(), Optional.empty(), List.of(), List.of(), Optional.empty(), Optional.empty(), List.of());
         var valid = session.validate();
-        return valid.isSuccess() ? repository.insert(session) : valid;
+        return valid.isSuccess() ? Result.success(session) : valid;
     }
 
     public Result<PhotographySession> save(PhotographySession session) {
