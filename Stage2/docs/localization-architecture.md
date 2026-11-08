@@ -100,7 +100,7 @@ sequenceDiagram
     FX->>UI: refresh properties on JavaFX thread
     Note over FX,UI: No navigation, form rebuild, data mutation or model call
     L-->>Settings: persistence success/failure
-    Settings->>UI: localized saved/retry feedback
+    Settings->>UI: localized failure feedback only (no success message)
     User->>Settings: Close window
     Settings->>FX: close / detach window subscription
 ```
