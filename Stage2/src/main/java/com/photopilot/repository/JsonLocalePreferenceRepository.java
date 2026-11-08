@@ -53,6 +53,31 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
         return values;
     }
     @Override public String load() throws IOException { return read().get("language"); }
+    /** Every stored string value, read the same way as the language; never writes. Used for GUI appearance preferences. */
+    public Map<String, String> values() throws IOException { return Collections.unmodifiableMap(read()); }
+    /**
+     * Additively stores other string preferences (GUI appearance) in the same schema-1 file, under the same locks.
+     * Existing values, including the language, are preserved; the language itself is only written by save(tag).
+     */
+    public void merge(Map<String, String> updates) throws IOException {
+        Map<String, String> additions = new LinkedHashMap<>();
+        for (var entry : Objects.requireNonNull(updates).entrySet()) {
+            if (entry.getKey() == null || entry.getKey().isBlank() || entry.getKey().equals("language") || entry.getValue() == null)
+                throw new IOException("Unsupported preference value.");
+            additions.put(entry.getKey(), entry.getValue());
+        }
+        AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), () -> {
+            var stored = readJson();
+            if (stored.isPresent()) writeValues(withAdditions(stored.orElseThrow(), additions));
+            else AtomicFiles.locked(legacy.resolveSibling(legacy.getFileName() + ".lock"), () -> {
+                writeValues(withAdditions(readLegacy(), additions)); return true;
+            });
+            return true;
+        });
+    }
+    private static Map<String, String> withAdditions(Map<String, String> values, Map<String, String> additions) {
+        values.putAll(additions); return values;
+    }
     @Override public void save(String tag) throws IOException {
         if (!Language.supports(tag)) throw new IOException("Unsupported language preference.");
         AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), () -> {
@@ -69,6 +94,9 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
     }
     private void write(Map<String, String> values, String tag) throws IOException {
         values.put("language", tag);
+        writeValues(values);
+    }
+    private void writeValues(Map<String, String> values) throws IOException {
         JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); root.add("values", JSON.toJsonTree(values));
         AtomicFiles.write(file, "preferences-", JSON.toJson(root).getBytes(StandardCharsets.UTF_8), MAX_BYTES, this::replace);
     }

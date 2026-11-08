@@ -1,53 +1,98 @@
-/* Design tokens. Surfaces: level 0 wallpaper, level 1 structure, level 2 interactive cards. Radii: panels 16, cards 14, inputs 8, navigation rows 8, pills 18. Spacing scale: 4 / 8 / 12 / 16 / 24 / 32. */
+/* Design tokens. The values below are the Soft Blue / Light theme at the default surface opacity. At runtime
+   ThemeManager places a generated sheet with the same token names directly after this file (Theme.tokens()), so the
+   selected theme colour, Light/Dark mode and Transparency apply everywhere without restyling individual controls.
+   Surfaces: level 0 wave background, level 1 structure, level 2 interactive cards. Radii: panels 16, cards 14,
+   inputs 8, navigation rows 8, pills 18. Spacing scale: 4 / 8 / 12 / 16 / 24 / 32. */
 .root {
-    -pp-text: #1d2430;
-    -pp-text-muted: #4a5361;
-    -pp-accent: #2f6fd8;
-    -pp-selected: rgba(47,111,216,0.92);
-    -pp-selected-soft: rgba(47,111,216,0.14);
-    -pp-surface-1: rgba(255,255,255,0.56);
-    -pp-surface-2: rgba(255,255,255,0.80);
-    -pp-surface-2-hover: rgba(255,255,255,0.93);
-    -pp-border: rgba(255,255,255,0.58);
-    -pp-hairline: rgba(45,32,26,0.12);
-    -pp-shadow: rgba(70,34,18,0.12);
-    -pp-danger: #a32b1c;
-    -pp-pill-fill: linear-gradient(to bottom, #fde5b8 0%, #fce7c0 42%, #fbd69e 100%);
-    -pp-pill-text: #4a2410;
-    -pp-dialog: rgba(84,38,27,0.97);
-    -pp-dialog-border: rgba(255,232,200,0.26);
-    -pp-dialog-text: #fff3e2;
+    -pp-text: rgba(31,35,43,1.000);
+    -pp-text-muted: rgba(79,84,97,1.000);
+    -pp-text-subtle: rgba(118,122,133,1.000);
+    -pp-window-text: rgba(31,35,43,1.000);
+    -pp-surface-1: rgba(250,252,255,0.666);
+    -pp-surface-header: rgba(250,252,255,0.688);
+    -pp-surface-2: rgba(255,255,255,0.704);
+    -pp-surface-2-hover: rgba(255,255,255,0.780);
+    -pp-card: rgba(255,255,255,0.704);
+    -pp-control: rgba(255,255,255,0.818);
+    -pp-input: rgba(255,255,255,0.939);
+    -pp-table-header: rgba(245,247,252,0.848);
+    -pp-hover: rgba(31,35,43,0.060);
+    -pp-pressed: rgba(31,35,43,0.110);
+    -pp-border: rgba(116,118,124,0.384);
+    -pp-border-strong: rgba(163,177,214,0.800);
+    -pp-hairline: rgba(31,35,43,0.110);
+    -pp-shadow: rgba(44,54,82,0.087);
+    -pp-glass-sheen: linear-gradient(to bottom, rgba(255,255,255,0.152) 0%, rgba(255,255,255,0.000) 42%);
+    -pp-badge: rgba(31,35,43,0.070);
+    -pp-scroll-thumb: rgba(31,35,43,0.260);
+    -pp-track: rgba(31,35,43,0.140);
+    -pp-thumb: rgba(255,255,255,1.000);
+    -pp-segment-track: rgba(31,35,43,0.060);
+    -pp-avatar-ring: rgba(255,255,255,0.720);
+    -pp-danger: rgba(163,43,28,1.000);
+    -pp-danger-border: rgba(163,43,28,0.450);
+    -pp-dialog: rgba(248,249,254,1.000);
+    -pp-dialog-border: rgba(31,35,43,0.120);
+    -pp-dialog-text: rgba(31,35,43,1.000);
+    -pp-dialog-muted: rgba(79,84,97,1.000);
+    -pp-dialog-input: rgba(255,255,255,1.000);
+    -pp-dialog-input-border: rgba(31,35,43,0.180);
+    -pp-photo-mat: rgba(255,255,255,1.000);
+    -pp-accent: rgba(74,104,204,1.000);
+    -pp-on-accent: rgba(255,255,255,1.000);
+    -pp-accent-text: rgba(52,78,166,1.000);
+    -pp-accent-hover: rgba(69,97,190,1.000);
+    -pp-accent-pressed: rgba(64,89,175,1.000);
+    -pp-accent-soft: rgba(74,104,204,0.150);
+    -pp-accent-border: rgba(74,104,204,0.720);
+    -pp-focus-ring: rgba(52,78,166,1.000);
+    -pp-selected: rgba(74,104,204,1.000);
+    -pp-selected-soft: rgba(74,104,204,0.150);
+    -pp-accent-glow: rgba(74,104,204,0.320);
+    -pp-primary-fill: linear-gradient(to bottom, rgba(79,111,218,1.000) 0%, rgba(74,104,204,1.000) 100%);
+    -pp-primary-hover: linear-gradient(to bottom, rgba(76,107,210,1.000) 0%, rgba(70,99,194,1.000) 100%);
+    -pp-primary-pressed: linear-gradient(to bottom, rgba(67,94,184,1.000) 0%, rgba(65,92,180,1.000) 100%);
+    -pp-primary-text: rgba(255,255,255,1.000);
+    -pp-primary-border: rgba(58,81,159,0.300);
+    -pp-avatar-0: linear-gradient(to bottom right, rgba(124,170,229,1.000) 0%, rgba(81,131,189,1.000) 100%);
+    -pp-avatar-1: linear-gradient(to bottom right, rgba(134,176,224,1.000) 0%, rgba(77,104,178,1.000) 100%);
+    -pp-avatar-2: linear-gradient(to bottom right, rgba(137,135,219,1.000) 0%, rgba(81,130,173,1.000) 100%);
+    -pp-avatar-text: rgba(255,255,255,0.960);
+    -pp-avatar-soft: rgba(74,104,204,0.200);
+    -pp-backdrop-base: rgba(242,245,254,1.000);
+    -pp-hue-spectrum: linear-gradient(to right, rgba(224,144,144,1.000) 0.0%, rgba(224,184,144,1.000) 8.3%, rgba(224,224,144,1.000) 16.7%, rgba(184,224,144,1.000) 25.0%, rgba(144,224,144,1.000) 33.3%, rgba(144,224,184,1.000) 41.7%, rgba(144,224,224,1.000) 50.0%, rgba(144,184,224,1.000) 58.3%, rgba(144,144,224,1.000) 66.7%, rgba(184,144,224,1.000) 75.0%, rgba(224,144,224,1.000) 83.3%, rgba(224,144,184,1.000) 91.7%, rgba(224,144,144,1.000) 100.0%);
+    -fx-base: rgba(231,234,242,1.000);
+    -fx-background: rgba(242,244,249,1.000);
+    -fx-control-inner-background: rgba(255,255,255,1.000);
+    -fx-accent: rgba(74,104,204,1.000);
+    -fx-default-button: rgba(74,104,204,1.000);
+    -fx-focus-color: rgba(52,78,166,1.000);
+    -fx-faint-focus-color: transparent;
+    -fx-selection-bar: rgba(74,104,204,1.000);
+    -fx-selection-bar-non-focused: rgba(201,210,240,1.000);
     -fx-font-family: "Segoe UI", "Helvetica Neue", sans-serif;
     -fx-font-size: 13px;
     -fx-text-fill: -pp-text;
-    -fx-background-color: #f7f8fa;
-    -fx-accent: #2f6fd8;
-    -fx-focus-color: #2f6fd8;
-    -fx-faint-focus-color: transparent;
+    -fx-background-color: -pp-backdrop-base;
 }
 .label { -fx-text-fill: -pp-text; }
+.text-input { -fx-prompt-text-fill: -pp-text-subtle; -fx-highlight-fill: -pp-accent; -fx-highlight-text-fill: -pp-on-accent; }
 
-/* Level 0: the startup wallpaper, Gaussian blurred ahead of time, fixed behind everything. */
-.workspace {
-    -fx-background-color: #b4603a;
-    -fx-background-image: url("workspace-wallpaper.jpg");
-    -fx-background-size: cover;
-    -fx-background-position: center center;
-    -fx-background-repeat: no-repeat;
-}
+/* Level 0: the abstract wave background (ThemeBackdrop) is drawn behind the shell; this colour only shows before it is laid out. */
+.workspace { -fx-background-color: -pp-backdrop-base; }
 .content-scroll, .content-scroll > .viewport, .content-surface,
 .navigation-scroll > .viewport, .sidebar { -fx-background-color: transparent; }
 .content-surface { -fx-padding: 20 24 24; }
 .scroll-pane { -fx-background-insets: 0; -fx-padding: 0; }
 .scroll-bar:vertical { -fx-background-color: transparent; -fx-pref-width: 10; }
 .scroll-bar:vertical .track { -fx-background-color: transparent; }
-.scroll-bar:vertical .thumb { -fx-background-color: rgba(45,32,26,0.28); -fx-background-radius: 6; }
+.scroll-bar:vertical .thumb { -fx-background-color: -pp-scroll-thumb; -fx-background-radius: 6; }
 .scroll-bar .increment-button, .scroll-bar .decrement-button { -fx-padding: 2; -fx-background-color: transparent; }
 .scroll-bar .increment-arrow, .scroll-bar .decrement-arrow { -fx-shape: ""; -fx-padding: 0; }
 
-/* Level 1: structural surfaces. */
+/* Level 1: structural surfaces. Their opacity follows the Transparency setting; the blurred waves show behind them. */
 .app-header {
-    -fx-background-color: rgba(255,255,255,0.62);
+    -fx-background-color: -pp-surface-header;
     -fx-padding: 7 16;
     -fx-border-color: transparent transparent -pp-hairline transparent;
 }
@@ -57,7 +102,7 @@
     -fx-border-color: transparent -pp-hairline transparent transparent;
 }
 .surface-panel, .status-tile {
-    -fx-background-color: -pp-surface-1;
+    -fx-background-color: -pp-surface-1, -pp-glass-sheen;
     -fx-background-radius: 16;
     -fx-border-color: -pp-border;
     -fx-border-radius: 16;
@@ -79,13 +124,17 @@
 .user-menu-chevron { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.5; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
 .profile-current { -fx-font-weight: bold; }
 
-/* Sidebar: compact rows with one selection treatment, after macOS System Settings. */
+/* Sidebar: compact rows with one selection treatment in the theme colour. While the list fits, the scroll bar's
+   10 px stay reserved on the right, so rows never change width when a language makes the list overflow. */
 .sidebar { -fx-padding: 10 10 16; }
+.sidebar:scroll-gutter { -fx-padding: 10 20 16 10; }
 .navigation-group {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
     -fx-text-fill: -pp-text-muted;
     -fx-padding: 12 10 4;
+    /* The Chinese UI font is about 1 px taller than Segoe UI at this size; one minimum height keeps every row in place. */
+    -fx-min-height: 31;
 }
 .navigation-item {
     -fx-background-color: transparent;
@@ -99,15 +148,15 @@
     -fx-cursor: hand;
 }
 .navigation-item-planned { -fx-text-fill: -pp-text-muted; }
-.navigation-item:hover { -fx-background-color: rgba(255,255,255,0.50); }
-.navigation-item:armed { -fx-background-color: rgba(255,255,255,0.68); }
-.navigation-item:selected, .navigation-item:selected:hover { -fx-background-color: -pp-selected; -fx-text-fill: white; }
-.navigation-item:focus-visible { -fx-border-color: -pp-accent; }
-.navigation-item:selected:focus-visible { -fx-border-color: white; }
+.navigation-item:hover { -fx-background-color: -pp-hover; }
+.navigation-item:armed { -fx-background-color: -pp-pressed; }
+.navigation-item:selected, .navigation-item:selected:hover { -fx-background-color: -pp-selected; -fx-text-fill: -pp-on-accent; }
+.navigation-item:focus-visible { -fx-border-color: -pp-focus-ring; }
+.navigation-item:selected:focus-visible { -fx-border-color: -pp-on-accent; }
 .navigation-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.8; -fx-scale-y: 0.8; }
-.navigation-item:selected .navigation-icon { -fx-stroke: white; }
+.navigation-item:selected .navigation-icon { -fx-stroke: -pp-on-accent; }
 
-/* All text sits on a surface: the wallpaper runs from amber to blue, so no single colour reads directly on it. */
+/* Text sits on surfaces or on the soft background, whose lighting keeps body text readable in both modes. */
 .page-title, .feature-title { -fx-font-size: 22px; -fx-font-weight: bold; }
 .page-subtitle, .eyebrow { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
 .feature-content { -fx-spacing: 12; }
@@ -116,7 +165,7 @@
 .status-badge {
     -fx-font-size: 12px;
     -fx-text-fill: -pp-text;
-    -fx-background-color: rgba(45,32,26,0.08);
+    -fx-background-color: -pp-badge;
     -fx-background-radius: 10;
     -fx-padding: 3 9;
 }
@@ -129,7 +178,7 @@
 .empty-title { -fx-font-size: 17px; -fx-font-weight: bold; }
 .feature-actions { -fx-padding: 16 0 0; }
 .feedback-box {
-    -fx-background-color: -pp-surface-2;
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen;
     -fx-background-radius: 14;
     -fx-border-color: -pp-border;
     -fx-border-radius: 14;
@@ -137,7 +186,7 @@
 }
 #storage-notice { -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 8 16; }
 
-/* Controls. The primary action is the startup screen's cream pill. */
+/* Controls. The primary action is a pill in the theme colour. */
 .button {
     -fx-font-size: 13px;
     -fx-background-insets: 0;
@@ -147,41 +196,41 @@
     -fx-padding: 7 16;
     -fx-cursor: hand;
 }
-.primary-button { -fx-background-color: -pp-pill-fill; -fx-text-fill: -pp-pill-text; -fx-border-color: rgba(190,120,50,0.35); -fx-font-weight: bold; }
-.primary-button:hover { -fx-background-color: linear-gradient(to bottom, #ffeccb 0%, #ffefcf 42%, #fde0b0 100%); }
-.primary-button:armed { -fx-background-color: linear-gradient(to bottom, #f8d8a0 0%, #f9dcab 42%, #f4c98a 100%); }
-.primary-button:focus-visible { -fx-border-color: -pp-accent; }
-.secondary-button { -fx-background-color: rgba(255,255,255,0.62); -fx-border-color: -pp-hairline; -fx-text-fill: -pp-text; }
+.primary-button { -fx-background-color: -pp-primary-fill; -fx-text-fill: -pp-primary-text; -fx-border-color: -pp-primary-border; -fx-font-weight: bold; }
+.primary-button:hover { -fx-background-color: -pp-primary-hover; }
+.primary-button:armed { -fx-background-color: -pp-primary-pressed; }
+.primary-button:focus-visible { -fx-background-color: -pp-focus-ring, -pp-primary-fill; -fx-background-insets: -2.5, 0; -fx-background-radius: 20.5, 18; }
+.secondary-button { -fx-background-color: -pp-control; -fx-border-color: -pp-hairline; -fx-text-fill: -pp-text; }
 .secondary-button:hover { -fx-background-color: -pp-surface-2-hover; }
-.secondary-button:armed { -fx-background-color: rgba(255,255,255,0.45); }
-.secondary-button:focus-visible { -fx-border-color: -pp-accent; }
-.danger-button { -fx-background-color: rgba(255,255,255,0.45); -fx-border-color: rgba(163,43,28,0.45); -fx-text-fill: -pp-danger; }
+.secondary-button:armed { -fx-background-color: -pp-control, -pp-pressed; }
+.secondary-button:focus-visible { -fx-border-color: -pp-focus-ring; }
+.danger-button { -fx-background-color: -pp-control; -fx-border-color: -pp-danger-border; -fx-text-fill: -pp-danger; }
 .danger-button:hover { -fx-background-color: -pp-surface-2-hover; }
-.danger-button:focus-visible { -fx-border-color: -pp-accent; }
+.danger-button:focus-visible { -fx-border-color: -pp-focus-ring; }
 .primary-button:disabled, .secondary-button:disabled, .danger-button:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
 
 /* Level 2: interactive cards. */
 .module-card {
-    -fx-background-color: -pp-surface-2;
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen;
     -fx-background-radius: 14;
     -fx-border-color: -pp-border;
     -fx-border-radius: 14;
     -fx-padding: 14 16;
     -fx-alignment: top-left;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, -pp-shadow, 10, 0.02, 0, 2);
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 12, 0.02, 0, 3);
 }
-.module-card:hover { -fx-background-color: -pp-surface-2-hover; -fx-border-color: rgba(255,255,255,0.92); }
-.module-card:armed { -fx-background-color: -pp-surface-2; }
-.module-card:focus-visible { -fx-border-color: -pp-accent; }
-.module-card-planned { -fx-background-color: rgba(255,255,255,0.62); -fx-effect: null; }
-.module-card-planned:hover { -fx-background-color: rgba(255,255,255,0.76); }
-.card-icon-box { -fx-background-color: -pp-selected-soft; -fx-background-radius: 9; }
-.card-icon { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.82; -fx-scale-y: 0.82; }
+.module-card:hover { -fx-background-color: -pp-surface-2-hover, -pp-glass-sheen; -fx-border-color: -pp-border-strong; }
+.module-card:armed { -fx-background-color: -pp-surface-2, -pp-glass-sheen; }
+.module-card:focus-visible { -fx-border-color: -pp-focus-ring; }
+.module-card-planned { -fx-background-color: -pp-surface-1, -pp-glass-sheen; -fx-effect: null; }
+.module-card-planned:hover { -fx-background-color: -pp-surface-2, -pp-glass-sheen; }
+.card-icon-box { -fx-background-color: -pp-accent-soft; -fx-background-radius: 9; }
+.card-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.82; -fx-scale-y: 0.82; }
 .module-card-planned .card-icon { -fx-stroke: -pp-text-muted; }
-.module-card-planned .card-icon-box { -fx-background-color: rgba(45,32,26,0.07); }
+.module-card-planned .card-icon-box { -fx-background-color: -pp-badge; }
 .card-title { -fx-font-size: 14px; -fx-font-weight: bold; }
-.card-action { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -pp-accent; }
+.card-action { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
 .module-card-planned .card-action { -fx-font-weight: normal; -fx-text-fill: -pp-text-muted; }
 
 /* User Settings. */
@@ -195,144 +244,188 @@
     -fx-alignment: center-left;
     -fx-cursor: hand;
 }
-.user-row:hover { -fx-background-color: rgba(255,255,255,0.50); }
-.user-row:selected, .user-row:selected:hover { -fx-background-color: rgba(255,255,255,0.72); -fx-border-color: rgba(47,111,216,0.55); }
-.user-row:focus-visible { -fx-border-color: -pp-accent; }
+.user-row:hover { -fx-background-color: -pp-hover; }
+.user-row:selected, .user-row:selected:hover { -fx-background-color: -pp-accent-soft; -fx-border-color: -pp-accent-border; }
+.user-row:focus-visible { -fx-border-color: -pp-focus-ring; }
 .user-row-name { -fx-font-size: 13px; }
 
-/* F01/F05/F08 forms and tables share the same input and table treatment. */
+/* Application Settings > Appearance: theme colour swatches, mode segments and the Transparency slider. */
+.settings-section-title { -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 4 0 2 0; }
+.settings-row { -fx-min-height: 46; -fx-padding: 8 0; }
+.settings-row-label { -fx-font-size: 13.5px; }
+.settings-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.settings-value { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; -fx-min-width: 38; -fx-alignment: center-right; }
+.theme-swatch {
+    -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 17;
+    -fx-border-color: transparent; -fx-border-width: 2; -fx-border-radius: 17; -fx-padding: 3; -fx-cursor: hand;
+}
+.theme-swatch:hover { -fx-border-color: -pp-border-strong; }
+.theme-swatch:selected, .theme-swatch:selected:hover { -fx-border-color: -pp-text; }
+.theme-swatch:focus-visible { -fx-background-color: -pp-hover; -fx-border-color: -pp-focus-ring; }
+.swatch-dot { -fx-stroke: rgba(0,0,0,0.12); -fx-stroke-width: 1; }
+.swatch-check { -fx-fill: transparent; -fx-stroke: rgba(22,26,40,0.82); -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+/* Custom colour: set apart from the presets by a hairline; a pastel spectrum disc whose centre is the chosen colour. */
+.swatch-divider { -fx-background-color: -pp-hairline; -fx-min-width: 1; -fx-pref-width: 1; -fx-max-width: 1; -fx-min-height: 20; -fx-pref-height: 20; -fx-max-height: 20; }
+.custom-swatch-centre { -fx-stroke: rgba(255,255,255,0.95); -fx-stroke-width: 1.5; }
+.settings-subrow { -fx-padding: 0 0 10 0; }
+.custom-preview {
+    -fx-background-color: -pp-primary-fill; -fx-background-radius: 9; -fx-border-color: -pp-primary-border; -fx-border-radius: 9;
+    -fx-min-width: 34; -fx-pref-width: 34; -fx-max-width: 34; -fx-min-height: 18; -fx-pref-height: 18; -fx-max-height: 18;
+}
+.segmented { -fx-background-color: -pp-segment-track; -fx-background-radius: 10; -fx-padding: 2; -fx-spacing: 2; }
+.segment {
+    -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 8;
+    -fx-border-color: transparent; -fx-border-radius: 8; -fx-padding: 5 14; -fx-text-fill: -pp-text-muted; -fx-cursor: hand;
+}
+.segment:hover { -fx-background-color: -pp-hover; }
+.segment:selected, .segment:selected:hover {
+    -fx-background-color: -pp-surface-2-hover, -pp-accent-soft; -fx-text-fill: -pp-accent-text; -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 4, 0, 0, 1);
+}
+.segment:focus-visible { -fx-border-color: -pp-focus-ring; }
+.appearance-slider .track { -fx-background-color: -pp-track; -fx-background-insets: 0; -fx-background-radius: 3; -fx-padding: 2.5; }
+.appearance-slider .thumb {
+    -fx-background-color: -pp-accent, -pp-thumb; -fx-background-insets: 0, 2.5; -fx-background-radius: 10, 8; -fx-padding: 9;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 6, 0, 0, 1);
+}
+.appearance-slider:focused .thumb { -fx-background-color: -pp-focus-ring, -pp-thumb; }
+/* Custom hue: the track shows the pastel colour each hue produces (after the shared slider track, so it overrides it). */
+.hue-slider .track { -fx-background-color: -pp-hue-spectrum; -fx-background-insets: 0; -fx-background-radius: 4; -fx-padding: 4; -fx-border-color: -pp-hairline; -fx-border-radius: 4; }
+
+/* F01/F05/F08 forms and tables share the same input and table treatment. Inputs stay near-opaque at every Transparency. */
 .inventory-content { -fx-padding: 0; }
 .inventory-content .text-field, .inventory-content .combo-box, .surface-panel .combo-box {
-    -fx-background-color: rgba(255,255,255,0.86);
+    -fx-background-color: -pp-input;
     -fx-background-radius: 8;
     -fx-border-color: -pp-hairline;
     -fx-border-radius: 8;
     -fx-padding: 6 10;
 }
-.inventory-content .text-field:focused, .inventory-content .combo-box:focused, .surface-panel .combo-box:focused { -fx-border-color: -pp-accent; }
-.inventory-content .table-view { -fx-background-color: -pp-surface-2; -fx-border-color: -pp-hairline; -fx-background-radius: 8; -fx-border-radius: 8; }
-.inventory-content .table-view .column-header, .inventory-content .table-view .filler { -fx-background-color: rgba(255,255,255,0.72); -fx-size: 38; }
-.inventory-content .table-row-cell { -fx-background-color: transparent; -fx-cell-size: 40; }
-.inventory-content .table-row-cell:filled:hover { -fx-background-color: rgba(255,255,255,0.55); }
-.inventory-content .table-row-cell:filled:selected { -fx-background-color: -pp-selected-soft; }
-.inventory-content .table-cell { -fx-text-fill: -pp-text; -fx-alignment: center-left; -fx-border-color: transparent transparent -pp-hairline transparent; -fx-padding: 9 12; }
-.inventory-content .session-notes { -fx-background-color: rgba(255,255,255,0.86); -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6 10; }
-.inventory-content .session-notes .content { -fx-background-color: transparent; }
-.inventory-content .session-notes:focused { -fx-border-color: -pp-accent; }
+.inventory-content .text-field:focused, .inventory-content .combo-box:focused, .surface-panel .combo-box:focused { -fx-border-color: -pp-focus-ring; }
 
-/* Shared avatars. */
-.user-avatar { -fx-background-color: #d6e2f4; -fx-background-radius: 100; }
-.avatar-initial { -fx-font-size: 20px; -fx-text-fill: #315380; -fx-font-weight: bold; }
+.inventory-content .table-view { -fx-background-color: -pp-input; -fx-border-color: -pp-hairline; -fx-background-radius: 8; -fx-border-radius: 8; }
+.inventory-content .table-view .column-header, .inventory-content .table-view .filler { -fx-background-color: -pp-table-header; -fx-size: 38; }
+.inventory-content .table-row-cell { -fx-background-color: transparent; -fx-cell-size: 40; }
+.inventory-content .table-row-cell:filled:hover { -fx-background-color: -pp-hover; }
+.inventory-content .table-row-cell:filled:selected { -fx-background-color: -pp-accent-soft; }
+.inventory-content .table-cell { -fx-text-fill: -pp-text; -fx-alignment: center-left; -fx-border-color: transparent transparent -pp-hairline transparent; -fx-padding: 9 12; }
+.inventory-content .table-row-cell:filled:selected .table-cell { -fx-text-fill: -pp-text; }
+.inventory-content .session-notes { -fx-background-color: -pp-input; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6 10; }
+.inventory-content .session-notes .content { -fx-background-color: transparent; }
+.inventory-content .session-notes:focused { -fx-border-color: -pp-focus-ring; }
+
+/* Shared avatars. A user's own photo is drawn unchanged above these placeholder fills. */
+.user-avatar { -fx-background-color: -pp-avatar-soft; -fx-background-radius: 100; }
+.avatar-initial { -fx-font-size: 20px; -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
 .user-portrait { -fx-background-radius: 500; }
-.user-portrait-0 { -fx-background-color: linear-gradient(to bottom, #6f8fbd 0%, #e2a170 52%, #c4582e 100%); }
-.user-portrait-1 { -fx-background-color: linear-gradient(to bottom, #f6c078 0%, #e77b36 55%, #963a32 100%); }
-.user-portrait-2 { -fx-background-color: linear-gradient(to bottom, #388bc4 0%, #2a6aa6 50%, #154a86 100%); }
-.portrait-initial { -fx-font-size: 1em; -fx-text-fill: rgba(255,255,255,0.94); }
+.user-portrait-0 { -fx-background-color: -pp-avatar-0; }
+.user-portrait-1 { -fx-background-color: -pp-avatar-1; }
+.user-portrait-2 { -fx-background-color: -pp-avatar-2; }
+.portrait-initial { -fx-font-size: 1em; -fx-text-fill: rgba(255,255,255,0.96); }
 
 /* Splash. */
 .glass-panel {
-    -fx-background-color: -pp-surface-2;
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen;
     -fx-background-radius: 16;
     -fx-border-radius: 16;
     -fx-border-color: -pp-border;
     -fx-padding: 24;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 24, 0, 0, 6);
 }
 .splash-title { -fx-font-size: 40px; -fx-font-weight: bold; }
-.splash-mark { -fx-font-size: 54px; -fx-text-fill: #42658f; }
+.splash-mark { -fx-font-size: 54px; -fx-text-fill: -pp-accent-text; }
 
-/* Workspace chooser: a full-window wallpaper with controls floating directly on it. Sizes are reference-image pixels; the composition is scaled as one unit. */
-.user-selection {
-    -fx-background-color: #a8472d;
-    -fx-background-image: url("user-selection-wallpaper.jpg");
-    -fx-background-size: cover;
-    -fx-background-position: center center;
-    -fx-background-repeat: no-repeat;
-}
-.selection-brand { -fx-font-size: 40px; -fx-text-fill: white; }
-.selection-heading {
-    -fx-font-size: 51px; -fx-font-weight: bold; -fx-text-fill: white;
-    -fx-effect: dropshadow(gaussian, rgba(80,28,12,0.28), 14, 0, 0, 1);
-}
+/* Workspace chooser: the wave background fills the window; sizes are reference-image pixels and the composition is scaled as one unit. */
+.user-selection { -fx-background-color: transparent; }
+.selection-brand { -fx-font-size: 40px; -fx-text-fill: -pp-window-text; }
+.selection-heading { -fx-font-size: 51px; -fx-font-weight: bold; -fx-text-fill: -pp-window-text; }
 /* Segoe's lighter cuts have no CJK glyphs, so they apply to English only; Chinese keeps the readable font set by FxLocalizer. */
 .user-selection:english .selection-heading, .user-selection:english .selection-continue { -fx-font-family: "Segoe UI Semibold"; -fx-font-weight: normal; }
 .user-selection:english .portrait-initial { -fx-font-family: "Segoe UI Semilight"; }
-.selection-empty { -fx-font-size: 22px; -fx-text-fill: rgba(255,240,226,0.86); -fx-padding: 80 0 0 0; }
-.selection-feedback { -fx-font-size: 16px; -fx-text-fill: #ffedcf; -fx-text-alignment: center; }
-.profile-tile { -fx-background-color: transparent; -fx-padding: 0; -fx-alignment: top-center; -fx-cursor: hand; }
-.profile-ring { -fx-fill: transparent; -fx-stroke: rgba(255,255,255,0.58); -fx-stroke-width: 2; }
-.profile-tile:hover .profile-ring { -fx-stroke: rgba(255,255,255,0.92); }
-.profile-tile:focus-visible .profile-ring { -fx-stroke: white; -fx-stroke-width: 3; }
+.selection-empty { -fx-font-size: 22px; -fx-text-fill: -pp-text-muted; -fx-padding: 80 0 0 0; }
+.selection-feedback { -fx-font-size: 16px; -fx-text-fill: -pp-text-muted; -fx-text-alignment: center; }
+.profile-tile {
+    -fx-background-color: -pp-card, -pp-glass-sheen; -fx-background-insets: 0; -fx-background-radius: 28;
+    -fx-border-color: -pp-border; -fx-border-width: 1.2; -fx-border-radius: 28;
+    -fx-padding: 0; -fx-alignment: center; -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 26, 0, 0, 6);
+}
+.profile-tile:hover { -fx-background-color: -pp-surface-2-hover, -pp-glass-sheen; }
+.profile-tile:current { -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-effect: dropshadow(gaussian, -pp-shadow, 34, 0.04, 0, 10); }
+.profile-tile:current:hover { -fx-background-color: -pp-surface-2-hover, -pp-glass-sheen; }
+.profile-tile:focus-visible { -fx-border-color: -pp-focus-ring; -fx-effect: dropshadow(gaussian, -pp-accent-glow, 18, 0.45, 0, 0); }
 .profile-tile:focus-visible .profile-name { -fx-underline: true; }
-.profile-tile:current .profile-ring {
-    -fx-stroke: #fff5e3; -fx-stroke-width: 4.5;
-    -fx-effect: dropshadow(gaussian, rgba(255,214,150,0.9), 16, 0.3, 0, 0);
-}
-.profile-tile:current .profile-slot { -fx-effect: dropshadow(gaussian, rgba(255,186,96,0.92), 74, 0.3, 0, 0); }
-.profile-name { -fx-font-size: 26px; -fx-text-fill: rgba(255,246,235,0.95); -fx-padding: 15 0 0 0; -fx-alignment: center; }
-.profile-tile:current .profile-name { -fx-font-size: 29px; -fx-font-weight: bold; -fx-text-fill: white; }
+.profile-ring { -fx-fill: transparent; -fx-stroke: -pp-avatar-ring; -fx-stroke-width: 1.5; }
+.profile-name { -fx-font-size: 26px; -fx-text-fill: -pp-text-muted; -fx-padding: 18 0 0 0; -fx-alignment: center; }
+.profile-tile:current .profile-name { -fx-font-size: 29px; -fx-font-weight: bold; -fx-text-fill: -pp-text; }
 .selection-continue {
-    -fx-background-color: rgba(255,240,208,0.75), -pp-pill-fill;
-    -fx-background-insets: 0, 1.5; -fx-background-radius: 33, 32;
+    -fx-background-color: -pp-primary-fill; -fx-background-insets: 0; -fx-background-radius: 33;
+    -fx-border-color: -pp-primary-border; -fx-border-radius: 33;
     -fx-font-size: 27.5px; -fx-font-weight: bold;
-    -fx-text-fill: -pp-pill-text; -fx-graphic-text-gap: 17; -fx-alignment: center; -fx-padding: 0 0 0 7; -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(255,184,100,0.86), 42, 0.2, 0, 0);
+    -fx-text-fill: -pp-primary-text; -fx-graphic-text-gap: 17; -fx-alignment: center; -fx-padding: 0 0 0 7; -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, -pp-accent-glow, 28, 0, 0, 8);
 }
-.continue-icon { -fx-fill: transparent; -fx-stroke: -pp-pill-text; -fx-stroke-width: 3; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
-.selection-continue:hover { -fx-background-color: #fff3da, linear-gradient(to bottom, #ffeccb 0%, #ffefcf 42%, #fde0b0 100%); }
-.selection-continue:armed { -fx-background-color: rgba(255,240,208,0.75), linear-gradient(to bottom, #f8d8a0 0%, #f9dcab 42%, #f4c98a 100%); }
-.selection-continue:focus-visible { -fx-background-color: white, -pp-pill-fill; -fx-background-insets: -2, 1.5; }
+.continue-icon { -fx-fill: transparent; -fx-stroke: -pp-primary-text; -fx-stroke-width: 3; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.selection-continue:hover { -fx-background-color: -pp-primary-hover; }
+.selection-continue:armed { -fx-background-color: -pp-primary-pressed; }
+.selection-continue:focus-visible { -fx-background-color: -pp-focus-ring, -pp-primary-fill; -fx-background-insets: -3, 0; -fx-background-radius: 36, 33; }
 .selection-continue:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
-.chevron-icon { -fx-fill: transparent; -fx-stroke: rgba(255,246,235,0.96); -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.chevron-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
 .selection-chevron {
-    -fx-background-color: transparent; -fx-background-radius: 24; -fx-border-color: rgba(255,255,255,0.42); -fx-border-radius: 24;
+    -fx-background-color: -pp-card; -fx-background-radius: 24; -fx-border-color: -pp-border; -fx-border-radius: 24;
     -fx-min-width: 48; -fx-min-height: 48; -fx-max-width: 48; -fx-max-height: 48; -fx-padding: 0; -fx-alignment: center; -fx-cursor: hand;
 }
-.selection-chevron:hover { -fx-background-color: rgba(255,255,255,0.14); -fx-border-color: rgba(255,255,255,0.82); }
-.selection-chevron:focus-visible { -fx-border-color: white; -fx-border-width: 2; }
+.selection-chevron:hover { -fx-background-color: -pp-surface-2-hover; -fx-border-color: -pp-border-strong; }
+.selection-chevron:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
 .window-bar { -fx-padding: 0 0 0 26; }
-.window-title { -fx-font-size: 15px; -fx-text-fill: rgba(255,255,255,0.95); }
+.window-title { -fx-font-size: 15px; -fx-text-fill: -pp-window-text; }
 .window-control { -fx-background-color: transparent; -fx-background-radius: 0; -fx-pref-width: 52; -fx-pref-height: 40; -fx-padding: 0; -fx-alignment: center; }
-.window-icon { -fx-fill: transparent; -fx-stroke: rgba(255,255,255,0.92); -fx-stroke-width: 1.2; }
-.window-control:hover { -fx-background-color: rgba(255,255,255,0.14); }
-.window-control:armed { -fx-background-color: rgba(255,255,255,0.24); }
-.window-control:focus-visible { -fx-background-color: rgba(255,255,255,0.20); }
+.window-icon { -fx-fill: transparent; -fx-stroke: -pp-window-text; -fx-stroke-width: 1.2; }
+.window-control:hover { -fx-background-color: -pp-hover; }
+.window-control:armed { -fx-background-color: -pp-pressed; }
+.window-control:focus-visible { -fx-background-color: -pp-hover; }
 #window-close:hover { -fx-background-color: #c42b1c; }
 #window-close:armed { -fx-background-color: #a52216; }
+#window-close:hover .window-icon, #window-close:armed .window-icon { -fx-stroke: white; }
 
-/* Menus and dialogs: one warm treatment across startup and workspace. */
-.app-menu { -fx-background-color: -pp-dialog; -fx-background-radius: 10; -fx-border-color: -pp-dialog-border; -fx-border-radius: 10; -fx-padding: 5; }
+/* Menus and dialogs: one opaque treatment across startup and workspace, in the current mode and theme colour. */
+.app-menu {
+    -fx-background-color: -pp-dialog; -fx-background-radius: 10; -fx-border-color: -pp-dialog-border; -fx-border-radius: 10; -fx-padding: 5;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 18, 0, 0, 4);
+}
 .app-menu .menu-item { -fx-background-radius: 6; -fx-padding: 6 22 6 12; }
 .app-menu .menu-item .label { -fx-text-fill: -pp-dialog-text; -fx-font-size: 13px; }
-.app-menu .menu-item:focused { -fx-background-color: rgba(255,255,255,0.14); }
-.app-menu .menu-item:disabled .label { -fx-text-fill: rgba(255,243,226,0.45); }
-.app-menu .separator .line { -fx-border-color: rgba(255,232,200,0.20) transparent transparent transparent; }
+.app-menu .menu-item:focused { -fx-background-color: -pp-accent-soft; }
+.app-menu .menu-item:disabled .label { -fx-text-fill: -pp-text-subtle; }
+.app-menu .separator .line { -fx-border-color: -pp-dialog-border transparent transparent transparent; }
 .app-dialog.dialog-pane {
     -fx-background-color: -pp-dialog; -fx-background-radius: 16;
     -fx-border-color: -pp-dialog-border; -fx-border-radius: 16; -fx-graphic: null;
 }
 .app-dialog > .header-panel { -fx-background-color: transparent; -fx-padding: 22 26 4; }
-.app-dialog > .header-panel .label { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white; }
+.app-dialog > .header-panel .label { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: -pp-dialog-text; }
 .app-dialog > .content { -fx-padding: 12 26 8; }
-.app-dialog > .content, .app-dialog > .content.label { -fx-font-size: 14px; -fx-text-fill: #f8e7d3; }
-.app-dialog > .content .label { -fx-text-fill: #f8e7d3; }
+.app-dialog > .content, .app-dialog > .content.label { -fx-font-size: 14px; -fx-text-fill: -pp-dialog-muted; }
+.app-dialog > .content .label { -fx-text-fill: -pp-dialog-muted; }
 .app-dialog-label { -fx-font-size: 13px; }
 .app-dialog .text-field {
-    -fx-background-color: rgba(255,255,255,0.10); -fx-background-radius: 8; -fx-border-color: rgba(255,232,200,0.40); -fx-border-radius: 8;
-    -fx-padding: 9 11; -fx-font-size: 14px; -fx-text-fill: white; -fx-prompt-text-fill: rgba(255,240,226,0.55); -fx-highlight-fill: #f4a340; -fx-highlight-text-fill: #3a1c0c;
+    -fx-background-color: -pp-dialog-input; -fx-background-radius: 8; -fx-border-color: -pp-dialog-input-border; -fx-border-radius: 8;
+    -fx-padding: 9 11; -fx-font-size: 14px; -fx-text-fill: -pp-dialog-text; -fx-prompt-text-fill: -pp-text-subtle;
+    -fx-highlight-fill: -pp-accent; -fx-highlight-text-fill: -pp-on-accent;
 }
-.app-dialog .text-field:focused { -fx-border-color: #ffe3ad; }
+.app-dialog .text-field:focused { -fx-border-color: -pp-focus-ring; }
 .app-dialog > .button-bar > .container { -fx-padding: 8 26 22; }
 .app-dialog .button-bar .button {
-    -fx-background-color: transparent; -fx-background-radius: 18; -fx-border-color: rgba(255,232,200,0.45); -fx-border-radius: 18;
+    -fx-background-color: transparent; -fx-background-radius: 18; -fx-border-color: -pp-dialog-input-border; -fx-border-radius: 18;
     -fx-padding: 7 18; -fx-font-size: 13px; -fx-text-fill: -pp-dialog-text; -fx-cursor: hand;
 }
-.app-dialog .button-bar .button:hover { -fx-background-color: rgba(255,255,255,0.12); }
-.app-dialog .button-bar .button:focus-visible { -fx-border-color: white; }
-.app-dialog .button-bar .button:default { -fx-background-color: linear-gradient(to bottom, #fde5b8, #fbd69e); -fx-border-color: transparent; -fx-text-fill: -pp-pill-text; }
+.app-dialog .button-bar .button:hover { -fx-background-color: -pp-hover; }
+.app-dialog .button-bar .button:focus-visible { -fx-border-color: -pp-focus-ring; }
+.app-dialog .button-bar .button:default { -fx-background-color: -pp-primary-fill; -fx-border-color: transparent; -fx-text-fill: -pp-primary-text; }
 .app-dialog .button-bar .button:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
 
-/* F04 AI gear import: scoped to its own content; reuses the shared tokens, cards and controls. */
-.import-content .import-preview { -fx-background-color: rgba(255,255,255,0.86); -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6; }
+/* F04 AI gear import: scoped to its own content. Image previews sit on an opaque neutral mat, never tinted or translucent. */
+.import-content .import-preview { -fx-background-color: -pp-photo-mat; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6; }
 .import-content #import-overlay { -fx-cursor: crosshair; }
 .import-content .import-redaction { -fx-fill: black; -fx-stroke: -pp-danger; -fx-stroke-width: 1; }
-.import-content .import-crop { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 2; -fx-stroke-dash-array: 6 4; }
+.import-content .import-crop { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 2; -fx-stroke-dash-array: 6 4; }

@@ -77,7 +77,7 @@ final class GuiProfileController implements AutoCloseable {
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
         if (stage.getScene() == null) {
             var scene = new Scene(workspace, 1120, 760);
-            scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); stage.setScene(scene);
+            scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); ThemeManager.get().style(scene.getStylesheets()); stage.setScene(scene);
         } else stage.getScene().setRoot(workspace);
         context.storageNotice().ifPresent(workspace::showStorageNotice);
     }

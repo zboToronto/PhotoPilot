@@ -99,4 +99,22 @@ class JsonPreferencesTest {
         assertFalse(service.selectLanguage("zh-CN")); assertTrue(Files.isDirectory(json()));
         assertThrows(IOException.class, () -> repository().save("unsupported"));
     }
+    @Test void appearanceValuesMergeIntoTheSameSchemaWithoutDisturbingLanguageOrUnknownSettings() throws Exception {
+        Files.writeString(legacy(), "language=zh-CN\ncustom=keep\n"); byte[] original = Files.readAllBytes(legacy());
+        assertEquals("zh-CN", repository().values().get("language")); assertFalse(Files.exists(json()), "reading never writes");
+        repository().merge(Map.of("appearance.accent", "rose", "appearance.mode", "dark"));
+        var stored = JsonParser.parseString(Files.readString(json())).getAsJsonObject();
+        assertEquals(1, stored.get("schemaVersion").getAsInt());
+        assertEquals("zh-CN", stored.getAsJsonObject("values").get("language").getAsString());
+        assertEquals("keep", stored.getAsJsonObject("values").get("custom").getAsString());
+        assertArrayEquals(original, Files.readAllBytes(legacy()));
+        repository().save("en"); assertEquals("rose", repository().values().get("appearance.accent"), "language saves keep appearance");
+        repository().merge(Map.of("appearance.accent", "sage")); assertEquals("en", repository().load());
+        assertEquals("sage", repository().values().get("appearance.accent")); assertEquals("dark", repository().values().get("appearance.mode"));
+        assertThrows(IOException.class, () -> repository().merge(Map.of("language", "en")), "the language keeps its own validated path");
+        assertThrows(UnsupportedOperationException.class, () -> repository().values().put("x", "y"));
+        Files.writeString(json(), "{");
+        assertThrows(IOException.class, () -> repository().merge(Map.of("appearance.mode", "light")));
+        assertEquals("{", Files.readString(json()), "malformed preferences are never overwritten");
+    }
 }

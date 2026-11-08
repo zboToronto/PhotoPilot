@@ -71,6 +71,22 @@ final class FxLocalizer implements AutoCloseable {
         onRefresh(() -> root.setStyle(localization.language() == com.photopilot.i18n.Language.SIMPLIFIED_CHINESE
             ? initialStyle + "; -fx-font-family: \"" + chinese + "\";" : initialStyle));
     }
+    /**
+     * Shows the full text as a tooltip only while the control has to shorten it with an ellipsis (for example a long
+     * translation or user name in a fixed-width place), so nothing is truncated without a way to read all of it.
+     */
+    static void tooltipWhenClipped(Labeled labeled) {
+        var full = new Tooltip(); full.textProperty().bind(labeled.textProperty());
+        labeled.needsLayoutProperty().addListener((property, was, needsLayout) -> {
+            if (needsLayout) return;
+            boolean clipped = false;
+            // The skin's rendered text is a direct child; it differs from the text when it was shortened.
+            for (Node child : labeled.getChildrenUnmodifiable())
+                if (child instanceof javafx.scene.text.Text shown && !Objects.equals(shown.getText(), labeled.getText())) clipped = true;
+            if (clipped && labeled.getTooltip() == null) labeled.setTooltip(full);
+            else if (!clipped && labeled.getTooltip() == full) labeled.setTooltip(null);
+        });
+    }
     Label label(String key, String style, Object... args) {
         Label label = FeaturePane.label("", style); text(label.textProperty(), key, args); return label;
     }

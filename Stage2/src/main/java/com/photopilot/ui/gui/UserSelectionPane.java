@@ -22,7 +22,7 @@ import javafx.util.Duration;
 /** Full-window workspace chooser: pick a user and continue. Management lives in UserSettingsPane. */
 final class UserSelectionPane extends Region {
     // Authored in reference-image pixels and scaled as one unit, so proportions hold at every window size.
-    private static final double DESIGN_WIDTH = 1120, DESIGN_HEIGHT = 941, SLOT_SIZE = 222;
+    private static final double DESIGN_WIDTH = 1120, DESIGN_HEIGHT = 941, TILE_WIDTH = 280, TILE_HEIGHT = 264, AVATAR_SIZE = 132;
     private static final double[][] ROWS = { {132, 66}, {198, 50}, {268, 68}, {374, 284}, {696, 65}, {782, 58} };
     private static final PseudoClass CURRENT = PseudoClass.getPseudoClass("current"), ENGLISH = PseudoClass.getPseudoClass("english");
     private final Window owner;
@@ -54,7 +54,8 @@ final class UserSelectionPane extends Region {
         this.owner = owner; this.profiles = profiles; this.operations = operations; this.language = language; this.activeChanged = activeChanged;
         texts = new FxLocalizer(this, language); texts.useReadableFont(this); setId("user-selection"); getStyleClass().add("user-selection");
         texts.onRefresh(() -> pseudoClassStateChanged(ENGLISH, language.language() != Language.SIMPLIFIED_CHINESE));
-        composition.getTransforms().add(scale); getChildren().add(composition);
+        // The wave background fills the whole window behind the scaled composition; only the cards blur it.
+        composition.getTransforms().add(scale); getChildren().addAll(new ThemeBackdrop(this, ThemeBackdrop.CHOOSER_SURFACES), composition);
         left = new ProfileTile(); centre = new ProfileTile(); right = new ProfileTile();
         previous = chevron("profile-previous", "profile.previous", AppIcons.PREVIOUS, -1);
         next = chevron("profile-next", "profile.next", AppIcons.NEXT, 1);
@@ -91,7 +92,7 @@ final class UserSelectionPane extends Region {
     private Button chevron(String id, String label, String icon, int direction) {
         var button = new Button(); button.setId(id); button.getStyleClass().setAll("selection-chevron");
         button.setGraphic(AppIcons.outline(icon, "chevron-icon")); button.setOnAction(event -> move(direction));
-        texts.text(button.accessibleTextProperty(), label); HBox.setMargin(button, new Insets((SLOT_SIZE - 48) / 2, 0, 0, 0));
+        texts.text(button.accessibleTextProperty(), label); HBox.setMargin(button, new Insets((TILE_HEIGHT - 48) / 2, 0, 0, 0));
         return button;
     }
     private void navigate(KeyEvent event) {
@@ -165,20 +166,20 @@ final class UserSelectionPane extends Region {
     LocalProfile selectedUser() { return selected.get(); }
     void select(UUID id) { find(id).ifPresent(this::choose); }
 
-    /** A profile's avatar and name, activated like a button so keyboard and accessibility follow the desktop norm. */
+    /** A workspace card (avatar and name), activated like a button so keyboard and accessibility follow the desktop norm. */
     private final class ProfileTile extends Button {
         private final StackPane portrait = new StackPane();
-        private final Circle ring = new Circle();
+        private final Rectangle ring = new Rectangle();
         private final Label name = new Label();
         private LocalProfile profile;
 
         ProfileTile() {
             getStyleClass().setAll("profile-tile"); setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
             ring.getStyleClass().add("profile-ring"); ring.setMouseTransparent(true);
-            name.getStyleClass().add("profile-name"); name.setMaxWidth(250); name.setTextOverrun(OverrunStyle.ELLIPSIS);
-            portrait.getStyleClass().add("profile-slot"); portrait.setMinSize(SLOT_SIZE, SLOT_SIZE); portrait.setMaxSize(SLOT_SIZE, SLOT_SIZE);
-            var body = new VBox(portrait, name); body.setAlignment(Pos.TOP_CENTER);
-            setGraphic(body); setPrefSize(260, 270); setMinSize(260, 270);
+            name.getStyleClass().add("profile-name"); name.setMaxWidth(TILE_WIDTH - 36); name.setTextOverrun(OverrunStyle.ELLIPSIS);
+            portrait.getStyleClass().add("profile-slot"); portrait.setMinSize(AVATAR_SIZE, AVATAR_SIZE); portrait.setMaxSize(AVATAR_SIZE, AVATAR_SIZE);
+            var body = new VBox(portrait, name); body.setAlignment(Pos.CENTER);
+            setGraphic(body); setPrefSize(TILE_WIDTH, TILE_HEIGHT); setMinSize(TILE_WIDTH, TILE_HEIGHT);
             setOnAction(event -> { if (profile != null) choose(profile); });
             addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
                 // Consumed so a double click cannot rotate the row a second time under the pointer.
@@ -189,10 +190,10 @@ final class UserSelectionPane extends Region {
             profile = value; setVisible(value != null); setManaged(value != null);
             if (value == null) return;
             boolean current = value.equals(selected.get());
-            double size = current ? 212 : 185;
-            ring.setRadius(size / 2 + (current ? 1.5 : 0));
-            portrait.getChildren().setAll(UserAvatar.portrait(value.displayName(), avatars.getOrDefault(value.id(), Optional.empty()), size), ring);
-            name.setText(value.displayName()); name.setTranslateY(current ? 0 : -12);
+            double size = current ? AVATAR_SIZE : 112;
+            ring.setWidth(size); ring.setHeight(size); ring.setArcWidth(size * UserAvatar.TILE_ROUNDING); ring.setArcHeight(size * UserAvatar.TILE_ROUNDING);
+            portrait.getChildren().setAll(UserAvatar.tile(value.displayName(), avatars.getOrDefault(value.id(), Optional.empty()), size), ring);
+            name.setText(value.displayName());
             setAccessibleText(value.displayName()); pseudoClassStateChanged(CURRENT, current);
         }
     }

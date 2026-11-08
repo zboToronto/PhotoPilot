@@ -14,6 +14,6 @@ final class SplashScreen extends StackPane {
             FeaturePane.label("PhotoPilot", "splash-title"),
             FeaturePane.label(EnglishMessages.text("startup.loading"), "secondary-text"), progress);
         panel.setAlignment(Pos.CENTER); panel.setMaxSize(440, 330); panel.getStyleClass().add("glass-panel");
-        getChildren().add(panel);
+        getChildren().addAll(new ThemeBackdrop(this, ThemeBackdrop.WORKSPACE_SURFACES), panel);
     }
 }

@@ -15,6 +15,7 @@ final class AppDialogs {
         dialog.initOwner(owner); dialog.initStyle(StageStyle.TRANSPARENT); dialog.setGraphic(null); AppIcons.windowIcon(dialog);
         var pane = dialog.getDialogPane(); pane.getStyleClass().add("app-dialog");
         pane.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
+        ThemeManager.get().style(pane.getStylesheets());
         pane.getScene().setFill(Color.TRANSPARENT);
     }
     static Optional<String> name(Window owner, LocalizationService language, String action, String initial) {

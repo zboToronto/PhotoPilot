@@ -21,6 +21,7 @@ final class ProfileRecoveryDialog extends Dialog<ProfileManager> {
             config.resolve("preferences.json"), config.resolve("settings.properties")));
         AppIcons.windowIcon(this); var pane = getDialogPane(); pane.setId("profile-recovery");
         pane.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
+        ThemeManager.get().style(pane.getStylesheets());
         var texts = new FxLocalizer(pane, language); texts.useReadableFont(pane);
         texts.text(titleProperty(), "app.title"); texts.text(headerTextProperty(), "profile.recovery");
         var feedback = new Label(language.text("user.storageFailed")); feedback.setWrapText(true); feedback.setId("profile-recovery-feedback");

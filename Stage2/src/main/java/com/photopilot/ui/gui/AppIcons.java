@@ -39,6 +39,7 @@ final class AppIcons {
     static final String INSPECT = "M10.500 3.500a7 7 0 1 0 0 14a7 7 0 1 0 0-14 M15.700 15.700L21 21 M8 13v-2.500 M10.500 13V8 M13 13V9.500";
     static final String GEAR = "M12 8.500a3.500 3.500 0 1 0 0 7a3.500 3.500 0 1 0 0-7 M12 2.500v3 M12 18.500v3 M2.500 12h3 M18.500 12h3 M5.300 5.300l2.100 2.100 M16.600 16.600l2.100 2.100 M5.300 18.700l2.100-2.100 M16.600 7.400l2.100-2.100";
     static final String CHEVRON_DOWN = "M2 4l5 5 5-5";
+    static final String CHECK = "M1 5.2l3.4 3.4L11 1.8";
     private static final int[] LOGO_SIZES = { 16, 32, 48, 64, 128, 256, 512 };
 
     private AppIcons() { }

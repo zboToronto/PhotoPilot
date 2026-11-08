@@ -7,7 +7,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import javafx.stage.*;
 
 /**
@@ -23,9 +22,12 @@ final class UserSelectionWindow extends Stage {
     private double dragX, dragY;
     private Cursor resizing;
     private Rectangle2D resizeStart;
+    // Window fill behind the wave background follows the theme; held here because ThemeManager listens weakly.
+    private final Runnable themeChanged = () -> { if (getScene() != null) getScene().setFill(ThemeManager.get().theme().backdropBase()); };
 
     UserSelectionWindow(LocalizationService language) {
         initStyle(StageStyle.UNDECORATED); setMinWidth(880); setMinHeight(600); AppIcons.windowIcon(this);
+        ThemeManager.get().track(); ThemeManager.get().listen(themeChanged);
         texts = new FxLocalizer(root, language); texts.useReadableFont(root); texts.text(titleProperty(), "app.title");
         var title = texts.label("app.title", "window-title");
         var spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -39,8 +41,8 @@ final class UserSelectionWindow extends Stage {
         bar.setOnMouseDragged(event -> { if (restored == null && resizing == null) { setX(event.getScreenX() - dragX); setY(event.getScreenY() - dragY); } });
         bar.setOnMouseClicked(event -> { if (event.getClickCount() == 2) toggleMaximized(); });
         root.getChildren().add(bar);
-        var scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT, Color.web("#a8472d"));
-        scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
+        var scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT, ThemeManager.get().theme().backdropBase());
+        scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); ThemeManager.get().style(scene.getStylesheets());
         setScene(scene); enableResizing(scene);
     }
     private Button control(String id, String label, String icon, Runnable action) {

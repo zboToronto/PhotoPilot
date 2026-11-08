@@ -42,6 +42,8 @@ final class PhotoPilotWorkspace extends BorderPane {
         home = new HomeDashboard(localization, id -> navigation.get(id).fire());
         applicationSettings = new ApplicationSettingsPane(localization);
         getStyleClass().add("workspace");
+        // Decorative wave background behind the unchanged shell; it blurs only what shows through translucent surfaces.
+        getChildren().add(new ThemeBackdrop(this, ThemeBackdrop.WORKSPACE_SURFACES));
         storageNotice.setId("storage-notice");
         storageNotice.getStyleClass().add("feedback-box");
         storageNotice.setMaxWidth(Double.MAX_VALUE);
@@ -78,6 +80,7 @@ final class PhotoPilotWorkspace extends BorderPane {
         sidebar.getChildren().addAll(userSettingsButton, applicationSettingsButton);
         ScrollPane navigationScroll = scroll(sidebar, "navigation-scroll");
         navigationScroll.setId("navigation-scroll");
+        stableGutter(navigationScroll, sidebar);
         widthProperty().addListener((o, old, value) -> sidebarWidth(navigationScroll, value.doubleValue()));
         sidebarWidth(navigationScroll, SIDEBAR_WIDTH * 2);
         // Arrow keys follow display order across groups; Tab reaches content actions.
@@ -110,11 +113,28 @@ final class PhotoPilotWorkspace extends BorderPane {
         double width = windowWidth < COMPACT_BELOW ? COMPACT_SIDEBAR_WIDTH : SIDEBAR_WIDTH;
         sidebar.setPrefWidth(width); sidebar.setMinWidth(width); sidebar.setMaxWidth(width);
     }
+    /**
+     * Keeps the scroll bar's width reserved while it is hidden, so navigation rows keep one position and width whether
+     * or not the list overflows. Without it, a translation whose font is slightly taller (Chinese) could make the list
+     * overflow and every row would narrow by the scroll bar's width on a language switch.
+     */
+    private static void stableGutter(ScrollPane scroll, VBox sidebar) {
+        var gutter = javafx.css.PseudoClass.getPseudoClass("scroll-gutter");
+        scroll.skinProperty().addListener((property, old, skin) -> {
+            for (javafx.scene.Node node : scroll.lookupAll(".scroll-bar"))
+                if (node instanceof ScrollBar bar && bar.getOrientation() == javafx.geometry.Orientation.VERTICAL && bar.getParent() == scroll) {
+                    bar.visibleProperty().addListener((shown, was, visible) -> sidebar.pseudoClassStateChanged(gutter, !visible));
+                    sidebar.pseudoClassStateChanged(gutter, !bar.isVisible());
+                }
+        });
+        sidebar.pseudoClassStateChanged(gutter, true);
+    }
     private ToggleButton item(String id, String icon, String label, Runnable action) {
         ToggleButton button = new ToggleButton();
         if (label != null) texts.text(button.textProperty(), label);
         button.setId(id); button.setToggleGroup(selection); button.getStyleClass().add("navigation-item");
         button.setGraphic(AppIcons.slot(icon, "navigation-icon", 20)); button.setMaxWidth(Double.MAX_VALUE); button.setMinHeight(36);
+        FxLocalizer.tooltipWhenClipped(button);
         // Repeated clicks must not clear the current workspace selection.
         button.setOnAction(event -> { button.setSelected(true); action.run(); });
         return button;

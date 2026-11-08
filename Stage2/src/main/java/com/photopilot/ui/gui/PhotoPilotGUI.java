@@ -42,8 +42,11 @@ public class PhotoPilotGUI extends Application {
     @Override
     public void start(Stage stage) {
         stage.setMinWidth(880); stage.setMinHeight(600); stage.setTitle("PhotoPilot"); AppIcons.windowIcon(stage);
+        // Saved appearance (theme colour, mode, transparency) is read before the first frame; presentation only.
+        ThemeManager.get().initialize(System.getenv()); ThemeManager.get().track();
         var scene = new javafx.scene.Scene(new SplashScreen(), 1120, 760);
         scene.getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
+        ThemeManager.get().style(scene.getStylesheets());
         stage.setScene(scene);
         // Keep lifecycle ownership until the worker returns; never abandon an open storage context.
         stage.setOnCloseRequest(event -> event.consume());
@@ -121,6 +124,7 @@ public class PhotoPilotGUI extends Application {
         alert.setHeaderText(com.photopilot.i18n.EnglishMessages.text("error.profile.startup"));
         alert.setContentText(com.photopilot.i18n.EnglishMessages.text("user.storageFailed"));
         alert.getDialogPane().getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
+        ThemeManager.get().style(alert.getDialogPane().getStylesheets());
         return alert;
     }
 
@@ -140,6 +144,7 @@ public class PhotoPilotGUI extends Application {
 
     @Override
     public void stop() {
+        ThemeManager.get().shutdown();
         if (controller != null) controller.close();
         if (profiles != null) profiles.close();
         if (bootstrap != null) System.out.println(bootstrap.localization().text("app.closed"));
