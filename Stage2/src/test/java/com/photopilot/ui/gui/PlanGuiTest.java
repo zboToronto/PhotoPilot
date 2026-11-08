@@ -44,7 +44,7 @@ class PlanGuiTest {
                 scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); stage.setScene(scene); stage.show();
                 workspace.selectPlanning(); workspace.applyCss(); workspace.layout();
             }); ready();
-            assertTrue(label("plan-inputs").contains("Confirmed requirements (F03)"), label("plan-inputs"));
+            assertTrue(label("plan-inputs").contains("Confirmed requirements:"), label("plan-inputs"));
             assertFalse(fx(() -> pane.lookup("#plan-generate").isDisabled()));
 
             gemini.reply(PlanFixtures.depthOfFieldRequest()).replyWith(body -> PlanFixtures.plan(body, PlanFixtures.TELE, PlanFixtures.HEAVY_ZOOM, true));

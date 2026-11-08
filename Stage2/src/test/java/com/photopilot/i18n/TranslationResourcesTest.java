@@ -52,6 +52,22 @@ class TranslationResourcesTest {
         }
         assertEquals("设置", chinese.getProperty("settings.title"));
     }
+    @Test void interfaceMessagesUseFeatureNamesWithoutIdentifiersOrBuildStatus() throws Exception {
+        Pattern internal = Pattern.compile("\\b(F(0[1-9]|1[01])|UC\\d{2}|SD\\d{2})\\b|PlanValidator");
+        Pattern buildStatus = Pattern.compile("(?i)\\b(implemented|in progress|scaffolded)\\b|已实现|开发中|仅有框架");
+        for (String bundle : List.of("messages", "messages_zh_CN")) {
+            var entries = read(bundle);
+            for (String key : entries.stringPropertyNames()) {
+                // CLI help names the F01-F11 command aliases, and catalog.* is the CLI status listing; neither reaches the GUI.
+                if (key.startsWith("cli.") || key.contains(".cli.") || key.startsWith("catalog.")) continue;
+                String value = entries.getProperty(key);
+                assertFalse(internal.matcher(value).find(), bundle + ": " + key + " shows an internal identifier: " + value);
+            }
+            for (String status : List.of("IMPLEMENTED", "IN_PROGRESS", "SCAFFOLDED", "UNAVAILABLE"))
+                for (String key : List.of("feature.status." + status, "feature.empty." + status))
+                    assertFalse(buildStatus.matcher(entries.getProperty(key)).find(), bundle + ": " + key + " shows a build status");
+        }
+    }
     @Test void staticallyReferencedKeysExistAndUiDoesNotIntroduceLiteralCaptions() throws Exception {
         var entries = read("messages");
         Pattern calls = Pattern.compile("(?:(?:localization|EnglishMessages|l)\\.text|failureKey|LocalizedException|LocalizedMessage\\.of|texts\\.label|texts\\.button)\\(\\s*\"([A-Za-z][A-Za-z0-9_.-]+)\"");

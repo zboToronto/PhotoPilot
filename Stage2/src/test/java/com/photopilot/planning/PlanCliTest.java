@@ -33,8 +33,8 @@ class PlanCliTest {
             assertEquals(0, cli.execute("F10")); assertTrue(text(bytes).contains("plan generate <session-id>"));
             assertEquals(2, cli.execute("plan approve")); assertTrue(text(bytes).contains("No pending plan preview"));
             assertEquals(0, cli.execute("plan show " + id));
-            assertTrue(text(bytes).contains("Confirmed requirements (F03): Fast-moving aircraft at an airshow"), text(bytes));
-            assertTrue(text(bytes).contains("Environment evidence (F09)"));
+            assertTrue(text(bytes).contains("Confirmed requirements: Fast-moving aircraft at an airshow"), text(bytes));
+            assertTrue(text(bytes).contains("Environment evidence: assessment for"));
 
             gemini.reply(depthOfFieldRequest()).replyWith(body -> plan(body, TELE, HEAVY_ZOOM, true));
             bytes.reset();
@@ -80,7 +80,7 @@ class PlanCliTest {
             assertEquals(2, cli.execute("plan banana"));
             app.localization().useLanguage("zh-CN"); bytes.reset();
             assertEquals(0, cli.execute("plan show " + id));
-            assertTrue(text(bytes).contains("已确认的需求（F03）") && text(bytes).contains("已批准的计划（修订 2）"), text(bytes));
+            assertTrue(text(bytes).contains("已确认的需求：") && text(bytes).contains("已批准的计划（修订 2）"), text(bytes));
         }
     }
 }

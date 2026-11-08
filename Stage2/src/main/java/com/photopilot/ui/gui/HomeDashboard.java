@@ -21,13 +21,9 @@ final class HomeDashboard extends VBox {
         var identity = new VBox(0, greeting, texts.label("home.identity", "page-subtitle")); identity.setMinWidth(0);
         var hero = new HBox(14, avatar, identity); hero.setAlignment(Pos.CENTER_LEFT); hero.getStyleClass().add("surface-panel");
         var catalog = FeaturePresentation.all();
-        long available = catalog.stream().filter(HomeDashboard::ready).count();
-        var status = new VBox(4, texts.label("home.statusTitle", "group-title"), texts.label("home.statusValue", "status-value", available, catalog.size()),
-            texts.label("home.statusDetail", "secondary-text"));
-        status.getStyleClass().add("status-tile");
         getChildren().addAll(hero,
             section("home.readySection", card("equipment", "F05", catalog, navigate), card("sessions", "F01", catalog, navigate), card("calculator", "F08", catalog, navigate)),
-            section("home.plannedSection", card("planning", "F10", catalog, navigate), card("assistant", "F02", catalog, navigate), status));
+            section("home.plannedSection", card("planning", "F10", catalog, navigate), card("assistant", "F02", catalog, navigate), card("environment", "F09", catalog, navigate)));
     }
     private static boolean ready(FeaturePresentation feature) { return feature.status() == FeaturePresentation.Status.IMPLEMENTED; }
     /** Equal columns at every width, so no card is left oversized or alone in a row. */

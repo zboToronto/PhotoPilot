@@ -128,7 +128,7 @@ class ProfileGuiTest {
         action(() -> ((Button)panel().lookup("#profile-enter")).fire()); ready();
         assertEquals(selected, active()); assertTrue(fx(() -> controller.workspace().atHome()));
         snapshot(fx(() -> controller.workspace()), "home-dashboard-en");
-        for (String feature : List.of("F05", "F01", "F08", "F10", "F02")) {
+        for (String feature : List.of("F05", "F01", "F08", "F10", "F02", "F09")) {
             mainClick("home-" + feature); assertFalse(fx(() -> controller.workspace().atHome()));
             action(() -> ((ToggleButton)controller.workspace().lookup("#nav-home")).fire()); ready();
             assertTrue(fx(() -> controller.workspace().atHome()));
@@ -140,6 +140,29 @@ class ProfileGuiTest {
         var splash = fx(() -> { var window = new Stage(); window.setScene(new javafx.scene.Scene(new SplashScreen(), 880, 600));
             window.getScene().getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); window.show(); return window; });
         try { snapshot(fx(() -> splash.getScene().getRoot()), "startup-splash"); } finally { action(splash::close); }
+    }
+    static final java.util.regex.Pattern DEVELOPMENT_LABEL = java.util.regex.Pattern.compile(
+        "\\b(F(0[1-9]|1[01])|UC\\d{2})\\b|PlanValidator|\\b(Implemented|In Progress|Scaffolded)\\b|已实现|开发中|仅有框架");
+    static boolean shown(Node node) { for (Node n = node; n != null; n = n.getParent()) if (!n.isVisible()) return false; return true; }
+    /** Every visible caption, text, prompt, tooltip and accessible name that exposes a feature ID, use-case code or build status. */
+    List<String> developmentLabels() throws Exception {
+        return fx(() -> controller.workspace().lookupAll("*").stream().filter(ProfileGuiTest::shown)
+            .flatMap(n -> java.util.stream.Stream.of(n instanceof Labeled l ? l.getText() : null, n instanceof javafx.scene.text.Text shape ? shape.getText() : null,
+                n instanceof TextInputControl input ? input.getPromptText() : null, n.getAccessibleText(),
+                n instanceof Control c && c.getTooltip() != null ? c.getTooltip().getText() : null))
+            .filter(Objects::nonNull).filter(text -> DEVELOPMENT_LABEL.matcher(text).find()).distinct().toList());
+    }
+    @Test void everyPageNamesFeaturesWithoutIdentifiersOrBuildStatus() throws Exception {
+        for (String language : List.of("en", "zh-CN")) {
+            action(() -> manager.activeContext().localization().selectLanguage(language)); ready();
+            nav("home"); assertEquals(List.of(), developmentLabels(), language + " Home");
+            for (var feature : FeaturePresentation.all()) {
+                nav(feature.id());
+                assertEquals(List.of(), developmentLabels(), language + " " + feature.id());
+                assertTrue(fx(() -> controller.workspace().lookupAll(".status-badge").stream().noneMatch(ProfileGuiTest::shown)), language + " " + feature.id() + ": availability badge");
+                assertEquals(feature.title(manager.activeContext().localization()), fx(() -> ((ToggleButton)controller.workspace().lookup("#nav-" + feature.id())).getText()));
+            }
+        }
     }
     @Test void failedSwitchAndCancelRetainDraftThenSuccessRebuildsAndRevokesOldContext() throws Exception {
         UUID a=active(), b=manager.createProfile("B").value().orElseThrow().id();

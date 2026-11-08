@@ -63,7 +63,7 @@ class F10WorkflowTest {
         assertFalse(keys.contains("plan.env.used"), "missing evidence is never presented as current");
         assertTrue(keys.contains("plan.env.requirementTiming") || keys.contains("plan.env.noTiming"), keys::toString);
         String text = String.join(" ", inputs.notes().stream().map(m -> com.photopilot.i18n.EnglishMessages.text(m.key(), m.arguments().toArray())).toList());
-        assertTrue(text.contains("kept only while PhotoPilot is open") && text.contains("Environment Planning (F09)"), "the user is told how to reassess: " + text);
+        assertTrue(text.contains("kept only while PhotoPilot is open") && (text.contains("Assess the session in Environment Planning") || text.contains("Assess it in Environment Planning")), "the user is told how to reassess: " + text);
         assess(app, gemini, id);
         assertTrue(ok(app.facade().planning().planInputs(id)).notes().stream().anyMatch(m -> m.key().equals("plan.env.used")), "reassessing restores the evidence");
     }

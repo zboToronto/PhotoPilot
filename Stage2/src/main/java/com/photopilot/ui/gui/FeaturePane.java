@@ -32,6 +32,8 @@ final class FeaturePane extends VBox {
     private final Label title = label("", "feature-title");
     private final Label description = label("", "description");
     private final Label status = label("", "status-badge");
+    /** Holds the availability badge, shown only when a feature is not available (never for a working feature). */
+    private final FlowPane metadata = new FlowPane(10, 8, status);
     private final Label emptyDescription = label("", "secondary-text");
     private final Label feedback = label("", "feedback-text");
     private final VBox feedbackBox = new VBox(8, detailsTitle, feedback);
@@ -64,7 +66,6 @@ final class FeaturePane extends VBox {
         setMaxWidth(1180);
         setMinWidth(0);
         setFillWidth(true);
-        FlowPane metadata = new FlowPane(10, 8, status);
         VBox heading = new VBox(12, eyebrow, title, description, metadata);
         heading.getStyleClass().add("feature-heading");
         Label placeholder = texts.label("feature.empty", "empty-title");
@@ -134,18 +135,20 @@ final class FeaturePane extends VBox {
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
-        texts.bind(eyebrow.textProperty(), () -> localization.text("feature.breadcrumb", selected.group(localization), selected.id()));
+        texts.bind(eyebrow.textProperty(), () -> selected.group(localization));
         texts.bind(title.textProperty(), () -> selected.title(localization));
         texts.bind(description.textProperty(), () -> selected.description(localization));
         refreshStatus();
         texts.bind(feedback.textProperty(), () -> "");
         feedbackBox.setVisible(false);
         feedbackBox.setManaged(false);
-        texts.bind(checkStatus.accessibleTextProperty(), () -> localization.text("feature.checkAccessible", selected.id(), selected.title(localization)));
+        texts.bind(checkStatus.accessibleTextProperty(), () -> localization.text("feature.checkAccessible", selected.title(localization)));
     }
 
     private void refreshStatus() {
         var current = feature.status();
+        boolean unavailable = current != FeaturePresentation.Status.IMPLEMENTED;
+        metadata.setVisible(unavailable); metadata.setManaged(unavailable);
         texts.bind(status.textProperty(), () -> current.label(localization));
         texts.bind(status.accessibleTextProperty(), () -> localization.text("feature.statusAccessible", current.label(localization)));
         texts.text(emptyDescription.textProperty(), "feature.empty." + current.name());
@@ -220,11 +223,11 @@ final class FeaturePane extends VBox {
         if (selected.id().equals("F09") && environment != null) { showFeedback(() -> localization.text("env.ready")); return; }
         if (selected.id().equals("F10") && planning != null) { showFeedback(() -> localization.text("plan.status")); return; }
         if (selected.id().equals("F11") && review != null) { showFeedback(() -> localization.text("review.ready.status")); return; }
-        if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady", selected.status().label(localization))); return; }
+        if (selected.id().equals("F08")) { showFeedback(() -> localization.text("feature.calculatorReady")); return; }
         if (selected.id().equals("F05") && inventory != null) { showFeedback(() -> localization.text("feature.inventoryReady")); return; }
         showFeedback(() -> selected.status() == FeaturePresentation.Status.SCAFFOLDED
-            ? localization.text("feature.unavailable", selected.id())
-            : localization.text("feature.noWorkflow", selected.id(), selected.status().label(localization)));
+            ? localization.text("feature.unavailable", selected.title(localization))
+            : localization.text("feature.noWorkflow", selected.title(localization)));
     }
 
     void showFeedback(String message) { showFeedback(() -> message); }
@@ -236,6 +239,7 @@ final class FeaturePane extends VBox {
 
     String feedbackText() { return feedback.getText(); }
     String statusText() { return status.getText(); }
+    boolean statusShown() { return metadata.isVisible(); }
     Button checkStatusButton() { return checkStatus; }
     boolean workflowDisabled() { return workflow.isDisabled(); }
     boolean inventoryConnected() { return inventory != null; }

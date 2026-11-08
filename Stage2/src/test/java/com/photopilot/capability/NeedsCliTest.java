@@ -31,7 +31,7 @@ class NeedsCliTest {
             assertEquals(2, cli.execute("needs draft")); assertTrue(text(bytes).contains("No capability profile draft is open"));
             bytes.reset();
             assertEquals(0, cli.execute("needs show " + id));
-            assertTrue(text(bytes).contains("Confirmed shooting requirements (F03)") && text(bytes).contains("Fast-moving aircraft"), text(bytes));
+            assertTrue(text(bytes).contains("Confirmed shooting requirements") && text(bytes).contains("Fast-moving aircraft"), text(bytes));
             assertTrue(text(bytes).contains("no confirmed capability profile"));
 
             gemini.status(503, "");
@@ -97,7 +97,7 @@ class NeedsCliTest {
             bytes.reset();
             app.localization().useLanguage("zh-CN");
             assertEquals(0, cli.execute("needs show " + id));
-            assertTrue(text(bytes).contains("已确认的拍摄需求（F03）") && text(bytes).contains("来源"), text(bytes));
+            assertTrue(text(bytes).contains("已确认的拍摄需求") && text(bytes).contains("来源"), text(bytes));
         }
     }
 

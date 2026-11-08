@@ -27,7 +27,7 @@ class MatchCliTest {
             var bytes = new ByteArrayOutputStream();
             var cli = new PhotoPilotCLI(app.facade(), new ImagePrivacyBoundary(), new Scanner(""), new PrintStream(bytes, true, StandardCharsets.UTF_8), app.localization());
             assertEquals(0, cli.execute("F07")); assertTrue(text(bytes).contains("match run <session-id>"));
-            assertEquals(2, cli.execute("match profile " + id)); assertTrue(text(bytes).contains("Confirm the shooting requirements (F03)"));
+            assertEquals(2, cli.execute("match profile " + id)); assertTrue(text(bytes).contains("Confirm the shooting requirements for this session"));
             assertTrue(app.facade().planning().confirm(id, airshowRequirement().asDraft()).isSuccess());
             assertEquals(0, cli.execute("match profile " + id)); assertTrue(text(bytes).contains("unconfirmed and not saved"));
             assertTrue(text(bytes).contains("not AI-generated"));
@@ -49,7 +49,7 @@ class MatchCliTest {
             String run = text(bytes);
             assertTrue(run.contains("AI ranking unavailable; showing the deterministic ranking"), run);
             assertTrue(run.contains("#1 Full match"), run);
-            assertTrue(run.contains("Compatibility: verified by deterministic rules (UC14)."), run);
+            assertTrue(run.contains("Compatibility: verified by deterministic rules."), run);
             assertTrue(run.contains("Excluded (incompatible)") && run.contains("Canon EF"), run);
             assertTrue(run.contains("Excluded (unverified)"), run);
             assertFalse(run.contains("AI comparison"), "no fabricated AI explanation on fallback");

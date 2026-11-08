@@ -343,7 +343,7 @@ public class PlanningService {
         var session = environmentSession(id);
         if (!session.isSuccess()) return Result.failure(session);
         var requirement = session.value().orElseThrow().requirements().filter(ShootRequirement::confirmed);
-        if (requirement.isEmpty()) return Result.failureKey("env.error.needsInput", "confirmed requirement (F03) or reviewed F09 inputs");
+        if (requirement.isEmpty()) return Result.failureKey("env.error.needsInput", "confirmed requirement or reviewed environment inputs");
         return remember(id, environment.assess(requirement.get()));
     }
     private Result<EnvironmentAssessment> remember(UUID id, Result<EnvironmentAssessment> assessed) {

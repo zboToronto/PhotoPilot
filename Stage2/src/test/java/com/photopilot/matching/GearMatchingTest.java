@@ -66,7 +66,7 @@ class GearMatchingTest {
         assertTrue(reasons.stream().anyMatch(r -> r.contains("LP-E6NH")), reasons.toString());
         assertTrue(report.missingSpecifications(), "UC07 A1: an unverified exclusion asks for the missing specification");
         var summary = com.photopilot.application.LoadoutPresentation.summary(report, new com.photopilot.i18n.LocalizationService(com.photopilot.i18n.LocalePreferenceRepository.transientPreference()));
-        assertTrue(summary.stream().anyMatch(s -> s.contains("Gear Inventory (F05)")), summary.toString());
+        assertTrue(summary.stream().anyMatch(s -> s.contains("missing values in Gear Inventory, then run Match My Gear again")), summary.toString());
         assertFalse(report.aiRanked()); assertTrue(report.rankingNotice().isPresent(), "AI failure is labelled");
         var trade = best.tradeOffs().stream().map(t -> t.key()).toList();
         assertTrue(trade.contains("trade.weight") && trade.contains("trade.noLensChanges"));
