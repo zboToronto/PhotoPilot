@@ -72,8 +72,8 @@ final class GuiProfileController implements AutoCloseable {
         workspace.connectCapabilities(capability);
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
         workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
-        workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, language));
-        workspace.connectProfiles(this::openProfiles); workspace.showProfile(Optional.of(selected));
+        workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, this::switchFromSettings, language));
+        workspace.connectProfiles(); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
         if (stage.getScene() == null) {
             var scene = new Scene(workspace, 1120, 760);
@@ -108,7 +108,13 @@ final class GuiProfileController implements AutoCloseable {
             if (!closed && view == workspace) view.showAvatar(selected.displayName(), result.value().orElse(Optional.empty()));
         });
     }
-    void requestSwitch(UUID id) {
+    void requestSwitch(UUID id) { requestSwitch(id, false); }
+    /**
+     * The Switch action of a user in User Settings: the same checks and switch as the chooser (busy guard, unsaved-input
+     * confirmation, ProfileManager.selectProfile and the workspace rebuild), then User Settings again with that user Current.
+     */
+    void switchFromSettings(UUID id) { requestSwitch(id, true); }
+    private void requestSwitch(UUID id, boolean fromSettings) {
         if (closed) return;
         if (busy()) { message("profile.wait"); return; }
         boolean same = context.storageScope().profileId().orElseThrow().equals(id);
@@ -120,16 +126,22 @@ final class GuiProfileController implements AutoCloseable {
             if (result.isSuccess()) {
                 if (!same) install(result.value().orElseThrow());
                 else { if (picker != null) { picker.dispose(); picker = null; } }
-                showWorkspace(); workspace.showHome(); showProfile(result.value());
-                workspace.freeze(false); workspace.showFeedback(() -> context.localization().text("profile.switched"));
+                showWorkspace();
+                if (fromSettings) workspace.showUserSettings(); else workspace.showHome();
+                showProfile(result.value());
+                workspace.freeze(false);
+                if (fromSettings) workspace.userSettings().notice("profile.switched");
+                else workspace.showFeedback(() -> context.localization().text("profile.switched"));
             } else {
                 workspace.freeze(false); if (picker != null) { picker.freeze(false); picker.failure(result); }
+                else if (fromSettings) workspace.userSettings().failure();
                 else workspace.showFeedback(() -> String.join("; ", result.errors(context.localization())));
             }
         });
     }
     private void message(String key) {
         if (picker != null) picker.message(key);
+        else if (workspace.atUserSettings()) workspace.userSettings().notice(key);
         else workspace.showFeedback(() -> context.localization().text(key));
     }
     private boolean allowClose() {

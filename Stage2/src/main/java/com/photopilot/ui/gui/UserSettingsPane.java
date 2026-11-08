@@ -16,13 +16,18 @@ import javafx.scene.layout.*;
 import javafx.stage.*;
 import javafx.util.Duration;
 
-/** In-app user management: never switches workspace. Lifecycle and avatar I/O stay in ProfileManager. */
+/**
+ * In-app user management. Lifecycle and avatar I/O stay in ProfileManager. The Switch button of a listed user is the
+ * entry point for changing the active user; it only hands the id to the application's existing switch (the owner's
+ * callback, with its unsaved-input confirmation), and editing a user here never changes the session.
+ */
 final class UserSettingsPane extends VBox {
     private final Window owner;
     private final ProfileManager profiles;
     private final UiOperations operations;
     private final LocalizationService language;
     private final Consumer<Optional<LocalProfile>> activeChanged;
+    private final Consumer<UUID> switchUser;
     private final FxLocalizer texts;
     private final ObjectProperty<LocalProfile> active = new SimpleObjectProperty<>(), selected = new SimpleObjectProperty<>();
     private final BooleanProperty working = new SimpleBooleanProperty();
@@ -38,8 +43,10 @@ final class UserSettingsPane extends VBox {
     private Alert error;
     private boolean disposed;
 
-    UserSettingsPane(Window owner, ProfileManager profiles, UiOperations operations, Consumer<Optional<LocalProfile>> activeChanged, LocalizationService language) {
+    UserSettingsPane(Window owner, ProfileManager profiles, UiOperations operations, Consumer<Optional<LocalProfile>> activeChanged,
+                     Consumer<UUID> switchUser, LocalizationService language) {
         super(16); this.owner = owner; this.profiles = profiles; this.operations = operations; this.activeChanged = activeChanged; this.language = language;
+        this.switchUser = Objects.requireNonNull(switchUser);
         setId("user-settings"); getStyleClass().add("page"); setMaxWidth(1180); setMinWidth(0);
         texts = new FxLocalizer(this, language);
         BooleanBinding noActive = active.isNull().or(working), noSelection = selected.isNull().or(working);
@@ -114,7 +121,9 @@ final class UserSettingsPane extends VBox {
         if (user != null) mutate(() -> profiles.removeAvatar(user.id()), "avatar.removed", value -> user.id());
     }
     private void message(String key) { notice.stop(); texts.text(feedback.textProperty(), key); }
-    private void failure() { message("user.operationFailed"); showError("user.operationFailed"); }
+    /** A short notice in this page's feedback line (for example after a switch); it clears itself like other notices. */
+    void notice(String key) { message(key); notice.playFromStart(); }
+    void failure() { message("user.operationFailed"); showError("user.operationFailed"); }
     private void showError(String key) {
         if (error != null) error.close();
         error = AppDialogs.error(owner, language, key); error.show();
@@ -145,19 +154,35 @@ final class UserSettingsPane extends VBox {
         }
         rows.getChildren().setAll(users.stream().map(this::row).toList());
     }
-    private ToggleButton row(LocalProfile user) {
+    private StackPane row(LocalProfile user) {
         var name = new Label(user.displayName()); name.getStyleClass().add("user-row-name"); name.setMinWidth(0); name.setTextOverrun(OverrunStyle.ELLIPSIS);
-        HBox.setHgrow(name, Priority.ALWAYS); name.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(name, Priority.ALWAYS); name.setMaxWidth(Double.MAX_VALUE); FxLocalizer.tooltipWhenClipped(name);
         var content = new HBox(10, UserAvatar.portrait(user.displayName(), avatars.getOrDefault(user.id(), Optional.empty()), 30), name);
         content.setAlignment(Pos.CENTER_LEFT);
-        if (user.equals(active.get())) { var badge = texts.label("user.currentBadge", "status-badge"); badge.setWrapText(false); badge.setMinWidth(Region.USE_PREF_SIZE); content.getChildren().add(badge); }
         var button = new ToggleButton(); button.getStyleClass().add("user-row"); button.setId("user-row-" + user.id()); button.setToggleGroup(rowGroup);
         button.setGraphic(content); button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY); button.setMaxWidth(Double.MAX_VALUE); button.setAccessibleText(user.displayName());
         content.prefWidthProperty().bind(button.widthProperty().subtract(24));
         button.setSelected(user.equals(selected.get()));
         // Rows behave like a selection list: clicking the chosen row keeps it chosen. Selecting never changes the session.
         button.setOnAction(event -> { button.setSelected(true); selected.set(user); });
-        return button;
+        var line = new StackPane(button); line.setAlignment(Pos.CENTER_LEFT); line.getStyleClass().add("user-line");
+        if (user.equals(active.get())) {
+            // The active user is marked Current and offers no Switch action.
+            var badge = texts.label("user.currentBadge", "status-badge"); badge.setId("user-current-badge"); badge.setWrapText(false); badge.setMinWidth(Region.USE_PREF_SIZE);
+            content.getChildren().add(badge);
+        } else {
+            // A sibling above the row (never a button inside a button), so the row keeps its full-width selection highlight.
+            var change = texts.button("user.switch"); change.setId("user-switch-" + user.id()); change.getStyleClass().addAll("secondary-button", "user-switch");
+            texts.text(change.accessibleTextProperty(), "user.switchAccessible", user.displayName());
+            change.setMinWidth(Region.USE_PREF_SIZE); change.disableProperty().bind(working);
+            change.setOnAction(event -> switchUser.accept(user.id()));
+            StackPane.setAlignment(change, Pos.CENTER_RIGHT); StackPane.setMargin(change, new javafx.geometry.Insets(0, 12, 0, 0));
+            // Reserves the button's width inside the row, so a long name is shortened before it, never drawn under it.
+            var reserve = new Region(); reserve.minWidthProperty().bind(change.widthProperty()); reserve.setMouseTransparent(true);
+            content.getChildren().add(reserve);
+            line.getChildren().add(change);
+        }
+        return line;
     }
     private <T> void mutate(Supplier<Result<T>> action, String success, Function<T, UUID> selection) {
         working.set(true);

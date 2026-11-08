@@ -110,18 +110,8 @@
 }
 .status-tile { -fx-background-radius: 14; -fx-border-radius: 14; }
 .page { -fx-spacing: 16; }
-.user-menu {
-    -fx-background-color: transparent;
-    -fx-background-radius: 18;
-    -fx-border-color: transparent;
-    -fx-border-radius: 18;
-    -fx-padding: 3 10 3 4;
-    -fx-cursor: hand;
-}
-.user-menu:hover { -fx-background-color: rgba(255,255,255,0.55); }
-.user-menu:armed { -fx-background-color: rgba(255,255,255,0.75); }
-.user-menu:focus-visible { -fx-border-color: -pp-accent; }
-.user-menu-chevron { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.5; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+/* Current user (read-only): avatar and name only, no button or menu treatment. Switching is in User Settings. */
+.user-indicator { -fx-padding: 3 10 3 4; }
 .profile-current { -fx-font-weight: bold; }
 
 /* Sidebar: compact rows with one selection treatment in the theme colour. While the list fits, the scroll bar's
@@ -248,6 +238,8 @@
 .user-row:selected, .user-row:selected:hover { -fx-background-color: -pp-accent-soft; -fx-border-color: -pp-accent-border; }
 .user-row:focus-visible { -fx-border-color: -pp-focus-ring; }
 .user-row-name { -fx-font-size: 13px; }
+/* Switch: the existing secondary button, compact in the row; one minimum width so short translations stay comfortable. */
+.user-switch { -fx-padding: 4 14; -fx-min-width: 64; }
 
 /* Application Settings > Appearance: theme colour swatches, mode segments and the Transparency slider. */
 .settings-section-title { -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 4 0 2 0; }

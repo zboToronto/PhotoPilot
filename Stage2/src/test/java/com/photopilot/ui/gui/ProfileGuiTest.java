@@ -43,9 +43,13 @@ class ProfileGuiTest {
     UserSelectionPane panel() { return controller.picker(); }
     List<LocalProfile> users() { return controller.picker() != null ? panel().users() : settings().users(); }
     UserSettingsPane settings() { return controller.workspace().userSettings(); }
-    void menu(String id) throws Exception { action(() -> controller.workspace().userMenu().getItems().stream().filter(item -> id.equals(item.getId())).findFirst().orElseThrow().fire()); ready(); }
-    void profiles() throws Exception { menu("menu-switch-workspace"); }
-    void manage() throws Exception { menu("menu-user-settings"); assertTrue(fx(() -> controller.workspace().atUserSettings())); }
+    /** The chooser has no in-session menu entry any more (it opens at startup); tests that cover it open it directly. */
+    void profiles() throws Exception { action(controller::openProfiles); ready(); }
+    void manage() throws Exception { nav("user-settings"); assertTrue(fx(() -> controller.workspace().atUserSettings())); }
+    /** The in-session switch: the user's Switch button in User Settings. */
+    Button switchOn(UUID id) { return (Button)settings().lookup("#user-switch-"+id); }
+    Button switchButton(UUID id) throws Exception { return fx(() -> switchOn(id)); }
+    void switchTo(UUID id) throws Exception { manage(); var button=switchButton(id); action(button::fire); ready(); }
     void manageSelect(UUID id) throws Exception { action(() -> settings().select(id)); }
     void click(String id) throws Exception { action(() -> ((Button)panel().lookup("#"+id)).fire()); ready(); if (id.equals("profile-enter") && fx(() -> controller.picker() == null)) { assertTrue(fx(() -> controller.workspace().atHome())); nav("F01"); } }
     DialogPane open(String id) { return (DialogPane)Window.getWindows().stream().filter(Window::isShowing).map(w -> w.getScene().getRoot().lookup(id)).filter(Objects::nonNull).findFirst().orElseThrow(); }
@@ -75,7 +79,7 @@ class ProfileGuiTest {
     @Test void controlsCreateSelectCrossProcessRecordsRenameDeleteAndRestart() throws Exception {
         UUID defaultId=active(); manage(); assertEquals(1,fx(() -> users().size()));
         UUID a=create("A 夜景"), b=create("B Portrait"); assertNotEquals(a,b);
-        profiles(); select(a); click("profile-enter"); assertEquals(a,active());
+        switchTo(a); assertEquals(a,active());
         assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("A 夜景")));
         nav("F05"); mainClick("gear-add"); field("gear-field-brand","GUI"); field("gear-field-model","A Camera"); field("gear-field-mount","E"); mainClick("gear-save");
         nav("F01"); mainClick("session-create"); field("session-field-title","A Session"); field("session-field-date","2026-11-01"); mainClick("session-save");
@@ -83,14 +87,14 @@ class ProfileGuiTest {
         String cli=process("--profile="+a,"profile list","gear list","session list"); assertTrue(cli.contains("A Camera")); assertTrue(cli.contains("A Session")); assertTrue(cli.contains(b.toString()));
         process("--profile="+a,"session edit " + record.id() + " title=\"CLI Edited\"");
         mainClick("session-refresh"); assertEquals("CLI Edited",fx(() -> ((com.photopilot.model.PhotographySession)((TableView<?>)controller.workspace().lookup("#session-table")).getItems().getFirst()).title()));
-        profiles(); select(b); click("profile-enter"); assertEquals(b,active());
+        switchTo(b); assertEquals(b,active()); nav("F01");
         assertTrue(manager.activeContext().facade().inventory().list("").value().orElseThrow().items().isEmpty());
         assertEquals(0,fx(() -> ((TableView<?>)controller.workspace().lookup("#session-table")).getItems().size()));
         mainClick("session-create"); field("session-field-title","B Session"); field("session-field-date","2026-11-02"); mainClick("session-save");
         Path bFile=manager.activeContext().storageScope().sessionsDirectory().resolve("sessions.json"); byte[] bData=Files.readAllBytes(bFile);
         manage(); named("profile-rename","B Renamed"); assertEquals(b,active()); assertArrayEquals(bData,Files.readAllBytes(bFile));
         assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("B Renamed")));
-        profiles(); select(a); click("profile-enter"); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
+        switchTo(a); assertEquals("CLI Edited",manager.activeContext().facade().sessions().search("").value().orElseThrow().getFirst().title());
         nav("F05"); assertEquals(1,fx(() -> ((TableView<?>)controller.workspace().lookup("#gear-table")).getItems().size()));
         manage(); manageSelect(b); confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),false); assertTrue(manager.getProfile(b).isSuccess());
         confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),true); assertFalse(manager.getProfile(b).isSuccess()); assertArrayEquals(bData,Files.readAllBytes(bFile));
@@ -279,8 +283,66 @@ class ProfileGuiTest {
         confirm(() -> ((Button)settings().lookup("#profile-delete")).fire(),true); assertFalse(manager.getProfile(other).isSuccess()); assertEquals(current,active());
         assertSame(view,fx(() -> controller.workspace())); assertSame(context,manager.activeContext()); assertNull(fx(() -> controller.picker())); assertTrue(fx(() -> view.atUserSettings()));
         action(() -> ((ToggleButton)view.lookup("#nav-home")).fire()); assertTrue(fx(() -> view.atHome()));
-        menu("menu-app-settings"); assertTrue(fx(() -> view.atApplicationSettings())); assertNull(fx(() -> controller.picker()));
-        profiles(); assertNotNull(fx(() -> controller.picker())); assertTrue(fx(() -> controller.pickerWindow().isShowing()));
+        nav("app-settings"); assertTrue(fx(() -> view.atApplicationSettings())); assertNull(fx(() -> controller.picker()));
+        assertSame(view,fx(() -> controller.workspace())); assertEquals(current,active());
+    }
+    @Test void headerShowsTheCurrentUserReadOnlyAndUserSettingsSwitchesThroughTheExistingMechanism() throws Exception {
+        UUID a=active(); UUID b=manager.createProfile("B Studio").value().orElseThrow().id();
+        var oldView=fx(() -> controller.workspace());
+        // Header: avatar and name only. No button, arrow or menu, nothing focusable or clickable.
+        assertNull(fx(() -> oldView.lookup("#user-menu"))); assertTrue(fx(() -> oldView.lookupAll(".user-menu-chevron").isEmpty()));
+        var indicator=fx(() -> oldView.lookup("#user-indicator"));
+        assertFalse(indicator instanceof ButtonBase); assertTrue(fx(indicator::isVisible));
+        assertTrue(fx(() -> indicator.lookupAll("*").stream().noneMatch(n -> n.isFocusTraversable() || n instanceof ButtonBase || n.getOnMouseClicked()!=null)));
+        assertTrue(fx(() -> indicator.lookup(".user-portrait") != null || indicator.lookup(".user-avatar") != null),"the avatar is shown");
+        assertEquals("Default",fx(() -> ((Label)oldView.lookup("#profile-active")).getText()));
+        assertTrue(fx(() -> indicator.getAccessibleText()).contains("Default"));
+
+        manage();
+        assertNull(switchButton(a),"the current user offers no Switch"); assertNotNull(switchButton(b));
+        assertEquals("Current",fx(() -> ((Label)settings().lookup("#user-current-badge")).getText()));
+        assertTrue(fx(() -> settings().lookup("#user-row-"+a).lookup("#user-current-badge") != null),"Current marks the active user's row");
+        assertEquals("Switch",fx(() -> switchOn(b).getText()));
+        snapshot(fx(() -> controller.workspace()),"user-settings-switch-en");
+
+        // Unsaved input keeps the existing confirmation: cancelling keeps the user, the view and the draft.
+        nav("F01"); mainClick("session-create"); field("session-field-title","Unsaved A"); manage();
+        var change=switchButton(b);
+        confirm(change::fire,false);
+        assertEquals(a,active()); assertSame(oldView,fx(() -> controller.workspace())); assertTrue(fx(() -> oldView.atUserSettings()));
+        assertTrue(fx(() -> controller.dirty()));
+        nav("F01"); assertEquals("Unsaved A",fx(() -> ((TextField)oldView.lookup("#session-field-title")).getText()));
+        manage(); change=switchButton(b);
+        confirm(change::fire,true);
+        assertEquals(b,active()); var view=fx(() -> controller.workspace()); assertNotSame(oldView,view);
+        assertNull(fx(() -> controller.picker()),"no chooser window opens"); assertTrue(fx(() -> view.atUserSettings()),"User Settings stays open");
+        assertEquals("B Studio",fx(() -> ((Label)view.lookup("#profile-active")).getText()),"the header follows the switch");
+        assertNull(switchButton(b)); assertNotNull(switchButton(a));
+        assertTrue(fx(() -> settings().lookup("#user-row-"+b).lookup("#user-current-badge") != null),"the new user is marked Current");
+        assertTrue(fx(() -> ((Label)settings().lookup("#profile-feedback")).getText().contains("User selected")));
+        assertTrue(fx(() -> ((Label)settings().lookup(".user-summary-name")).getText().equals("B Studio")),"the profile card shows the new user");
+        nav("F01"); assertEquals(0,fx(() -> ((TableView<?>)controller.workspace().lookup("#session-table")).getItems().size()),"B's own data is shown");
+
+        // A failed switch keeps the current user and reports in the page; nothing is reset.
+        Path file=StorageScope.forProfile(root.resolve("data"),a).inventoryFile(); boolean existed=Files.exists(file);
+        byte[] original=existed ? Files.readAllBytes(file) : null; Files.createDirectories(file.getParent()); Files.writeString(file,"broken");
+        switchTo(a);
+        assertEquals(b,active()); assertSame(view,fx(() -> controller.workspace())); assertTrue(fx(() -> view.atUserSettings()));
+        assertTrue(fx(() -> ((Label)settings().lookup("#profile-feedback")).getText().contains("failed")));
+        assertEquals("broken",Files.readString(file));
+        if (existed) Files.write(file,original); else Files.delete(file);
+        switchTo(a); assertEquals(a,active()); assertTrue(fx(() -> controller.workspace().atUserSettings()));
+
+        // Live language change keeps the page and its state, and the new strings are localized.
+        UUID selectedBefore=fx(() -> settings().selectedUser().id());
+        var shell=fx(() -> controller.workspace());
+        action(() -> manager.activeContext().localization().selectLanguage("zh-CN")); ready();
+        assertSame(shell,fx(() -> controller.workspace())); assertTrue(fx(() -> shell.atUserSettings()));
+        assertEquals(selectedBefore,fx(() -> settings().selectedUser().id()));
+        assertEquals("切换",fx(() -> switchOn(b).getText())); assertEquals("当前",fx(() -> ((Label)settings().lookup("#user-current-badge")).getText()));
+        assertEquals("切换到 B Studio",fx(() -> switchOn(b).getAccessibleText()));
+        snapshot(fx(() -> controller.workspace()),"user-settings-switch-zh");
+        action(() -> manager.activeContext().localization().selectLanguage("en")); ready();
     }
     @Test void closingTheChooserUsesTheSameGuardAsTheMainWindow() throws Exception {
         mainClick("session-create"); field("session-field-title","Unsaved"); profiles();

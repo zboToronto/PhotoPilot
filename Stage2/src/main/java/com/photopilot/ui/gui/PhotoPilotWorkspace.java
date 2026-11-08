@@ -26,9 +26,8 @@ final class PhotoPilotWorkspace extends BorderPane {
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
     private final Label storageNotice = FeaturePane.label("", "feedback-text");
     private final Label profileName = FeaturePane.label("", "profile-current");
-    private final Button userButton = new Button();
-    private final ContextMenu userMenu = new ContextMenu();
-    private final MenuItem switchWorkspace;
+    /** Read-only current-user indicator (avatar and name); switching users lives in User Settings. */
+    private final HBox identity = new HBox(8);
     private final ScrollPane contentScroll;
     private String selectedId;
     private long selectionVersion;
@@ -48,7 +47,6 @@ final class PhotoPilotWorkspace extends BorderPane {
         storageNotice.getStyleClass().add("feedback-box");
         storageNotice.setMaxWidth(Double.MAX_VALUE);
         storageNotice.setVisible(false); storageNotice.setManaged(false);
-        switchWorkspace = menuItem("menu-switch-workspace", "menu.switchWorkspace", () -> { });
         setTop(new VBox(header(), storageNotice));
 
         content.setAlignment(Pos.TOP_CENTER);
@@ -164,23 +162,16 @@ final class PhotoPilotWorkspace extends BorderPane {
     private HBox header() {
         Label brand = texts.label("app.title", "brand");
         profileName.setId("profile-active"); profileName.setWrapText(false); profileName.setMaxWidth(220); profileName.setMinHeight(Region.USE_COMPUTED_SIZE);
-        var identity = new HBox(8, avatar, profileName, AppIcons.outline(AppIcons.CHEVRON_DOWN, "user-menu-chevron")); identity.setAlignment(Pos.CENTER_LEFT);
-        userButton.setId("user-menu"); userButton.getStyleClass().setAll("user-menu"); userButton.setGraphic(identity); userButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        userButton.setVisible(false); userButton.setManaged(false);
-        userButton.setOnAction(event -> {
-            var bounds = userButton.localToScreen(userButton.getBoundsInLocal());
-            userMenu.show(userButton, bounds.getMaxX(), bounds.getMaxY() + 6); userMenu.setX(bounds.getMaxX() - userMenu.getWidth());
-        });
-        userMenu.getStyleClass().add("app-menu"); userMenu.getScene().getRoot().setStyle("-fx-background-color: transparent;");
-        userMenu.getItems().addAll(menuItem("menu-user-settings", "menu.userSettings", this::showUserSettings),
-            menuItem("menu-app-settings", "menu.appSettings", this::showApplicationSettings), new SeparatorMenuItem(), switchWorkspace);
-        HBox header = new HBox(10, AppIcons.logo(26), brand, spacer(), userButton);
+        profileName.setTextOverrun(OverrunStyle.ELLIPSIS); FxLocalizer.tooltipWhenClipped(profileName);
+        // Display only: not focusable, no pointer cursor, no menu. It follows the active user automatically.
+        identity.getChildren().setAll(avatar, profileName); identity.setAlignment(Pos.CENTER_LEFT);
+        identity.setId("user-indicator"); identity.getStyleClass().add("user-indicator"); identity.setMinWidth(Region.USE_PREF_SIZE);
+        identity.setAccessibleRole(javafx.scene.AccessibleRole.TEXT);
+        identity.setVisible(false); identity.setManaged(false);
+        HBox header = new HBox(10, AppIcons.logo(26), brand, spacer(), identity);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("app-header");
         return header;
-    }
-    private MenuItem menuItem(String id, String label, Runnable action) {
-        var item = new MenuItem(); item.setId(id); texts.text(item.textProperty(), label); item.setOnAction(event -> action.run()); return item;
     }
 
     private static Region spacer() {
@@ -232,13 +223,13 @@ final class PhotoPilotWorkspace extends BorderPane {
         userSettings = pane; userSettingsButton.setVisible(true); userSettingsButton.setManaged(true);
     }
     UserSettingsPane userSettings() { return userSettings; }
-    ContextMenu userMenu() { return userMenu; }
-    void connectProfiles(Runnable switchUser) {
-        userButton.setVisible(true); userButton.setManaged(true); switchWorkspace.setOnAction(event -> switchUser.run());
-    }
+    /** Shows the current-user indicator once a profile session is connected. */
+    void connectProfiles() { identity.setVisible(true); identity.setManaged(true); }
     void showProfile(java.util.Optional<com.photopilot.model.LocalProfile> profile) {
         home.user(profile);
-        texts.bind(profileName.textProperty(), () -> profile.map(com.photopilot.model.LocalProfile::displayName).orElseGet(() -> localization.text("profile.unavailable")));
+        java.util.function.Supplier<String> name = () -> profile.map(com.photopilot.model.LocalProfile::displayName).orElseGet(() -> localization.text("profile.unavailable"));
+        texts.bind(profileName.textProperty(), name);
+        texts.bind(identity.accessibleTextProperty(), () -> localization.text("user.indicatorAccessible", name.get()));
     }
     void freeze(boolean value) { setDisable(value); }
     void dispose() {
