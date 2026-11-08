@@ -117,6 +117,8 @@ final class FxLocalizer implements AutoCloseable {
         });
         box.setCellFactory(list -> cell(display, emptyText, false));
         box.setButtonCell(cell(display, emptyText, true));
+        // An open list without options says so, instead of showing an empty panel. Nothing is added to the items.
+        if (box.getPlaceholder() == null) box.setPlaceholder(label("dropdown.empty", "dropdown-empty"));
     }
     private <T> ListCell<T> cell(java.util.function.Function<T, String> display, Supplier<String> emptyText, boolean button) {
         return new ListCell<>() {

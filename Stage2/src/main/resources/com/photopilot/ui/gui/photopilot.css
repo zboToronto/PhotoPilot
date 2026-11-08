@@ -295,6 +295,41 @@
 }
 .inventory-content .text-field:focused, .inventory-content .combo-box:focused, .surface-panel .combo-box:focused { -fx-border-color: -pp-focus-ring; }
 
+/* Dropdowns: one design for every ComboBox. The collapsed control is an input (radius 8, sizes unchanged); the open
+   list is a level-2 surface (radius 12, items radius 7) that follows Transparency through the same tokens as cards,
+   with the glass rim and sheen. DropdownSkin keeps the standard behaviour and adds the frosted backdrop behind the
+   list and placement inside the window. */
+.combo-box {
+    -fx-skin: "com.photopilot.ui.gui.DropdownSkin";
+    -fx-background-color: -pp-input; -fx-background-insets: 0; -fx-background-radius: 8;
+    -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-cursor: hand;
+}
+.combo-box:hover { -fx-border-color: -pp-border-strong; }
+.combo-box:focused, .combo-box:showing { -fx-border-color: -pp-focus-ring; }
+.combo-box > .list-cell { -fx-background-color: transparent; -fx-text-fill: -pp-text; }
+.combo-box > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 4 0 6; }
+.combo-box > .arrow-button > .arrow {
+    -fx-background-color: -pp-text-muted; -fx-padding: 2.6 4.4;
+    -fx-shape: "M0 1.2 L1.2 0 L4.4 3.2 L7.6 0 L8.8 1.2 L4.4 5.6 Z";
+}
+.combo-box:showing > .arrow-button > .arrow { -fx-rotate: 180; -fx-background-color: -pp-accent-text; }
+.combo-box-popup > .list-view {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-insets: 0; -fx-background-radius: 12;
+    -fx-border-color: -pp-border; -fx-border-width: 1; -fx-border-radius: 12;
+    -fx-padding: 5;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 22, 0.3, 0, 7);
+}
+.combo-box-popup > .list-view > .virtual-flow > .corner { -fx-background-color: transparent; }
+.combo-box-popup .list-cell {
+    -fx-background-color: transparent; -fx-background-insets: 1 0; -fx-background-radius: 7;
+    -fx-padding: 6 10; -fx-text-fill: -pp-text;
+}
+.combo-box-popup .list-cell:filled:hover { -fx-background-color: -pp-hover; }
+.combo-box-popup .list-cell:filled:selected, .combo-box-popup .list-cell:filled:selected:hover {
+    -fx-background-color: -pp-selected-soft; -fx-text-fill: -pp-accent-text;
+}
+.combo-box-popup > .list-view > .placeholder { -fx-padding: 0; }
+.dropdown-empty { -fx-text-fill: -pp-text-muted; -fx-font-size: 12.5px; -fx-padding: 8 12; }
 .inventory-content .table-view { -fx-background-color: -pp-input; -fx-border-color: -pp-hairline; -fx-background-radius: 8; -fx-border-radius: 8; }
 .inventory-content .table-view .column-header, .inventory-content .table-view .filler { -fx-background-color: -pp-table-header; -fx-size: 38; }
 .inventory-content .table-row-cell { -fx-background-color: transparent; -fx-cell-size: 40; }
