@@ -225,6 +225,79 @@
 .card-action { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
 .module-card-planned .card-action { -fx-font-weight: normal; -fx-text-fill: -pp-text-muted; }
 
+/* Home dashboard only (scoped to #home-dashboard): welcome card, Mini AI inspiration card and the session cards. The
+   cards are level-2 surfaces (radius 16) that keep the frosted backdrop of .surface-panel; actions are rounded
+   rectangles (radius 10) except the Generate pill. Existing tokens only, so every theme, mode and Transparency applies.
+   Every card's content starts 22 px from its left edge, so the avatar, the Mini AI question and the session icons align. */
+#home-dashboard .home-card {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 18, 0, 0, 4);
+}
+#home-dashboard .home-welcome { -fx-padding: 16 22; }
+#home-dashboard .home-inspiration { -fx-padding: 22; }
+#home-dashboard .home-session { -fx-padding: 18 20 18 22; }
+#home-dashboard .home-icon-box { -fx-background-color: -pp-accent-soft; -fx-background-radius: 10; }
+#home-dashboard .home-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+#home-dashboard .home-card-heading { -fx-font-size: 16px; -fx-font-weight: bold; }
+#home-dashboard .home-pill {
+    -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text;
+    -fx-background-color: -pp-accent-soft; -fx-background-radius: 14; -fx-padding: 4 12;
+}
+#home-dashboard .home-pill-neutral { -fx-text-fill: -pp-text-muted; -fx-background-color: -pp-badge; }
+#home-dashboard .home-ai-question { -fx-font-size: 28px; -fx-font-weight: bold; }
+#home-dashboard .home-ai-description { -fx-font-size: 14px; -fx-text-fill: -pp-text-muted; }
+#home-dashboard .home-prompt, #home-dashboard .home-prompt:focused {
+    -fx-background-color: -pp-input; -fx-background-insets: 0; -fx-background-radius: 12;
+    -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 6 8; -fx-font-size: 14px;
+    /* Default about two lines; grows with the text (HomeDashboard.fitPrompt) up to 120, then scrolls. */
+    -fx-min-height: 64; -fx-max-height: 120;
+}
+#home-dashboard .home-prompt:focused { -fx-border-color: -pp-focus-ring; }
+#home-dashboard .home-prompt .content, #home-dashboard .home-prompt:focused .content { -fx-background-color: transparent; -fx-padding: 4 6; }
+#home-dashboard .home-prompt .scroll-pane, #home-dashboard .home-prompt .scroll-pane > .viewport { -fx-background-color: transparent; }
+#home-dashboard .home-chip {
+    -fx-background-color: -pp-control; -fx-border-color: -pp-hairline; -fx-background-radius: 20; -fx-border-radius: 20;
+    -fx-padding: 0 16 0 13; -fx-min-height: 38; -fx-pref-height: 38; -fx-font-size: 13.5px; -fx-text-fill: -pp-text; -fx-graphic-text-gap: 8;
+}
+#home-dashboard .home-chip:hover { -fx-background-color: -pp-surface-2-hover; -fx-border-color: -pp-border-strong; }
+#home-dashboard .home-chip:armed { -fx-background-color: -pp-control, -pp-pressed; }
+#home-dashboard .home-chip:focus-visible { -fx-border-color: -pp-focus-ring; }
+#home-dashboard .home-chip-icon { -fx-fill: transparent; -fx-stroke: -pp-text; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.8; -fx-scale-y: 0.8; }
+#home-dashboard .home-action {
+    -fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 0 18;
+    -fx-min-height: 38; -fx-pref-height: 38; -fx-font-size: 14px; -fx-graphic-text-gap: 7;
+}
+#home-dashboard .home-action.primary-button:focus-visible { -fx-background-radius: 12.5, 10; }
+#home-dashboard .home-outline { -fx-border-color: -pp-accent-border; -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+#home-dashboard .home-outline:hover { -fx-background-color: -pp-control, -pp-accent-soft; }
+#home-dashboard .home-outline:focus-visible { -fx-border-color: -pp-focus-ring; }
+#home-dashboard .home-generate { -fx-background-radius: 22; -fx-border-radius: 22; -fx-min-height: 42; -fx-pref-height: 42; -fx-padding: 0 22; -fx-font-size: 14.5px; -fx-graphic-text-gap: 8; }
+#home-dashboard .home-generate:disabled { -fx-opacity: 0.62; }
+#home-dashboard .home-button-icon { -fx-fill: transparent; -fx-stroke: -pp-primary-text; -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.72; -fx-scale-y: 0.72; }
+#home-dashboard .home-outline .home-button-icon { -fx-stroke: -pp-accent-text; }
+#home-dashboard .home-session-title { -fx-font-size: 22px; -fx-font-weight: bold; }
+#home-dashboard .home-session-description { -fx-font-size: 14px; }
+#home-dashboard .home-session-meta { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; }
+/* Mini AI answer area: hidden until the first answer; status line for loading, validation and errors. */
+#home-dashboard .home-ai-status { -fx-font-size: 13.5px; -fx-text-fill: -pp-text-muted; }
+#home-dashboard .home-ai-status.home-ai-error { -fx-text-fill: -pp-danger; }
+#home-dashboard .home-ai-progress { -fx-progress-color: -pp-accent; }
+#home-dashboard .home-ai-response-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.8; -fx-scale-y: 0.8; }
+#home-dashboard .home-ai-response-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+/* The question is secondary; the answer is body text on a subtle inner surface (no border or shadow) that wraps at the surface's width. */
+#home-dashboard .home-ai-asked { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+#home-dashboard .home-ai-asked-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.8; -fx-stroke-line-join: round; -fx-scale-x: 0.6; -fx-scale-y: 0.6; }
+#home-dashboard .home-ai-answer-box { -fx-background-color: -pp-badge; -fx-background-radius: 12; -fx-padding: 12 14; }
+#home-dashboard .home-ai-answer { -fx-font-size: 14.5px; -fx-line-spacing: 3.5; -fx-text-fill: -pp-text; }
+/* Earlier exchanges: muted text, a hairline between them. */
+#home-dashboard .home-ai-history-later { -fx-border-color: -pp-hairline transparent transparent transparent; -fx-border-width: 1 0 0 0; -fx-padding: 8 0 0 0; }
+#home-dashboard .home-ai-history-question { -fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+#home-dashboard .home-ai-history-answer { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+#home-dashboard .home-link { -fx-background-color: transparent; -fx-border-color: transparent; -fx-border-radius: 6; -fx-padding: 3 6; -fx-font-size: 13px; -fx-text-fill: -pp-accent-text; }
+#home-dashboard .home-link:hover { -fx-underline: true; }
+#home-dashboard .home-link:focus-visible { -fx-border-color: -pp-focus-ring; }
+#home-dashboard .home-link:disabled { -fx-opacity: 0.5; }
+
 /* User Settings. */
 .user-summary-name { -fx-font-size: 19px; -fx-font-weight: bold; }
 .user-row {

@@ -155,4 +155,21 @@ class GeminiAdapterTest {
             Duration.ofSeconds(5), configured()).complete(new AgentContext(UUID.randomUUID(), List.of("ping"), "{}", List.of(), Optional.empty()));
         assertFailure(unreachable, "ai.error.network");
     }
+
+    @Test void outputTokenCapIsSentOnlyForRequestsThatAskForIt() {
+        respond(200, "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Four.\"}]}}]}");
+        assertTrue(send().isSuccess());
+        assertFalse(sentBody.get().contains("generationConfig"), "requests without a cap keep the provider default");
+        var plain = new AgentContext(UUID.randomUUID(), List.of("Ideas for tonight?"), "{}", List.of(), Optional.empty());
+        assertTrue(adapter(configured(), Duration.ofSeconds(5)).complete(plain.withMaxOutputTokens(1024)).isSuccess());
+        var config = com.google.gson.JsonParser.parseString(sentBody.get()).getAsJsonObject().getAsJsonObject("generationConfig");
+        assertEquals(1024, config.get("maxOutputTokens").getAsInt());
+        assertFalse(config.has("responseMimeType"), "a plain-text request stays plain text");
+        assertTrue(adapter(configured(), Duration.ofSeconds(5)).complete(plain.withResponseSchema("{\"type\":\"object\"}").withMaxOutputTokens(64)).isSuccess());
+        config = com.google.gson.JsonParser.parseString(sentBody.get()).getAsJsonObject().getAsJsonObject("generationConfig");
+        assertEquals("application/json", config.get("responseMimeType").getAsString());
+        assertEquals(64, config.get("maxOutputTokens").getAsInt());
+        assertEquals(0, plain.maxOutputTokens(), "the original context is unchanged");
+        assertThrows(IllegalArgumentException.class, () -> plain.withMaxOutputTokens(-1));
+    }
 }

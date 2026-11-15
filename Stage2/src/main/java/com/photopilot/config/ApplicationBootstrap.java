@@ -127,15 +127,18 @@ public final class ApplicationBootstrap implements AutoCloseable {
         // for instead); F07's verified candidates already reach F10 as labelled offers, so GearMatchingTool would
         // duplicate GearMatchingService; SpecificationTool would let model-chosen names reach external catalogues.
         tools.register(new CalculationTool(calculator));
-        facade = new PhotoPilotFacade(new SessionService(sessions),
-            new InventoryService(inventory, sessions, new GearRecognitionService(agent, specifications)),
+        var inventoryService = new InventoryService(inventory, sessions, new GearRecognitionService(agent, specifications));
+        facade = new PhotoPilotFacade(new SessionService(sessions), inventoryService,
             // F02 reads F05 inventory and F07's deterministic loadout generation; it never ranks gear or writes inventory.
             new DiscoveryService(agent, environmentService, feasibility, sessions, inventory, matching),
             new PlanningService(new RequirementService(agent), matching, environmentService, agent,
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
-            // F11: local JPEG EXIF + ExifTool JSON reading; statistics never involve the agent, which only interprets them.
+            // F11: local JPEG EXIF + ExifTool JSON reading + RAW metadata through the bundled ExifTool; statistics never
+            // involve the agent, which only interprets them.
             new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.DEFAULT_FORMATS), new StatisticsCalculator(), agent, sessions),
-            calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel));
+            calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel),
+            // Home Mini AI: the same model port (key, model, timeout, language policy); sends only when the user asks.
+            new MiniAiService(model, inventoryService, java.time.Clock.systemDefaultZone()));
     }
 
     /** Gemini request timeout; 30 s unless GEMINI_TIMEOUT_SECONDS (5-300) is set, e.g. for longer F10 planning replies. */

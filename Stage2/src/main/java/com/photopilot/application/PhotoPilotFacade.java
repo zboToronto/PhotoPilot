@@ -24,6 +24,7 @@ import com.photopilot.service.DiscoveryService;
 import com.photopilot.config.LLMConfiguration;
 import com.photopilot.service.InventoryService;
 import com.photopilot.service.LLMDiagnosticService;
+import com.photopilot.service.MiniAiService;
 import com.photopilot.service.PlanningService;
 import com.photopilot.service.ReviewService;
 import com.photopilot.service.SessionService;
@@ -45,6 +46,8 @@ public class PhotoPilotFacade {
     // Read-only F06 inventory report over the injected InventoryService; it holds no state of its own.
     private final com.photopilot.service.GearCapabilityService capabilities;
     private final LLMDiagnosticService aiDiagnostics;
+    // Home Mini AI over the same model port; stateless, reads F05 inventory only for the gear prompt.
+    private final MiniAiService miniAi;
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations) {
         this(sessions, inventory, discovery, planning, review, calculations, new LLMDiagnosticService(
@@ -52,7 +55,13 @@ public class PhotoPilotFacade {
     }
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics) {
+        this(sessions, inventory, discovery, planning, review, calculations, aiDiagnostics, new MiniAiService(
+            context -> Result.failureKey("error.notImplemented", "LLMClient"), inventory, java.time.Clock.systemDefaultZone()));
+    }
+
+    public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics, MiniAiService miniAi) {
         this.aiDiagnostics = Objects.requireNonNull(aiDiagnostics, "aiDiagnostics");
+        this.miniAi = Objects.requireNonNull(miniAi, "miniAi");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.inventory = Objects.requireNonNull(inventory, "inventory");
         this.capabilities = new com.photopilot.service.GearCapabilityService(inventory);
@@ -138,6 +147,10 @@ public class PhotoPilotFacade {
 
     /** Diagnostic Gemini connection check only; not an AI feature. */
     public LLMDiagnosticService aiDiagnostics() { return aiDiagnostics; }
+
+    /** Home Mini AI: short inspiration answers; independent of F02 discovery(). */
+    public MiniAiService miniAi() { return miniAi; }
+
 
     public SessionService sessions() {
         return sessions;

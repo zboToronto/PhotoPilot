@@ -141,13 +141,15 @@ public class GeminiAdapter implements LLMClient {
             instruction.add("parts", system);
             body.add("systemInstruction", instruction);
         }
+        JsonObject generation = new JsonObject();
         if (!context.responseSchema().isBlank()) {
-            JsonObject generation = new JsonObject();
             generation.addProperty("responseMimeType", "application/json");
             // Gemini's JSON Schema field; the schema itself stays provider-neutral in AgentContext.
             generation.add("responseJsonSchema", JsonParser.parseString(context.responseSchema()));
-            body.add("generationConfig", generation);
         }
+        // Only a request that asks for a cap (Home Mini AI) gets one; every other request body is unchanged.
+        if (context.maxOutputTokens() > 0) generation.addProperty("maxOutputTokens", context.maxOutputTokens());
+        if (generation.size() > 0) body.add("generationConfig", generation);
         return body.toString();
     }
 

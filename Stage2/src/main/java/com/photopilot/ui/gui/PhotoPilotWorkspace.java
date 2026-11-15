@@ -38,7 +38,7 @@ final class PhotoPilotWorkspace extends BorderPane {
         texts = new FxLocalizer(this, localization);
         texts.useReadableFont(this);
         detail = new FeaturePane(localization);
-        home = new HomeDashboard(localization, id -> navigation.get(id).fire());
+        home = new HomeDashboard(localization);
         applicationSettings = new ApplicationSettingsPane(localization);
         getStyleClass().add("workspace");
         // Decorative wave background behind the unchanged shell; it blurs only what shows through translucent surfaces.
@@ -149,7 +149,10 @@ final class PhotoPilotWorkspace extends BorderPane {
         selectedId = id; selectionVersion++; button.setSelected(true);
         content.getChildren().setAll(page); contentScroll.setVvalue(0);
     }
-    void showHome() { showPage(HOME, homeButton, home); }
+    /** Home re-reads the active user's sessions each time it is shown (the same activate-on-show refresh as the feature pages). */
+    void showHome() { showPage(HOME, homeButton, home); home.refresh(); }
+    /** No load here: during startup the chooser must find the worker queue idle; Home loads when it is next shown. */
+    void connectHome(HomeDashboard.Links links) { home.connect(links); }
     boolean atHome() { return HOME.equals(selectedId); }
     void showUserSettings() { showPage(USER_SETTINGS, userSettingsButton, userSettings); userSettings.refresh(); }
     boolean atUserSettings() { return USER_SETTINGS.equals(selectedId); }

@@ -76,6 +76,7 @@ final class GuiProfileController implements AutoCloseable {
         workspace.connectCapabilities(capability);
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
         workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
+        workspace.connectHome(new HomeDashboard.Links(context.facade(), operations, this::showSession, this::reviewSession, view::selectDiscovery));
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, this::switchFromSettings, language));
         workspace.connectProfiles(); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
@@ -167,6 +168,8 @@ final class GuiProfileController implements AutoCloseable {
         try { return alert.showAndWait().filter(yes::equals).isPresent(); } finally { localizer.close(); }
     }
     void showSession(UUID id) { if (!switching && !closed) { workspace.selectSessions(); sessions.open(id); } }
+    /** Home "After the shoot": the existing F11 page with that session selected. */
+    void reviewSession(UUID id) { if (!switching && !closed) { review.prefer(id); workspace.selectReview(); } }
     /** Routes an external brief into the F03 pane, which owns review and explicit confirmation. */
     void submitBrief(UUID id, String text) {
         if (switching || closed) return;

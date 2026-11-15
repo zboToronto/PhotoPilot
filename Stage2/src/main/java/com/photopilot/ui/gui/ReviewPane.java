@@ -43,6 +43,7 @@ final class ReviewPane extends VBox {
     private ExifAnalysis analysis;
     private ReviewDraft draft;
     private boolean busy, disposed;
+    private UUID preferred;
 
     ReviewPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
@@ -92,10 +93,14 @@ final class ReviewPane extends VBox {
     /** Test hook equivalent to typing a path and pressing Add. */
     void select(Path file) { selected.add(file.toAbsolutePath().normalize()); renderSelection(); }
 
+    /** Home "After the shoot": the session the next refresh selects; an open review draft keeps its own session. */
+    void prefer(UUID id) { preferred = id; }
+
     /** Completed sessions accept imports and reviews; reviewed ones reopen their saved evidence and reviews. */
     void refresh() {
-        UUID current = draft != null ? draft.sessionId() : session.getValue() == null ? null : session.getValue().id();
+        UUID current = draft != null ? draft.sessionId() : preferred != null ? preferred : session.getValue() == null ? null : session.getValue().id();
         run(() -> app.sessions().search(""), found -> {
+            preferred = null;
             var eligible = found.stream().filter(s -> s.status().equals("COMPLETED") || s.status().equals("REVIEWED")).toList();
             session.getItems().setAll(eligible);
             eligible.stream().filter(s -> s.id().equals(current)).findFirst().ifPresentOrElse(session::setValue,

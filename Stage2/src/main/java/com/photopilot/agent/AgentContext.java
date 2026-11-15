@@ -25,6 +25,7 @@ public class AgentContext {
     private String responseLanguageInstruction = "";
     private String taskInstruction = "";
     private String responseSchema = "";
+    private int maxOutputTokens;
     private List<ToolExchange> toolResults = new java.util.ArrayList<>();
 
     public AgentContext(UUID sessionId, List<String> messages, String evidenceJson, List<PhotographySession> history, Optional<SanitizedImage> approvedImage) {
@@ -54,6 +55,7 @@ public class AgentContext {
         copy.responseLanguageInstruction = responseLanguageInstruction;
         copy.taskInstruction = taskInstruction;
         copy.responseSchema = responseSchema;
+        copy.maxOutputTokens = maxOutputTokens;
         copy.toolResults = new java.util.ArrayList<>(toolResults);
         return copy;
     }
@@ -88,9 +90,20 @@ public class AgentContext {
         copy.responseSchema = Objects.requireNonNull(schemaJson);
         return copy;
     }
+    /**
+     * Request-scoped output-token cap for providers that support one (Home Mini AI only). 0, the default, sends no cap,
+     * so every other request keeps the provider's default output length.
+     */
+    public AgentContext withMaxOutputTokens(int tokens) {
+        if (tokens < 0) throw new IllegalArgumentException("maxOutputTokens must not be negative");
+        AgentContext copy = copy();
+        copy.maxOutputTokens = tokens;
+        return copy;
+    }
     public String responseLanguageInstruction() { return responseLanguageInstruction; }
     public String taskInstruction() { return taskInstruction; }
     public String responseSchema() { return responseSchema; }
+    public int maxOutputTokens() { return maxOutputTokens; }
     public List<String> messages() { return messages; }
     public String evidenceJson() { return evidenceJson; }
     public List<PhotographySession> history() { return history; }

@@ -128,11 +128,11 @@ class ProfileGuiTest {
         action(() -> ((Button)panel().lookup("#profile-enter")).fire()); ready();
         assertEquals(selected, active()); assertTrue(fx(() -> controller.workspace().atHome()));
         snapshot(fx(() -> controller.workspace()), "home-dashboard-en");
-        for (String feature : List.of("F05", "F01", "F08", "F10", "F02", "F09")) {
-            mainClick("home-" + feature); assertFalse(fx(() -> controller.workspace().atHome()));
-            action(() -> ((ToggleButton)controller.workspace().lookup("#nav-home")).fire()); ready();
-            assertTrue(fx(() -> controller.workspace().atHome()));
-        }
+        // Home has no feature grids or New shoot button any more; the sidebar still reaches every page and returns Home.
+        assertNull(fx(() -> controller.workspace().lookup(".module-card"))); assertNull(fx(() -> controller.workspace().lookup("#home-new-session")));
+        nav("F01"); assertFalse(fx(() -> controller.workspace().atHome()));
+        action(() -> ((ToggleButton)controller.workspace().lookup("#nav-home")).fire()); ready();
+        assertTrue(fx(() -> controller.workspace().atHome()));
         action(() -> { manager.activeContext().localization().selectLanguage("zh-CN"); stage.setWidth(880); stage.setHeight(600); });
         resized(stage, 880, 600); snapshot(fx(() -> controller.workspace()), "home-dashboard-narrow-zh");
         profiles(); snapshot(panelOnFx(), "user-selection-narrow-zh"); click("profile-enter");
