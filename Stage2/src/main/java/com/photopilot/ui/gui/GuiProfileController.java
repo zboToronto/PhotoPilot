@@ -76,6 +76,8 @@ final class GuiProfileController implements AutoCloseable {
         workspace.connectCapabilities(capability);
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
         workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
+        // Gear Inventory's second card: the shutter count checker (bundled ExifTool, started on the first check).
+        workspace.connectShutterCount(new ShutterCountPane(context.facade(), operations, language));
         workspace.connectHome(new HomeDashboard.Links(context.facade(), operations, this::showSession, this::reviewSession, view::selectDiscovery));
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, this::switchFromSettings, language));
         workspace.connectProfiles(); workspace.showProfile(Optional.of(selected));

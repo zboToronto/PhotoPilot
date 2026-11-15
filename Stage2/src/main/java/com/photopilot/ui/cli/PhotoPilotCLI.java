@@ -179,6 +179,9 @@ public class PhotoPilotCLI {
         if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
             return new InventoryCommands(app, output, localization).execute(command.equals("f05") ? "gear list" : line.strip());
         }
+        if (command.equals("shutter") || command.startsWith("shutter ")) {
+            return new ShutterCommands(app, output, localization).execute(line.strip());
+        }
         if (command.equals("f04") || command.equals("import") || command.startsWith("import ")) {
             return new ImportCommands(app, privacy, output, localization, importState).execute(command.equals("f04") ? "import help" : line.strip());
         }
@@ -218,7 +221,7 @@ public class PhotoPilotCLI {
             return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("needs.cli.summaryHelp")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); output.println(localization.text("review.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
+            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("needs.cli.summaryHelp")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); output.println(localization.text("review.cli.summaryHelp")); output.println(localization.text("shutter.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
             case "ai-test" -> { return new AiTestCommands(app, output, localization).execute(); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { importState.clear(privacy); output.println(localization.text("cli.closed")); return 1; }

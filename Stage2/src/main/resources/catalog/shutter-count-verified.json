@@ -1,0 +1,6 @@
+{
+  "note": "Camera models whose shutter-count extraction PhotoPilot verified with a real, unedited photograph, compared with an independent shutter count tool. Only the model and the counter field are recorded: photo files, counts, dates and other photo metadata are deliberately not stored.",
+  "verified": [
+    { "brand": "Sony", "model": "ILCE-7RM5", "field": "Sony Tag9050c ShutterCount", "format": "ARW", "verifiedOn": "2026-11-09", "exiftoolVersion": "13.62" }
+  ]
+}

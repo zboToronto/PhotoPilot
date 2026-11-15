@@ -27,6 +27,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
     private final JsonLocalePreferenceRepository preferences;
     private final StorageScope storageScope;
     private final ProfileAccess profileAccess;
+    // Shutter count checker: the bundled ExifTool starts on the first check (never here) and stops in close().
+    private final ExifToolProcess exifTool;
 
     private final Optional<LocalizedMessage> storageNotice;
 
@@ -48,6 +50,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
         URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
         timeoutSeconds(environment);
+        exifToolTimeoutSeconds(environment);
         try {
             if (defaultProfile || requested.profileId().isPresent()) {
                 var registry = new JsonProfileRepository(requested.root());
@@ -120,6 +123,10 @@ public final class ApplicationBootstrap implements AutoCloseable {
             endpoint(environment, "PHOTOPILOT_SPEC_LENSFUN_ENDPOINT", EquipmentCatalogAdapter.DEFAULT_LENSFUN),
             http, providerTimeout, java.time.Clock.systemUTC());
         PlanValidator validator = new PlanValidator(compatibility, calculator, feasibility);
+        // Constructing the process starts nothing; the bundle is located (and, from a JAR, extracted) on the first check.
+        exifTool = new ExifToolProcess(ExifToolRuntime.forEnvironment(environment)::resolve, Duration.ofSeconds(exifToolTimeoutSeconds(environment)));
+        // One ExifTool (one request at a time) serves both the shutter count checker and RAW files in the post-shoot review.
+        ExifToolAdapter exifToolReader = new ExifToolAdapter(exifTool);
         // Phase two closes the existing agent -> registry -> tools -> services -> agent cycle.
         // register() is in the approved UML. It does not execute any tool or request. Only tools a task permits are
         // registered: F10 may call the F08 calculator. The other Stage 1 tools stay unregistered by design:
@@ -138,7 +145,20 @@ public final class ApplicationBootstrap implements AutoCloseable {
             new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.DEFAULT_FORMATS), new StatisticsCalculator(), agent, sessions),
             calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel),
             // Home Mini AI: the same model port (key, model, timeout, language policy); sends only when the user asks.
-            new MiniAiService(model, inventoryService, java.time.Clock.systemDefaultZone()));
+            new MiniAiService(model, inventoryService, java.time.Clock.systemDefaultZone()),
+            // Gear Inventory shutter count checker: local, read-only ExifTool metadata; never involves the agent.
+            new ShutterCountService(exifToolReader, CameraModelCatalog.bundled()));
+    }
+
+    /** Per-request ExifTool timeout; 30 s unless PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS (5-300) is set (slow network drives). */
+    static int exifToolTimeoutSeconds(Map<String, String> environment) {
+        String value = environment.getOrDefault("PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS", "").strip();
+        if (value.isEmpty()) return 30;
+        try {
+            int seconds = Integer.parseInt(value);
+            if (seconds >= 5 && seconds <= 300) return seconds;
+        } catch (NumberFormatException invalid) { /* reported below */ }
+        throw new IllegalArgumentException("PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS must be a whole number from 5 to 300");
     }
 
     /** Gemini request timeout; 30 s unless GEMINI_TIMEOUT_SECONDS (5-300) is set, e.g. for longer F10 planning replies. */
@@ -168,5 +188,5 @@ public final class ApplicationBootstrap implements AutoCloseable {
     public StorageScope storageScope() { return storageScope; }
 
     @Override
-    public void close() { if (profileAccess != null) profileAccess.close(); http.close(); }
+    public void close() { exifTool.close(); if (profileAccess != null) profileAccess.close(); http.close(); }
 }

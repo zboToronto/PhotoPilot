@@ -1,0 +1,4 @@
+# Vendored official ExifTool package: keep every byte as distributed (no line-ending conversion),
+# so MANIFEST.sha256 stays valid on every checkout.
+# Upstream whitespace is intentional; verify package bytes with MANIFEST.sha256 instead.
+* -text -whitespace

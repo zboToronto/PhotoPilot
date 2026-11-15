@@ -409,14 +409,14 @@
 
 /* F01/F05/F08 forms and tables share the same input and table treatment. Inputs stay near-opaque at every Transparency. */
 .inventory-content { -fx-padding: 0; }
-.inventory-content .text-field, .inventory-content .combo-box, .surface-panel .combo-box {
+.inventory-content .text-field, .inventory-content .combo-box, .surface-panel .combo-box, .shutter-content .text-field {
     -fx-background-color: -pp-input;
     -fx-background-radius: 8;
     -fx-border-color: -pp-hairline;
     -fx-border-radius: 8;
     -fx-padding: 6 10;
 }
-.inventory-content .text-field:focused, .inventory-content .combo-box:focused, .surface-panel .combo-box:focused { -fx-border-color: -pp-focus-ring; }
+.inventory-content .text-field:focused, .inventory-content .combo-box:focused, .surface-panel .combo-box:focused, .shutter-content .text-field:focused { -fx-border-color: -pp-focus-ring; }
 
 /* Dropdowns: one design for every ComboBox. The collapsed control is an input (radius 8, sizes unchanged); the open
    list is a level-2 surface (radius 12, items radius 7) that follows Transparency through the same tokens as cards,
@@ -470,6 +470,50 @@
    .content inset and wrap width. Native line height on purpose: the skin's scroll range ignores line spacing. */
 .inventory-content #requirement-request { -fx-background-radius: 12; -fx-border-radius: 12; -fx-padding: 6 8; -fx-min-height: 120; }
 .inventory-content #requirement-request > .scroll-pane .content { -fx-padding: 6; }
+
+/* Shared file drop zone (FileDropZone): a module's import area that also accepts files dragged in from the operating
+   system. By default it is the dashed import panel; while files are over it, the existing accent tokens (files it
+   accepts) or danger tokens (files it refuses) tint it. Only colours change, so its shape and size stay the same. */
+.file-drop-zone {
+    -fx-background-color: -pp-surface-2; -fx-background-radius: 12;
+    -fx-border-color: -pp-border-strong; -fx-border-style: segments(6, 5); -fx-border-radius: 12;
+    -fx-padding: 18 16;
+}
+.file-drop-zone:drag-accept { -fx-background-color: -pp-surface-2, -pp-accent-soft; -fx-border-color: -pp-accent-border; }
+.file-drop-zone:drag-refuse { -fx-border-color: -pp-danger-border; }
+.file-drop-zone .file-drop-hint { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.file-drop-zone:drag-refuse .file-drop-hint { -fx-text-fill: -pp-danger; }
+.file-drop-zone .file-drop-error { -fx-text-fill: -pp-danger; -fx-font-weight: bold; }
+
+/* Gear Inventory > shutter count checker: the second card on that page, scoped to its own content. Result areas use
+   the table's input surface and hairline; the count area and the note use the existing soft accent and badge tints;
+   status pills and messages reuse the accent and danger tokens. Existing tokens only, so every theme, mode and
+   Transparency applies. */
+.shutter-content .shutter-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.shutter-content .shutter-muted-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.8; -fx-scale-y: 0.8; }
+.shutter-content .shutter-link, .shutter-content .shutter-link:visited {
+    -fx-text-fill: -pp-accent-text; -fx-font-size: 13px; -fx-padding: 0 2; -fx-border-color: transparent; -fx-border-radius: 4; -fx-underline: false; -fx-cursor: hand;
+}
+.shutter-content .shutter-link:hover { -fx-underline: true; }
+.shutter-content .shutter-link:focus-visible { -fx-border-color: -pp-focus-ring; }
+/* The card's photo import area: the shared drop zone, taller here so it is easy to find and to drop onto. */
+.shutter-content .file-drop-zone { -fx-min-height: 240px; -fx-padding: 32 24; }
+.shutter-content .shutter-import-title { -fx-font-size: 14px; -fx-font-weight: bold; }
+.shutter-content .shutter-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.shutter-content .shutter-tile { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 14 16; }
+.shutter-content .shutter-count-tile { -fx-background-color: -pp-accent-soft; -fx-border-color: transparent; }
+.shutter-content .shutter-count-value { -fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.shutter-content .shutter-file-icon { -fx-background-color: -pp-badge; -fx-background-radius: 9; }
+.shutter-content .shutter-status { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; -fx-background-color: -pp-badge; -fx-background-radius: 10; -fx-padding: 3 9; }
+.shutter-content .shutter-note { -fx-background-color: -pp-badge; -fx-background-radius: 10; -fx-padding: 10 14; }
+.shutter-content .shutter-status.shutter-status-running { -fx-text-fill: -pp-accent-text; -fx-background-color: -pp-accent-soft; }
+.shutter-content .shutter-status.shutter-status-success { -fx-text-fill: -pp-accent-text; -fx-background-color: -pp-accent-soft; -fx-font-weight: bold; }
+.shutter-content .shutter-status.shutter-status-failure { -fx-text-fill: -pp-danger; -fx-background-color: -pp-badge; }
+.shutter-content .shutter-progress { -fx-progress-color: -pp-accent; }
+.shutter-content .shutter-messages { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 12 16; }
+.shutter-content .shutter-message { -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.shutter-content .shutter-message-warning { -fx-text-fill: -pp-text; -fx-font-weight: bold; -fx-line-spacing: 2; }
+.shutter-content .shutter-message-error { -fx-text-fill: -pp-danger; -fx-font-weight: bold; -fx-line-spacing: 2; }
 
 /* Photography Tools > calculators (CalculatorPane): six calculators behind one selector, scoped to .calc-content.
    Existing tokens only, so every theme, mode, Transparency and Font Size applies. Inputs reuse the form input
@@ -628,6 +672,20 @@
 .app-dialog .button-bar .button:focus-visible { -fx-border-color: -pp-focus-ring; }
 .app-dialog .button-bar .button:default { -fx-background-color: -pp-primary-fill; -fx-border-color: transparent; -fx-text-fill: -pp-primary-text; }
 .app-dialog .button-bar .button:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+/* Shutter count checker > supported models: a lookup list in the application dialog style. */
+.app-dialog.shutter-models > .content .shutter-models-intro { -fx-font-size: 12.5px; -fx-text-fill: -pp-dialog-muted; -fx-line-spacing: 2; }
+.app-dialog.shutter-models > .content .shutter-models-count, .app-dialog.shutter-models > .content .shutter-models-source { -fx-font-size: 12px; -fx-text-fill: -pp-dialog-muted; }
+.app-dialog.shutter-models .shutter-models-scroll {
+    -fx-background-color: -pp-dialog-input; -fx-background-radius: 10; -fx-border-color: -pp-dialog-input-border; -fx-border-radius: 10; -fx-padding: 4 0;
+}
+.app-dialog.shutter-models .shutter-models-scroll > .viewport { -fx-background-color: transparent; }
+.app-dialog.shutter-models > .content .shutter-models-group { -fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -pp-dialog-muted; -fx-padding: 10 14 4; }
+.app-dialog.shutter-models .shutter-models-row { -fx-padding: 6 14; }
+.app-dialog.shutter-models .shutter-models-row:hover { -fx-background-color: -pp-hover; }
+.app-dialog.shutter-models > .content .shutter-models-name { -fx-font-size: 13px; -fx-text-fill: -pp-dialog-text; }
+.app-dialog.shutter-models > .content .shutter-models-level { -fx-font-size: 12px; -fx-text-fill: -pp-dialog-muted; }
+.app-dialog.shutter-models > .content .shutter-models-level-known { -fx-text-fill: -pp-accent-text; }
+.app-dialog.shutter-models > .content .shutter-models-empty { -fx-font-size: 13px; -fx-text-fill: -pp-dialog-muted; -fx-padding: 14; }
 
 /* F04 AI gear import: scoped to its own content. Image previews sit on an opaque neutral mat, never tinted or translucent. */
 .import-content .import-preview { -fx-background-color: -pp-photo-mat; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6; }

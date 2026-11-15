@@ -211,6 +211,7 @@ final class PhotoPilotWorkspace extends BorderPane {
     void selectReview() { navigation.get("F11").fire(); }
 
     void connectInventory(InventoryPane inventory) { detail.connectInventory(inventory); }
+    void connectShutterCount(ShutterCountPane shutterCount) { detail.connectShutterCount(shutterCount); }
     void selectInventory() { navigation.get("F05").fire(); }
     void connectImport(GearImportPane gearImport) { detail.connectImport(gearImport); }
     void selectImport() { navigation.get("F04").fire(); }

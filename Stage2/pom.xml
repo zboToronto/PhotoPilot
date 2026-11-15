@@ -20,6 +20,16 @@
     <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>
   </dependencies>
   <build>
+    <resources>
+      <resource><directory>src/main/resources</directory></resource>
+      <!-- Official ExifTool 13.62 Windows package for the shutter count checker (third-party/exiftool/NOTICE.md).
+           Copied unfiltered to exiftool/ on the class path, so it is inside target/classes and the JAR. -->
+      <resource>
+        <directory>third-party/exiftool</directory>
+        <targetPath>exiftool</targetPath>
+        <includes><include>NOTICE.md</include><include>MANIFEST.sha256</include><include>exiftool-13.62_64/**</include></includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-clean-plugin</artifactId><version>3.4.0</version></plugin>
       <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>3.3.1</version></plugin>

@@ -28,6 +28,9 @@ import com.photopilot.service.MiniAiService;
 import com.photopilot.service.PlanningService;
 import com.photopilot.service.ReviewService;
 import com.photopilot.service.SessionService;
+import com.photopilot.service.ShutterCountService;
+import com.photopilot.service.CameraModelCatalog;
+import com.photopilot.integration.ExifToolException;
 import com.photopilot.service.TechnicalCalculator;
 import com.photopilot.ui.privacy.SanitizedImage;
 
@@ -48,6 +51,8 @@ public class PhotoPilotFacade {
     private final LLMDiagnosticService aiDiagnostics;
     // Home Mini AI over the same model port; stateless, reads F05 inventory only for the gear prompt.
     private final MiniAiService miniAi;
+    // Gear Inventory shutter count checker: local, read-only metadata through the bundled ExifTool.
+    private final ShutterCountService shutterCount;
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations) {
         this(sessions, inventory, discovery, planning, review, calculations, new LLMDiagnosticService(
@@ -60,6 +65,13 @@ public class PhotoPilotFacade {
     }
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics, MiniAiService miniAi) {
+        // Without a configured reader the checker reports ExifTool as unavailable; the model catalog still works.
+        this(sessions, inventory, discovery, planning, review, calculations, aiDiagnostics, miniAi, new ShutterCountService(
+            file -> { throw new ExifToolException(ExifToolException.Kind.UNAVAILABLE, "No metadata reader configured"); }, CameraModelCatalog.bundled()));
+    }
+
+    public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics, MiniAiService miniAi, ShutterCountService shutterCount) {
+        this.shutterCount = Objects.requireNonNull(shutterCount, "shutterCount");
         this.aiDiagnostics = Objects.requireNonNull(aiDiagnostics, "aiDiagnostics");
         this.miniAi = Objects.requireNonNull(miniAi, "miniAi");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
@@ -151,6 +163,8 @@ public class PhotoPilotFacade {
     /** Home Mini AI: short inspiration answers; independent of F02 discovery(). */
     public MiniAiService miniAi() { return miniAi; }
 
+    /** Gear Inventory shutter count checker and its Sony/Nikon model catalog. */
+    public ShutterCountService shutterCount() { return shutterCount; }
 
     public SessionService sessions() {
         return sessions;

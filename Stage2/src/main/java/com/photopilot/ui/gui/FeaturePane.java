@@ -22,6 +22,7 @@ final class FeaturePane extends VBox {
         if (planning != null) planning.dispose();
         if (review != null) review.dispose();
         if (inventory != null) inventory.dispose();
+        if (shutterCount != null) shutterCount.dispose();
         if (gearImport != null) gearImport.dispose();
         if (calculator != null) calculator.dispose();
     }
@@ -44,6 +45,7 @@ final class FeaturePane extends VBox {
     private VBox empty;
     private FlowPane actions;
     private InventoryPane inventory;
+    private ShutterCountPane shutterCount;
     private CalculatorPane calculator;
     private SessionPane sessions;
     private RequirementPane requirements;
@@ -135,6 +137,8 @@ final class FeaturePane extends VBox {
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
+        boolean shutter = selected.id().equals("F05") && shutterCount != null;
+        if (shutterCount != null) { shutterCount.setVisible(shutter); shutterCount.setManaged(shutter); }
         texts.bind(eyebrow.textProperty(), () -> selected.group(localization));
         texts.bind(title.textProperty(), () -> selected.title(localization));
         texts.bind(description.textProperty(), () -> selected.description(localization));
@@ -164,6 +168,14 @@ final class FeaturePane extends VBox {
         this.inventory = inventory;
         inventory.setVisible(false); inventory.setManaged(false);
         body.getChildren().add(1, inventory);
+    }
+
+    /** The shutter count checker is a second card on the Gear Inventory page, directly below the inventory card. */
+    void connectShutterCount(ShutterCountPane shutterCount) {
+        this.shutterCount = shutterCount;
+        shutterCount.setVisible(false); shutterCount.setManaged(false);
+        getChildren().add(getChildren().indexOf(body) + 1, shutterCount);
+        if (feature != null) show(feature);
     }
 
     void connectCalculator(CalculatorPane calculator) {
