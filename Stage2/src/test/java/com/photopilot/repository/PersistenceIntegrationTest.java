@@ -93,7 +93,9 @@ class PersistenceIntegrationTest {
         cli(second, "gear edit " + gear.id() + " quantity=2", "session edit " + session.id() + " notes=更新");
         assertEquals(2, ok(inventory.load()).find(gear.id()).orElseThrow().quantity());
         assertEquals("更新", ok(repository.find(session.id())).notes());
-        assertEquals("zh-CN", new JsonLocalePreferenceRepository(home.resolve("preferences.json"), home.resolve("settings.properties")).load());
+        // "lang" saves for the active (default) profile; the shared pre-profile language stays unwritten.
+        var preferences = new JsonLocalePreferenceRepository(home.resolve("preferences.json"), home.resolve("settings.properties"));
+        assertEquals("zh-CN", preferences.forProfile(scope.profileId().orElseThrow(), false).load()); assertNull(preferences.load());
         cli(first, "gear remove " + gear.id(), "session delete " + session.id() + " --confirm");
         assertTrue(ok(inventory.load()).items().isEmpty()); assertTrue(ok(repository.search("")).isEmpty());
         assertFalse(Files.exists(first.resolve("data"))); assertFalse(Files.exists(second.resolve("data")));

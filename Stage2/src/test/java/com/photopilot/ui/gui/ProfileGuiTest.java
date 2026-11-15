@@ -269,6 +269,9 @@ class ProfileGuiTest {
         profiles(); try(var other=new ProfileManager(env())) { assertTrue(other.deleteProfile(a,true).isSuccess()); }
         refreshList(); assertTrue(fx(() -> ((Label)controller.workspace().lookup("#profile-active")).getText().contains("不可用")));
         select(b); click("profile-enter"); assertEquals(b,active());
+        // Language is per user: b opens with its own (default English), not a's Chinese; b then chooses Chinese for itself.
+        assertEquals("en",manager.activeContext().localization().language().tag(),"a's language must not be copied to b");
+        assertTrue(fx(() -> manager.activeContext().localization().selectLanguage("zh-CN")),"b's own language choice is saved");
         profiles(); Path registry=root.resolve("data/profiles.json"); String valid=Files.readString(registry); Files.writeString(registry,"broken");
         refreshList(); assertTrue(fx(() -> ((Label)panel().lookup("#profile-feedback")).getText().contains("失败"))); assertEquals("broken",Files.readString(registry)); Files.writeString(registry,valid);
     }

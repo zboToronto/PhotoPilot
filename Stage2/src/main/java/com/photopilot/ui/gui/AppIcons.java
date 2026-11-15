@@ -40,6 +40,17 @@ final class AppIcons {
     static final String GEAR = "M12 8.500a3.500 3.500 0 1 0 0 7a3.500 3.500 0 1 0 0-7 M12 2.500v3 M12 18.500v3 M2.500 12h3 M18.500 12h3 M5.300 5.300l2.100 2.100 M16.600 16.600l2.100 2.100 M5.300 18.700l2.100-2.100 M16.600 7.400l2.100-2.100";
     static final String CHEVRON_DOWN = "M2 4l5 5 5-5";
     static final String CHECK = "M1 5.2l3.4 3.4L11 1.8";
+    // Home dashboard: Mini AI inspiration card, its suggestion chips and the session cards' actions.
+    static final String SPARKLES = "M10 3.5c.7 3.7 2.8 5.8 6.5 6.5-3.7.7-5.8 2.8-6.5 6.5-.7-3.7-2.8-5.8-6.5-6.5 3.7-.7 5.8-2.8 6.5-6.5z M18 14c.3 1.7 1.3 2.7 3 3-1.7.3-2.7 1.3-3 3-.3-1.7-1.3-2.7-3-3 1.7-.3 2.7-1.3 3-3z M18.5 3v4 M16.5 5h4";
+    static final String MOON = "M20.5 13A8.5 8.5 0 1 1 11 3.5a6.6 6.6 0 0 0 9.5 9.5z";
+    static final String PIN = "M12 21c-3.5-3.8-6.5-7.2-6.5-11a6.5 6.5 0 0 1 13 0c0 3.8-3 7.2-6.5 11z M12 7.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5";
+    static final String SHUFFLE = "M16 4h4v4 M4 20L20 4 M20 16v4h-4 M14.5 14.5L20 20 M4 4l5 5";
+    static final String TREND = "M4 20h16 M6.5 20v-3 M10.5 20v-5 M14.5 20v-4 M18.5 20v-7 M5 12l4.5-4.5 3.5 3 6.5-6.5 M15 4h4.5v4.5";
+    static final String ARROW_RIGHT = "M5 12h14 M13 6l6 6-6 6";
+    static final String MESSAGE = "M4.5 5h15a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V17h-1A1.5 1.5 0 0 1 3 15.5v-9A1.5 1.5 0 0 1 4.5 5z";
+    // Gear Inventory: shutter count checker card (photo import area and information hints).
+    static final String IMAGE = "M5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4z M4 16.5l4.5-4.5 4 4 2.5-2.5 5 5 M15 7.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3";
+    static final String INFO = "M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M12 11v5.5 M12 7.6v.4";
     private static final int[] LOGO_SIZES = { 16, 32, 48, 64, 128, 256, 512 };
 
     private AppIcons() { }

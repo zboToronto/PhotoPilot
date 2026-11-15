@@ -9,17 +9,42 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 
-/** Versioned JSON preferences; legacy properties are copied only on explicit save and never modified. */
+/**
+ * Versioned JSON preferences; legacy properties are copied only on the first write (a saved choice or a new profile's
+ * initial values), never on read, and are never modified.
+ * {@link #forProfile} gives one local profile its own record in the same file: its keys are stored as
+ * {@code profile.<uuid>.<key>}, so a profile's language and GUI appearance follow its stable id (never its name) and
+ * no two profiles share them.
+ */
 public class JsonLocalePreferenceRepository implements LocalePreferenceRepository {
     private static final int MAX_BYTES = 64 * 1024;
+    private static final String PROFILES = "profile.";
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path file;
     private final Path legacy;
-    public JsonLocalePreferenceRepository(Path file, Path legacy) {
+    // Empty for the shared (pre-profile) values; otherwise the owner of the "profile.<uuid>." keys.
+    private final Optional<UUID> profile;
+    private final String prefix;
+    private final boolean inheritsShared;
+    public JsonLocalePreferenceRepository(Path file, Path legacy) { this(file, legacy, Optional.empty(), false); }
+    private JsonLocalePreferenceRepository(Path file, Path legacy, Optional<UUID> profile, boolean inheritsShared) {
         this.file = Objects.requireNonNull(file).toAbsolutePath().normalize();
         this.legacy = Objects.requireNonNull(legacy).toAbsolutePath().normalize();
         if (this.file.equals(this.legacy)) throw new IllegalArgumentException("JSON and legacy settings must have distinct paths.");
+        this.profile = profile; this.inheritsShared = inheritsShared;
+        prefix = profile.map(id -> PROFILES + id + ".").orElse("");
     }
+    /**
+     * The same file, format and locks, scoped to one profile. Creating this view writes nothing; a new profile's record is
+     * first written with its initial values (config.UserPreferenceDefaults), an older profile's when it first changes a value.
+     * {@code inheritsShared}: the stable default profile still reads the values saved before preferences were per
+     * profile (key by key, until it saves its own), so existing settings are kept without being copied to other users.
+     */
+    public JsonLocalePreferenceRepository forProfile(UUID id, boolean inheritsShared) {
+        return new JsonLocalePreferenceRepository(file, legacy, Optional.of(Objects.requireNonNull(id)), inheritsShared);
+    }
+    /** The profile whose record this is; empty for the shared values. */
+    public Optional<UUID> profile() { return profile; }
     private Map<String, String> read() throws IOException {
         var stored = readJson();
         return stored.isPresent() ? stored.orElseThrow() : readLegacy();
@@ -52,49 +77,52 @@ public class JsonLocalePreferenceRepository implements LocalePreferenceRepositor
         for (String key : properties.stringPropertyNames()) values.put(key, properties.getProperty(key));
         return values;
     }
-    @Override public String load() throws IOException { return read().get("language"); }
-    /** Every stored string value, read the same way as the language; never writes. Used for GUI appearance preferences. */
-    public Map<String, String> values() throws IOException { return Collections.unmodifiableMap(read()); }
+    @Override public String load() throws IOException { return values().get("language"); }
+    /**
+     * Every stored string value, read the same way as the language; never writes. Used for GUI appearance preferences.
+     * A profile's view has its own keys without the prefix (over the shared ones when it inherits them).
+     */
+    public Map<String, String> values() throws IOException {
+        var stored = read();
+        if (profile.isEmpty()) return Collections.unmodifiableMap(stored);
+        Map<String, String> values = new LinkedHashMap<>();
+        if (inheritsShared) stored.forEach((key, value) -> { if (!key.startsWith(PROFILES)) values.put(key, value); });
+        stored.forEach((key, value) -> { if (key.startsWith(prefix)) values.put(key.substring(prefix.length()), value); });
+        return Collections.unmodifiableMap(values);
+    }
     /**
      * Additively stores other string preferences (GUI appearance) in the same schema-1 file, under the same locks.
-     * Existing values, including the language, are preserved; the language itself is only written by save(tag).
+     * Existing values, including the language and every other profile's record, are preserved; the language itself
+     * is only written by save(tag).
      */
     public void merge(Map<String, String> updates) throws IOException {
         Map<String, String> additions = new LinkedHashMap<>();
         for (var entry : Objects.requireNonNull(updates).entrySet()) {
             if (entry.getKey() == null || entry.getKey().isBlank() || entry.getKey().equals("language") || entry.getValue() == null)
                 throw new IOException("Unsupported preference value.");
-            additions.put(entry.getKey(), entry.getValue());
+            additions.put(prefix + entry.getKey(), entry.getValue());
         }
-        AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), () -> {
-            var stored = readJson();
-            if (stored.isPresent()) writeValues(withAdditions(stored.orElseThrow(), additions));
-            else AtomicFiles.locked(legacy.resolveSibling(legacy.getFileName() + ".lock"), () -> {
-                writeValues(withAdditions(readLegacy(), additions)); return true;
-            });
-            return true;
-        });
-    }
-    private static Map<String, String> withAdditions(Map<String, String> values, Map<String, String> additions) {
-        values.putAll(additions); return values;
+        store(additions);
     }
     @Override public void save(String tag) throws IOException {
         if (!Language.supports(tag)) throw new IOException("Unsupported language preference.");
+        store(Map.of(prefix + "language", tag));
+    }
+    private void store(Map<String, String> additions) throws IOException {
         AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), () -> {
             var stored = readJson();
-            if (stored.isPresent()) write(stored.orElseThrow(), tag);
+            if (stored.isPresent()) writeValues(withAdditions(stored.orElseThrow(), additions));
             else {
                 // Only the first copy depends on the legacy writer. JSON remains authoritative thereafter.
                 AtomicFiles.locked(legacy.resolveSibling(legacy.getFileName() + ".lock"), () -> {
-                    write(readLegacy(), tag); return true;
+                    writeValues(withAdditions(readLegacy(), additions)); return true;
                 });
             }
             return true;
         });
     }
-    private void write(Map<String, String> values, String tag) throws IOException {
-        values.put("language", tag);
-        writeValues(values);
+    private static Map<String, String> withAdditions(Map<String, String> values, Map<String, String> additions) {
+        values.putAll(additions); return values;
     }
     private void writeValues(Map<String, String> values) throws IOException {
         JsonObject root = new JsonObject(); root.addProperty("schemaVersion", 1); root.add("values", JSON.toJsonTree(values));

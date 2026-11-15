@@ -58,14 +58,16 @@ class LocalizedCliTest {
             assertEquals(0, cli.execute("gear remove " + gear.id()));
         }
     }
-    @Test void interactiveLocaleOnlyOverrideAndEofWorkWithUtf8Streams() {
+    @Test void interactiveLocaleOnlyOverrideAndEofWorkWithUtf8Streams() throws Exception {
         try (var app = new ApplicationBootstrap(environment())) {
+            // A fresh installation's Default user starts with its initial settings; a locale-only override saves nothing.
+            Path saved = directory.resolve("config/preferences.json"); byte[] initial = Files.readAllBytes(saved);
             var bytes = new ByteArrayOutputStream();
             cli(app, bytes, "help\nexit\nunknown\n").run(new String[]{"--lang", "zh-CN"});
             assertTrue(output(bytes).endsWith("PhotoPilot 已关闭。" + System.lineSeparator()));
             assertFalse(output(bytes).contains("未知命令"));
             assertFalse(Files.exists(directory.resolve("config/settings.properties")));
-            assertFalse(Files.exists(directory.resolve("config/preferences.json")));
+            assertArrayEquals(initial, Files.readAllBytes(saved), "a locale-only override is never saved");
             bytes.reset(); cli(app, bytes, "").run(new String[]{"--lang"});
             assertTrue(output(bytes).contains("Unsupported or missing language"));
         }

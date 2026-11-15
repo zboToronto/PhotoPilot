@@ -16,12 +16,15 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /** Per-context composition root. Normal startup initializes the stable local profile without provider calls. */
 public final class ApplicationBootstrap implements AutoCloseable {
     private final PhotoPilotFacade facade;
     private final HttpClient http;
     private final LocalizationService localization;
+    // The active profile's own preference record (language and GUI appearance); shared values for unscoped contexts.
+    private final JsonLocalePreferenceRepository preferences;
     private final StorageScope storageScope;
     private final ProfileAccess profileAccess;
 
@@ -31,14 +34,16 @@ public final class ApplicationBootstrap implements AutoCloseable {
         this(environment, StorageConfiguration.resolve(environment));
     }
     private ApplicationBootstrap(Map<String, String> environment, StorageConfiguration configuration) {
-        this(environment, prepare(environment, configuration.scope(), true), configuration.configurationDirectory(), configuration.legacyDirectory());
+        this(environment, prepare(environment, configuration.scope(), true, configuration.configurationDirectory()), configuration.configurationDirectory(), configuration.legacyDirectory());
     }
     /** One fixed scope for every business repository and agent dependency in this application. */
     public ApplicationBootstrap(Map<String, String> environment, StorageScope storageScope) {
-        this(environment, prepare(environment, storageScope, false), StorageConfiguration.resolve(environment).configurationDirectory(), Optional.empty());
+        this(environment, prepare(environment, storageScope, false, null), StorageConfiguration.resolve(environment).configurationDirectory(), Optional.empty());
     }
-    private record Selection(StorageScope scope, ProfileAccess access) { }
-    private static Selection prepare(Map<String, String> environment, StorageScope requested, boolean defaultProfile) {
+    /** stableDefault: the registry's default profile, which keeps the preferences saved before they were per profile. */
+    private record Selection(StorageScope scope, ProfileAccess access, boolean stableDefault) { }
+    /** configuration: where the preferences live, used only when a fresh root creates the Default user. */
+    private static Selection prepare(Map<String, String> environment, StorageScope requested, boolean defaultProfile, Path configuration) {
         if (!Set.of("portability", "coverage").contains(environment.getOrDefault("PHOTOPILOT_RANKING", "portability")))
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
         URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
@@ -46,18 +51,38 @@ public final class ApplicationBootstrap implements AutoCloseable {
         try {
             if (defaultProfile || requested.profileId().isPresent()) {
                 var registry = new JsonProfileRepository(requested.root());
-                var id = defaultProfile ? registry.initializeDefault().id() : requested.profileId().orElseThrow();
-                var access = registry.open(id); return new Selection(access.scope(), access);
+                var id = defaultProfile ? registry.initializeDefault(created -> initialPreferences(configuration, created)).id() : requested.profileId().orElseThrow();
+                boolean stableDefault = defaultProfile || registry.defaultProfileId().filter(id::equals).isPresent();
+                var access = registry.open(id); return new Selection(access.scope(), access, stableDefault);
             }
             // Explicit unscoped overload retained for legacy tooling/tests, never normal application startup.
-            return new Selection(requested, null);
+            return new Selection(requested, null, false);
         } catch (java.io.IOException error) { throw new IllegalArgumentException("Cannot open local profile: " + error.getMessage(), error); }
+    }
+    /**
+     * A fresh installation's Default user starts with the standard new-user preferences (UserPreferenceDefaults), unless
+     * its record already inherits values saved before preferences were per profile, which are kept as they are. Best
+     * effort: if the file cannot be read or written, startup continues and the user has the in-memory defaults.
+     */
+    private static void initialPreferences(Path configuration, UUID id) {
+        try {
+            var preferences = sharedPreferences(configuration).forProfile(id, true);
+            if (preferences.values().isEmpty()) UserPreferenceDefaults.initialize(preferences);
+        } catch (java.io.IOException | RuntimeException unavailable) {
+            // In-memory defaults until the user changes a setting; reported like other preference failures.
+            java.util.logging.Logger.getLogger(ApplicationBootstrap.class.getName()).warning("preference.initialize: " + unavailable.getClass().getSimpleName());
+        }
+    }
+    private static JsonLocalePreferenceRepository sharedPreferences(Path configuration) {
+        return new JsonLocalePreferenceRepository(configuration.resolve("preferences.json"), configuration.resolve("settings.properties"));
     }
     private ApplicationBootstrap(Map<String, String> environment, Selection selection, Path configuration, Optional<Path> legacy) {
         this.storageScope = selection.scope(); this.profileAccess = selection.access();
         storageNotice = legacy.map(path -> LocalizedMessage.of("storage.legacyFound", path.toString(), storageScope.directory().toString()));
-        localization = new LocalizationService(new JsonLocalePreferenceRepository(configuration.resolve("preferences.json"),
-            configuration.resolve("settings.properties")));
+        var shared = sharedPreferences(configuration);
+        // Language (and, in the GUI, appearance) belongs to the active profile's UUID; unscoped contexts keep the shared values.
+        preferences = storageScope.profileId().map(id -> shared.forProfile(id, selection.stableDefault())).orElse(shared);
+        localization = new LocalizationService(preferences);
         String preference = environment.getOrDefault("PHOTOPILOT_RANKING", "portability");
         if (!Set.of("portability", "coverage").contains(preference)) {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
@@ -134,6 +159,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
 
     public PhotoPilotFacade facade() { return facade; }
     public LocalizationService localization() { return localization; }
+    /** This context's preference record: the active profile's own (by UUID), or the shared values when unscoped. */
+    public JsonLocalePreferenceRepository preferences() { return preferences; }
     public Optional<LocalizedMessage> storageNotice() { return storageNotice; }
     public StorageScope storageScope() { return storageScope; }
 

@@ -25,6 +25,8 @@ public class PhotoPilotCLI {
     // Embedded callers historically supply an interactive Scanner; main detects redirected stdin explicitly.
     private boolean interactiveInput = true;
     private boolean failedProfileCommand;
+    // True once --lang chose this invocation's language; otherwise each profile shows its own saved language.
+    private boolean languageOverride;
     private final RequirementCommands.State requirementDraft = new RequirementCommands.State();
     private final MatchCommands.State matchState = new MatchCommands.State();
     private final NeedsCommands.State needsState = new NeedsCommands.State();
@@ -59,7 +61,7 @@ public class PhotoPilotCLI {
         app = profiles.activeContext().facade(); localization = profiles.activeContext().localization();
         requirementDraft.clear(); matchState.clear(); needsState.clear(); environmentState.clear(); planState.clear(); discoveryState.clear(); reviewState.clear(); // Drafts belong to the previous user's session data.
         importState.clear(privacy); // An open F04 import releases its temporary image data.
-        localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
+        if (languageOverride) localization.useLanguage(language); // Invocation-only language choice also survives profile switching.
     }
     public int exitCode() { return exitCode; }
     /** Where unexpected command failures write their stack trace (stderr by default). */
@@ -105,7 +107,7 @@ public class PhotoPilotCLI {
             if (arg.equals("--lang") || arg.startsWith("--lang=")) {
                 String tag = arg.startsWith("--lang=") ? arg.substring(7) : i + 1 < args.length ? args[++i] : "";
                 invalid |= !Language.supports(tag);
-                localization.useLanguage(tag);
+                localization.useLanguage(tag); languageOverride = true;
             } else if (arg.equals("--profile") || arg.startsWith("--profile=")) {
                 String value = arg.startsWith("--profile=") ? arg.substring(10) : i + 1 < args.length ? args[++i] : "";
                 if (selectedProfile != null || value.isBlank()) profileOptionInvalid = true;

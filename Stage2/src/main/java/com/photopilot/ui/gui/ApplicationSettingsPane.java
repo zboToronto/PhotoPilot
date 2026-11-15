@@ -12,8 +12,8 @@ import javafx.util.Duration;
 
 /**
  * In-app settings; changing language or appearance updates views in place and never navigates or rebuilds feature forms.
- * Appearance order: Theme Color (five presets, then Custom with its hue slider), Appearance Mode, Transparency, then
- * the existing Language setting. Every choice is saved automatically; only a failed save is reported.
+ * Appearance order: Theme Color (five presets, then Custom with its hue slider), Appearance Mode, Transparency, Font
+ * Size, Bold Text, then the existing Language setting. Every choice is saved automatically; only a failed save is reported.
  */
 final class ApplicationSettingsPane extends VBox {
     /** A slider moved by keyboard or scroll is saved once it has rested this long; a drag is saved when released. */
@@ -26,7 +26,10 @@ final class ApplicationSettingsPane extends VBox {
     private final Slider hue = new Slider(0, 359, ThemeManager.get().customHue());
     private final Circle customDot = new Circle(6.5);
     private final HBox hueRow = new HBox(8);
-    private final Label transparencyValue = FeaturePane.label("", "settings-value");
+    private final Slider fontSize = new Slider(Typography.MIN, Typography.MAX, ThemeManager.get().fontSize());
+    private final ToggleSwitch boldText = new ToggleSwitch();
+    private final Label transparencyValue = FeaturePane.label("", "settings-value"), fontSizeValue = FeaturePane.label("", "settings-value");
+    private Label opaque;
     private final Label systemNote = FeaturePane.label("", "feedback-text");
     private final Label appearanceFeedback = FeaturePane.label("", "feedback-text");
     private final PauseTransition pendingSave = new PauseTransition(SAVE_DELAY);
@@ -73,6 +76,8 @@ final class ApplicationSettingsPane extends VBox {
             row("settings.themeColor", swatches(), null), customHue(), new Separator(),
             row("settings.appearanceMode", modes(), null), new Separator(),
             row("settings.transparency", transparency(), transparency), new Separator(),
+            row("settings.fontSize", fontSize(), fontSize), new Separator(),
+            row("settings.boldText", boldText(), boldText), new Separator(),
             row, systemNote, appearanceFeedback, feedback);
         group.getStyleClass().add("surface-panel");
         getChildren().add(group);
@@ -181,13 +186,49 @@ final class ApplicationSettingsPane extends VBox {
         transparency.valueChangingProperty().addListener((property, was, changing) -> {
             if (!changing && !synchronizingAppearance) saveNow();
         });
-        Label transparent = texts.label("settings.transparent", "settings-caption"), opaque = texts.label("settings.opaque", "settings-caption");
+        Label transparent = texts.label("settings.transparent", "settings-caption"); opaque = texts.label("settings.opaque", "settings-caption");
         transparent.setMinWidth(Region.USE_PREF_SIZE); opaque.setMinWidth(Region.USE_PREF_SIZE);
         var box = new HBox(8, transparent, transparency, opaque, transparencyValue);
         box.setAlignment(Pos.CENTER_RIGHT);
         return box;
     }
     private int percent() { return (int) Math.round(transparency.getValue()); }
+    /** 4. Interface text size, 85% to 125% in 5% steps; the Transparency slider's look, live preview and saving. */
+    private HBox fontSize() {
+        fontSize.setId("settings-font-size"); fontSize.getStyleClass().add("appearance-slider");
+        fontSize.setPrefWidth(220); fontSize.setMinWidth(110); fontSize.setBlockIncrement(Typography.STEP);
+        fontSize.setMajorTickUnit(Typography.STEP); fontSize.setMinorTickCount(0); fontSize.setSnapToTicks(true);
+        texts.text(fontSize.accessibleTextProperty(), "settings.fontSize");
+        fontSizeValue.setId("settings-font-size-value");
+        texts.bind(fontSizeValue.textProperty(), () -> texts.service().text("settings.percent", fontPercent()));
+        fontSize.valueProperty().addListener((property, old, value) -> {
+            fontSizeValue.setText(texts.service().text("settings.percent", fontPercent()));
+            if (synchronizingAppearance) return;
+            // Only a new step is previewed and saved, so the snap on release does not write a second time.
+            int shown = appearance.fontSize();
+            appearance.previewFontSize(fontPercent());
+            if (appearance.fontSize() != shown) saveWhenSettled(fontSize);
+        });
+        fontSize.valueChangingProperty().addListener((property, was, changing) -> {
+            if (!changing && !synchronizingAppearance) saveNow();
+        });
+        Label smaller = texts.label("settings.fontSmaller", "settings-caption"), larger = texts.label("settings.fontLarger", "settings-caption");
+        smaller.setMinWidth(Region.USE_PREF_SIZE);
+        // As wide as the Opaque caption above, so both sliders start and end at the same place.
+        larger.minWidthProperty().bind(opaque.widthProperty());
+        var box = new HBox(8, smaller, fontSize, larger, fontSizeValue);
+        box.setAlignment(Pos.CENTER_RIGHT);
+        return box;
+    }
+    /** The slider's value at its 5% step (a drag moves freely and snaps on release). */
+    private int fontPercent() { return Typography.clamp((int) Math.round(fontSize.getValue())); }
+    /** 5. Bold Text as a pill switch; applied and saved when toggled. */
+    private ToggleSwitch boldText() {
+        boldText.setId("settings-bold-text");
+        texts.text(boldText.accessibleTextProperty(), "settings.boldText");
+        boldText.setOnAction(event -> { if (!synchronizingAppearance) report(appearance.selectBoldText(boldText.isSelected())); });
+        return boldText;
+    }
     /** Drags are saved once on release; keyboard and scroll steps are saved after they settle, not on every step. */
     private void saveWhenSettled(Slider slider) { if (slider.isValueChanging()) pendingSave.stop(); else pendingSave.playFromStart(); }
     private void saveNow() { pendingSave.stop(); report(appearance.save()); }
@@ -205,6 +246,8 @@ final class ApplicationSettingsPane extends VBox {
             for (Toggle toggle : modes.getToggles()) toggle.setSelected(toggle.getUserData() == appearance.mode());
             if (!transparency.isValueChanging() && percent() != appearance.opacity()) transparency.setValue(appearance.opacity());
             if (!hue.isValueChanging() && degrees() != appearance.customHue()) hue.setValue(appearance.customHue());
+            if (!fontSize.isValueChanging() && fontPercent() != appearance.fontSize()) fontSize.setValue(appearance.fontSize());
+            boldText.setSelected(appearance.boldText());
         } finally { synchronizingAppearance = false; }
         customDot.setFill(Theme.Family.custom(appearance.customHue()).swatch());
         hueRow.setManaged(appearance.custom());

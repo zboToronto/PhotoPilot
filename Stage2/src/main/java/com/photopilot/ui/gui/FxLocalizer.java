@@ -64,13 +64,21 @@ final class FxLocalizer implements AutoCloseable {
     void bind(Property<String> property, Supplier<String> value) { bindings.put(property, value); property.setValue(value.get()); }
     void text(Property<String> property, String key, Object... args) { bind(property, () -> localization.text(key, args)); }
     void onRefresh(Runnable action) { refreshActions.add(action); action.run(); }
+    /**
+     * Chinese text uses a CJK UI font; English content carries {@code :english}, which scopes Latin-only font cuts
+     * (they have no CJK glyphs), such as the Semibold face Bold Text uses (see {@link Typography}).
+     */
     void useReadableFont(Region root) {
         String initialStyle = root.getStyle();
         String chinese = List.of("Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Micro Hei")
             .stream().filter(Font.getFamilies()::contains).findFirst().orElse(Font.getDefault().getFamily());
-        onRefresh(() -> root.setStyle(localization.language() == com.photopilot.i18n.Language.SIMPLIFIED_CHINESE
-            ? initialStyle + "; -fx-font-family: \"" + chinese + "\";" : initialStyle));
+        onRefresh(() -> {
+            boolean english = localization.language() != com.photopilot.i18n.Language.SIMPLIFIED_CHINESE;
+            root.setStyle(english ? initialStyle : initialStyle + "; -fx-font-family: \"" + chinese + "\";");
+            root.pseudoClassStateChanged(ENGLISH, english);
+        });
     }
+    private static final javafx.css.PseudoClass ENGLISH = javafx.css.PseudoClass.getPseudoClass("english");
     /**
      * Shows the full text as a tooltip only while the control has to shorten it with an ellipsis (for example a long
      * translation or user name in a fixed-width place), so nothing is truncated without a way to read all of it.

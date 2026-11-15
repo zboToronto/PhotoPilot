@@ -52,6 +52,10 @@ final class GuiProfileController implements AutoCloseable {
         if (workspace != null) workspace.dispose();
         if (texts != null) texts.close();
         context = profiles.activeContext(); changed.accept(context);
+        // The active user's appearance replaces the previous user's before any of its views exist (the old workspace,
+        // disposed above, has already saved a pending slider value to the previous user); its language comes with
+        // the context.
+        ThemeManager.get().use(context.preferences());
         var language = context.localization();
         workspace = new PhotoPilotWorkspace(language);
         sessions = new SessionPane(context.facade(), operations, language);

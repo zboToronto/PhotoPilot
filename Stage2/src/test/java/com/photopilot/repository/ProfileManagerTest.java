@@ -3,6 +3,7 @@ package com.photopilot.repository;
 import com.photopilot.application.*;
 import com.photopilot.common.Result;
 import com.photopilot.config.ApplicationBootstrap;
+import com.photopilot.config.UserPreferenceDefaults;
 import com.photopilot.model.*;
 import com.photopilot.session.SessionFixtures;
 import com.photopilot.state.ReviewedState;
@@ -205,12 +206,78 @@ class ProfileManagerTest {
             assertFalse(second.activeContext().facade().inventory().list("").isSuccess());
         }
     }
-    @Test void globalLanguagePolicyIsPreservedWithoutSharingBusinessData() {
+    @Test void languageIsSavedPerProfileWithoutSharingBusinessData() throws Exception {
+        UUID a, b;
         try (var manager = new ProfileManager(env())) {
+            a = ok(manager.activeProfile()).id();
             assertTrue(manager.activeContext().localization().selectLanguage("zh-CN"));
-            ok(manager.selectProfile(ok(manager.createProfile("B")).id(), true));
-            assertEquals("zh-CN", manager.activeContext().localization().language().tag());
+            b = ok(manager.createProfile("B")).id();
+            ok(manager.selectProfile(b, true));
+            assertEquals("en", manager.activeContext().localization().language().tag(), "a new profile starts with the default, not the previous user's language");
             assertTrue(ok(manager.activeContext().facade().sessions().search("")).isEmpty());
+            ok(manager.renameProfile(a, "Renamed A"));
+            ok(manager.selectProfile(a, true));
+            assertEquals("zh-CN", manager.activeContext().localization().language().tag(), "switching back restores the profile's own language; renaming keeps it");
+        }
+        try (var manager = new ProfileManager(env())) {
+            assertEquals("zh-CN", manager.activeContext().localization().language().tag(), "each profile's language survives a restart");
+            ok(manager.selectProfile(b, true));
+            assertEquals("en", manager.activeContext().localization().language().tag());
+        }
+        var preferences = new JsonLocalePreferenceRepository(root.resolve("config/preferences.json"), root.resolve("config/settings.properties"));
+        assertEquals("zh-CN", preferences.forProfile(a, false).load(), "stored under the profile's UUID");
+        assertTrue(Files.readString(root.resolve("config/preferences.json")).contains("\"profile." + a + ".language\""));
+        assertEquals("en", preferences.forProfile(b, false).load(), "a new profile is created with English under its own UUID");
+        assertEquals("50", preferences.forProfile(b, false).values().get("appearance.opacity"), "and with the standard new-user appearance");
+        assertNull(preferences.load(), "the shared pre-profile language is never written");
+
+        // A language saved before preferences were per profile belongs to the default profile only, and its own choice wins.
+        preferences.save("zh-CN");
+        try (var manager = new ProfileManager(env())) {
+            ok(manager.selectProfile(b, true));
+            assertEquals("en", manager.activeContext().localization().language().tag(), "the shared pre-profile language is never applied to another profile");
+            ok(manager.selectProfile(a, true));
+            assertTrue(manager.activeContext().localization().selectLanguage("en"));
+        }
+        try (var manager = new ProfileManager(env())) {
+            assertEquals("en", manager.activeContext().localization().language().tag(), "the default profile's own choice wins over the shared value");
+        }
+        assertEquals("zh-CN", preferences.load(), "the shared value is never rewritten");
+    }
+    @Test void everyNewUserStartsWithTheStandardPreferencesAndExistingUsersAreLeftAlone() throws Exception {
+        Map<String, String> standard = new LinkedHashMap<>(UserPreferenceDefaults.APPEARANCE); standard.put("language", "en");
+        var preferences = new JsonLocalePreferenceRepository(root.resolve("config/preferences.json"), root.resolve("config/settings.properties"));
+        UUID a, b, older;
+        try (var manager = new ProfileManager(env())) {
+            a = ok(manager.activeProfile()).id();
+            assertEquals(standard, preferences.forProfile(a, false).values(), "a fresh installation's Default user starts with the standard set");
+        }
+        // A user from before the standard set (no record), and a Default user that customized everything.
+        older = registry().create("Older").id();
+        preferences.forProfile(a, false).merge(Map.of("appearance.accent", "rose", "appearance.mode", "dark", "appearance.opacity", "27",
+            "appearance.fontSize", "120", "appearance.boldText", "true"));
+        preferences.forProfile(a, false).save("zh-CN");
+        var customized = preferences.forProfile(a, false).values();
+        try (var manager = new ProfileManager(env())) {
+            ok(manager.selectProfile(older, true));
+            b = ok(manager.createProfile("B")).id();
+        }
+        try (var manager = new ProfileManager(env())) {
+            ok(manager.selectProfile(b, true));
+            assertEquals("en", manager.activeContext().localization().language().tag(), "restored after a restart");
+        }
+        assertEquals(standard, preferences.forProfile(b, false).values(), "the same set whoever creates the user; nothing copied from the active or Default user");
+        assertEquals(customized, preferences.forProfile(a, false).values(), "existing users keep their own values");
+        assertTrue(preferences.forProfile(older, false).values().isEmpty(), "an older user without a record is never backfilled");
+        assertNull(preferences.load(), "nothing is written to the shared values");
+
+        // If the initial preferences cannot be saved, no user is created and the file is left as it is.
+        try (var manager = new ProfileManager(env())) {
+            byte[] registryBytes = Files.readAllBytes(root.resolve("data/profiles.json"));
+            Files.writeString(root.resolve("config/preferences.json"), "{");
+            assertFalse(manager.createProfile("C").isSuccess());
+            assertArrayEquals(registryBytes, Files.readAllBytes(root.resolve("data/profiles.json")), "nothing is registered");
+            assertEquals("{", Files.readString(root.resolve("config/preferences.json")), "the unreadable file is never overwritten");
         }
     }
 }

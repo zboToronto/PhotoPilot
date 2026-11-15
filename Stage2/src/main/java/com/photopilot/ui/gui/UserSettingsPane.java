@@ -102,7 +102,12 @@ final class UserSettingsPane extends VBox {
         operations.run(() -> ProfileManager.prepareAvatar(source), result -> {
             if (disposed) return;
             working.set(false);
-            if (!result.isSuccess()) { message("avatar.failed"); showError("avatar.failed"); return; }
+            if (!result.isSuccess()) {
+                // The specific reason (too large, too many pixels, not PNG/JPEG, damaged, memory) when one is known.
+                String key = result.messages().stream().map(com.photopilot.i18n.LocalizedMessage::key)
+                    .filter(candidate -> candidate.startsWith("avatar.")).findFirst().orElse("avatar.failed");
+                message(key); showError(key); return;
+            }
             var bytes = result.value().orElseThrow();
             var preview = new Alert(Alert.AlertType.CONFIRMATION); AppDialogs.style(preview, owner);
             preview.setTitle(language.text("avatar.preview")); preview.setHeaderText(language.text("avatar.preview"));

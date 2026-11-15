@@ -53,7 +53,7 @@ class AppearanceGuiTest {
         try (var app = new ApplicationBootstrap(env())) {
             action(() -> { workspace = new PhotoPilotWorkspace(app.localization()); show(workspace); workspace.showApplicationSettings(); });
             settle();
-            assertEquals(List.of("Theme Color", "Appearance Mode", "Transparency", "Language"), rowLabels());
+            assertEquals(List.of("Theme Color", "Appearance Mode", "Transparency", "Font Size", "Bold Text", "Language"), rowLabels());
             assertEquals("Appearance", text("#settings-appearance"));
             assertNull(fx(() -> workspace.lookup("#settings-retry")), "no Save Preferences button: everything saves automatically");
             assertTrue(fx(() -> workspace.lookupAll(".button").stream().noneMatch(n -> n instanceof Button b && b.getText() != null && b.getText().contains("Save"))));
@@ -98,10 +98,13 @@ class AppearanceGuiTest {
             @SuppressWarnings("unchecked") var languages = fx(() -> (ComboBox<Language>) workspace.lookup("#settings-language"));
             action(() -> languages.setValue(Language.SIMPLIFIED_CHINESE)); settle();
             assertEquals(Language.SIMPLIFIED_CHINESE, app.localization().language());
-            assertEquals(List.of("主题颜色", "外观模式", "透明度", "语言"), rowLabels());
+            assertEquals(List.of("主题颜色", "外观模式", "透明度", "字体大小", "粗体文字", "语言"), rowLabels());
             assertEquals("外观", text("#settings-appearance")); assertEquals("深色", text("#settings-mode-dark"));
             assertEquals(Theme.Accent.ROSE, ThemeManager.get().accent()); assertTrue(ThemeManager.get().theme().dark());
-            assertEquals("zh-CN", new JsonLocalePreferenceRepository(root.resolve("config/preferences.json"), root.resolve("config/settings.properties")).load());
+            // Saved in the active (default) profile's own record, never as the shared pre-profile value.
+            var preferences = new JsonLocalePreferenceRepository(root.resolve("config/preferences.json"), root.resolve("config/settings.properties"));
+            UUID owner = app.storageScope().profileId().orElseThrow();
+            assertEquals("zh-CN", preferences.forProfile(owner, false).load()); assertNull(preferences.load());
             // Saved silently: no "Language preference saved." message after the change.
             assertFalse(fx(() -> workspace.lookup("#settings-feedback").isVisible()), "no success message after an automatic save");
             assertEquals("", text("#settings-feedback"));
@@ -109,7 +112,7 @@ class AppearanceGuiTest {
             action(() -> languages.setValue(Language.ENGLISH)); settle();
             assertEquals("Theme Color", rowLabels().getFirst());
             assertFalse(fx(() -> workspace.lookup("#settings-feedback").isVisible()));
-            assertEquals("en", new JsonLocalePreferenceRepository(root.resolve("config/preferences.json"), root.resolve("config/settings.properties")).load());
+            assertEquals("en", preferences.forProfile(owner, false).load()); assertNull(preferences.load());
         }
     }
 

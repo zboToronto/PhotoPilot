@@ -39,15 +39,17 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
 
     /**
      * Five low-saturation families, each with a primary and a nearby secondary hue in the same family (the secondary hue
-     * lights the background waves, so it must never drift into a neighbouring family). The hand-tuned control colours
-     * keep at least 4.5:1 text contrast (fill/on-fill and accent text on surfaces) in both modes.
+     * lights the background waves, so it must never drift into a neighbouring family). Every family uses one
+     * foreground polarity per mode, as {@link Family#custom} does: white text on the light-mode fill, its dark tone on
+     * the dark-mode fill. A hand-tuned fill too light (or too dark) for that text is moved towards the family's own
+     * accent-text tone just far enough for 4.5:1, so selections and primary actions look alike in every family.
      */
     enum Accent {
-        BLUE("blue", "settings.theme.blue", 224, 212, 0.92, "#7f9ade", "#4a68cc", "#ffffff", "#344ea6", "#8ea5ec", "#0f1630", "#a9bcf5"),
-        SAGE("sage", "settings.theme.sage", 140, 124, 0.50, "#97b892", "#4f7a58", "#ffffff", "#3e6346", "#a3c49c", "#13230f", "#b3d1ac"),
-        PEACH("peach", "settings.theme.peach", 22, 36, 0.80, "#eeac8c", "#e8a283", "#3d2116", "#8c4930", "#f0b598", "#3a1e12", "#f4c3a9"),
-        ROSE("rose", "settings.theme.rose", 345, 330, 0.64, "#d497a8", "#a65a6e", "#ffffff", "#8a4356", "#e3a3b4", "#35141f", "#ecb5c3"),
-        TEAL("teal", "settings.theme.teal", 186, 196, 0.72, "#82bcbe", "#3f7a7c", "#ffffff", "#2a5c5e", "#93c9ca", "#0d2324", "#a6d5d5");
+        BLUE("blue", "settings.theme.blue", 224, 212, 0.92, "#7f9ade", "#4a68cc", "#344ea6", "#8ea5ec", "#0f1630", "#a9bcf5"),
+        SAGE("sage", "settings.theme.sage", 140, 124, 0.50, "#97b892", "#4f7a58", "#3e6346", "#a3c49c", "#13230f", "#b3d1ac"),
+        PEACH("peach", "settings.theme.peach", 22, 36, 0.80, "#eeac8c", "#e8a283", "#8c4930", "#f0b598", "#3a1e12", "#f4c3a9"),
+        ROSE("rose", "settings.theme.rose", 345, 330, 0.64, "#d497a8", "#a65a6e", "#8a4356", "#e3a3b4", "#35141f", "#ecb5c3"),
+        TEAL("teal", "settings.theme.teal", 186, 196, 0.72, "#82bcbe", "#3f7a7c", "#2a5c5e", "#93c9ca", "#0d2324", "#a6d5d5");
         /** Stored id of the user-configurable Custom choice; it is not a preset and never appears in values(). */
         static final String CUSTOM_ID = "custom";
         final String id, key;
@@ -55,11 +57,13 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
         final Color swatch, lightFill, lightOnFill, lightText, darkFill, darkOnFill, darkText;
         final Family family;
         Accent(String id, String key, double hue, double secondHue, double chroma, String swatch,
-               String lightFill, String lightOnFill, String lightText, String darkFill, String darkOnFill, String darkText) {
+               String lightFill, String lightText, String darkFill, String darkOnFill, String darkText) {
             this.id = id; this.key = key; this.hue = hue; this.secondHue = secondHue; this.chroma = chroma;
             this.swatch = Color.web(swatch);
-            this.lightFill = Color.web(lightFill); this.lightOnFill = Color.web(lightOnFill); this.lightText = Color.web(lightText);
-            this.darkFill = Color.web(darkFill); this.darkOnFill = Color.web(darkOnFill); this.darkText = Color.web(darkText);
+            this.lightOnFill = Color.WHITE; this.lightText = Color.web(lightText);
+            this.lightFill = readable(Color.web(lightFill), this.lightText, lightOnFill, 4.5);
+            this.darkOnFill = Color.web(darkOnFill); this.darkText = Color.web(darkText);
+            this.darkFill = readable(Color.web(darkFill), this.darkText, this.darkOnFill, 4.5);
             family = new Family(hue, secondHue, chroma, this.swatch, this.lightFill, this.lightOnFill, this.lightText, this.darkFill, this.darkOnFill, this.darkText);
         }
         /** Stored ids; "lavender" was merged into Cool Blue on 2026-11-07, so a saved Lavender choice opens as Cool Blue. */
@@ -121,6 +125,17 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
     }
     /** WCAG relative luminance. */
     static double luminance(Color c) { return .2126 * linear(c.getRed()) + .7152 * linear(c.getGreen()) + .0722 * linear(c.getBlue()); }
+    static double contrast(Color a, Color b) { double x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+    /**
+     * The colour unchanged when {@code against} already has the contrast ratio on it; otherwise moved towards
+     * {@code towards} (a deeper or lighter tone of the same family) only as far as that ratio needs.
+     */
+    static Color readable(Color color, Color towards, Color against, double ratio) {
+        if (contrast(color, against) >= ratio) return color;
+        double low = 0, high = 1;
+        for (int i = 0; i < 24; i++) { double mid = (low + high) / 2; if (contrast(color.interpolate(towards, mid), against) >= ratio) high = mid; else low = mid; }
+        return color.interpolate(towards, high);
+    }
     private static double linear(double v) { return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }
 
     /** A diffused radial light field: colour (alpha = strength), centre as window fractions, radius as a fraction of the diagonal. */
@@ -142,9 +157,16 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
      * Companion hue of a family: a neighbour about 40 degrees away that tints the soft light fields (lavender beside
      * blue, mint-blue beside teal, pink beside peach), like light from the side of the scene. It moves continuously
      * with the hue (towards blue-violet for greens, cyans and blues, towards pink for reds and oranges, none near
-     * yellow-green and violet), so dragging the custom hue never makes the background jump.
+     * yellow-green and violet), so dragging the custom hue never makes the background jump. In Light mode a warm
+     * family's companion is pulled back towards its own hue (see {@link #warmth}).
      */
     static double bloomHue(double hue) { return Math.floorMod((int) Math.round(hue - 40 * Math.cos(Math.toRadians(hue))), 360); }
+    /**
+     * How warm a hue is, 0 to 1: highest at orange, fading through red and yellow, 0 for every hue from green to
+     * magenta. HSB hue is perceptually uneven there: 40 degrees carry orange all the way to pink but blue only to
+     * lavender, and a warm pastel tint on a near-white background reads stronger than a cool one of equal saturation.
+     */
+    static double warmth(double hue) { double c = Math.max(0, Math.cos(Math.toRadians(hue - 30))); return c * c; }
 
     /**
      * The whole background palette is derived from the family's hues (primary, secondary and companion), so presets
@@ -158,16 +180,23 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
         var family = family();
         double h = family.hue(), h2 = family.secondHue(), hb = bloomHue(h);
         Color none = Color.TRANSPARENT;
-        if (!dark) return new Lighting(
-            hsb(h, .05, .995), hsb(h2, .13, .965),
-            new Light(Color.rgb(255, 255, 255, .55), .10, -.06, .50),
-            new Light(hsb(hb, .17, 1.0, .55), .00, .42, .36),
-            // Same soft saturation for every family (not scaled by chroma), so transparency reads equally in each theme.
-            new Light(Color.hsb(h, .17, .95, .72), .60, .34, .60),
-            new Light(hsb(hb, .26, .99, .42), .95, .80, .40),
-            new Wave(hsb(h, .08, .975, .40), hsb(h2, .14, .955, .50), Color.rgb(255, 255, 255, .22), none),
-            new Wave(hsb(h2, .15, .975, .78), tone(h, .30, .655, .92), Color.rgb(255, 255, 255, .62), tone(h2, .22, .72, .26)),
-            new Wave(hsb(h, .20, .97, .80), tone(h, .32, .625, .94), Color.rgb(255, 255, 255, .70), tone(h2, .26, .67, .30)));
+        if (!dark) {
+            // Warm families keep their companion light near their own hue (no pink cast over orange) and get tints up to
+            // 30% softer, so their background is as calm as a cool family's. Cool families (warmth 0) are unchanged.
+            double warm = warmth(h), k = 1 - .30 * warm;
+            double hc = h + (((hb - h) % 360 + 540) % 360 - 180) * (1 - warm);
+            return new Lighting(
+                hsb(h, .05 * k, .995), hsb(h2, .13 * k, .965),
+                new Light(Color.rgb(255, 255, 255, .55), .10, -.06, .50),
+                new Light(hsb(hc, .17 * k, 1.0, .55), .00, .42, .36),
+                // Same soft saturation for every family (not scaled by chroma, only softened when warm), so
+                // transparency reads alike in each theme.
+                new Light(Color.hsb(h, .17 * k, .95, .72), .60, .34, .60),
+                new Light(hsb(hc, .26 * k, .99, .42), .95, .80, .40),
+                new Wave(hsb(h, .08 * k, .975, .40), hsb(h2, .14 * k, .955, .50), Color.rgb(255, 255, 255, .22), none),
+                new Wave(hsb(h2, .15 * k, .975, .78), tone(h, .30 * k, .655, .92), Color.rgb(255, 255, 255, .62), tone(h2, .22 * k, .72, .26)),
+                new Wave(hsb(h, .20 * k, .97, .80), tone(h, .32 * k, .625, .94), Color.rgb(255, 255, 255, .70), tone(h2, .26 * k, .67, .30)));
+        }
         Color navy = Color.hsb(226, .34, .15), deep = Color.hsb(230, .36, .085);
         return new Lighting(
             mix(hsb(h, .40, .15), navy, .60), mix(hsb(h2, .40, .085), deep, .62),
@@ -197,6 +226,8 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
         double h = family.hue(), h2 = family.secondHue(), o = opacity / 100.0;
         Color fill = dark ? family.darkFill() : family.lightFill(), onFill = dark ? family.darkOnFill() : family.lightOnFill();
         Color accentText = dark ? family.darkText() : family.lightText();
+        // Control thumb (sliders, the switch): a light surface in both modes, never a text colour.
+        Color thumb = dark ? hsb(h, .06, .95) : Color.WHITE;
         Map<String, String> t = new LinkedHashMap<>();
         Color text, muted, subtle;
         if (!dark) {
@@ -219,7 +250,7 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
             put(t, "-pp-hairline", alpha(text, .11)); put(t, "-pp-shadow", hsb(h, .50, .32, lerp(.05, .11, o)));
             t.put("-pp-glass-sheen", sheen(lerp(.40, 0, o)));
             put(t, "-pp-badge", alpha(text, .07)); put(t, "-pp-scroll-thumb", alpha(text, .26)); put(t, "-pp-track", alpha(text, .14));
-            put(t, "-pp-thumb", Color.WHITE); put(t, "-pp-segment-track", alpha(text, .06)); put(t, "-pp-avatar-ring", alpha(Color.WHITE, .72));
+            put(t, "-pp-thumb", thumb); put(t, "-pp-segment-track", alpha(text, .06)); put(t, "-pp-avatar-ring", alpha(Color.WHITE, .72));
             put(t, "-pp-danger", Color.web("#a32b1c")); put(t, "-pp-danger-border", Color.web("#a32b1c", .45));
             put(t, "-pp-dialog", hsb(h, .025, .995)); put(t, "-pp-dialog-border", alpha(text, .12));
             put(t, "-pp-dialog-text", text); put(t, "-pp-dialog-muted", muted);
@@ -243,7 +274,7 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
             put(t, "-pp-hairline", alpha(Color.WHITE, .10)); put(t, "-pp-shadow", Color.rgb(0, 0, 0, lerp(.22, .38, o)));
             t.put("-pp-glass-sheen", sheen(lerp(.07, 0, o)));
             put(t, "-pp-badge", alpha(Color.WHITE, .08)); put(t, "-pp-scroll-thumb", alpha(Color.WHITE, .24)); put(t, "-pp-track", alpha(Color.WHITE, .16));
-            put(t, "-pp-thumb", hsb(h, .06, .95)); put(t, "-pp-segment-track", alpha(Color.WHITE, .06)); put(t, "-pp-avatar-ring", alpha(Color.WHITE, .14));
+            put(t, "-pp-thumb", thumb); put(t, "-pp-segment-track", alpha(Color.WHITE, .06)); put(t, "-pp-avatar-ring", alpha(Color.WHITE, .14));
             put(t, "-pp-danger", Color.web("#f08a7e")); put(t, "-pp-danger-border", Color.web("#f08a7e", .50));
             put(t, "-pp-dialog", darkTone(.17)); put(t, "-pp-dialog-border", alpha(Color.WHITE, .10));
             put(t, "-pp-dialog-text", text); put(t, "-pp-dialog-muted", muted);
@@ -259,6 +290,9 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
         put(t, "-pp-focus-ring", accentText);
         put(t, "-pp-selected", fill); put(t, "-pp-selected-soft", alpha(fill, dark ? .20 : .15));
         put(t, "-pp-accent-glow", alpha(fill, dark ? .22 : .32));
+        // Switch track when on: the accent wherever the light thumb already stands out on it (light mode), otherwise
+        // moved towards the family's deeper light-mode fill until the thumb keeps 3.5:1 (3:1 with the hover tint).
+        put(t, "-pp-switch-on", readable(fill, family.lightFill(), thumb, 3.5));
         t.put("-pp-primary-fill", gradient(brightness(fill, dark ? 1.04 : 1.07), fill));
         t.put("-pp-primary-hover", gradient(brightness(fill, dark ? 1.09 : 1.03), brightness(fill, dark ? 1.04 : .95)));
         t.put("-pp-primary-pressed", gradient(brightness(fill, .90), brightness(fill, .88)));

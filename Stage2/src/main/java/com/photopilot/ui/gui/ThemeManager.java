@@ -1,7 +1,9 @@
 package com.photopilot.ui.gui;
 
 import com.photopilot.config.StorageConfiguration;
+import com.photopilot.config.UserPreferenceDefaults;
 import com.photopilot.repository.JsonLocalePreferenceRepository;
+import com.photopilot.repository.JsonProfileRepository;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
@@ -16,13 +18,16 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 /**
- * Application-wide appearance: the user's theme colour, appearance mode and surface opacity, kept in the existing
- * preferences.json beside the language and applied live to every open window by swapping one generated token sheet.
+ * Application-wide appearance: the user's theme colour, appearance mode, surface opacity and typography (Font Size,
+ * Bold Text), kept in the existing preferences.json beside the language and applied live to every open window by
+ * swapping one generated sheet (theme tokens followed by {@link Typography} rules).
+ * Each local user has its own values there (see {@link #use}); the active user's are the only ones applied.
  * Changing appearance never rebuilds views, reloads data or touches workspace, AI or photo state.
  */
 final class ThemeManager {
-    static final String ACCENT_KEY = "appearance.accent", MODE_KEY = "appearance.mode", OPACITY_KEY = "appearance.opacity",
-        HUE_KEY = "appearance.customHue";
+    // The same stored keys as a new user's initial preferences (UserPreferenceDefaults).
+    static final String ACCENT_KEY = UserPreferenceDefaults.ACCENT_KEY, MODE_KEY = UserPreferenceDefaults.MODE_KEY, OPACITY_KEY = UserPreferenceDefaults.OPACITY_KEY,
+        HUE_KEY = "appearance.customHue", FONT_SIZE_KEY = UserPreferenceDefaults.FONT_SIZE_KEY, BOLD_KEY = UserPreferenceDefaults.BOLD_KEY;
     private static final ThemeManager INSTANCE = new ThemeManager();
     private static final String BASE_SHEET = Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm();
     private static final String SHEET_PREFIX = "data:text/css;base64,";
@@ -35,7 +40,9 @@ final class ThemeManager {
     private boolean custom;
     private int customHue = Theme.DEFAULT_CUSTOM_HUE;
     private Theme theme = Theme.DEFAULT;
-    private String sheet = theme.stylesheetUrl();
+    // typeset: the typography the current sheet was generated for.
+    private Typography typography = Typography.DEFAULT, typeset = typography;
+    private String sheet = sheet(theme, typeset);
     private JsonLocalePreferenceRepository store;
     // pending: a slider value previewed live but not saved yet (saved when the drag ends, after a pause, or on shutdown).
     private boolean readFailure, saveFailure, followSystem, tracking, applyPending, pending;
@@ -53,11 +60,20 @@ final class ThemeManager {
     static ThemeManager get() { return INSTANCE; }
 
     /**
-     * Normal GUI startup only: restores the saved appearance and enables Follow System detection. Without this call
+     * Normal GUI startup only: restores the saved appearance (of the default profile, which startup opens first) and
+     * enables Follow System detection. Without this call
      * (tests, embedded panes) appearance stays in memory and Follow System falls back to Light.
      */
     void initialize(Map<String, String> environment) {
-        try { open(StorageConfiguration.resolve(environment).configurationDirectory()); }
+        try {
+            var storage = StorageConfiguration.resolve(environment);
+            open(storage.configurationDirectory());
+            // Startup opens the stable default profile before the chooser, so the splash already shows that user's
+            // appearance (on a fresh installation there is no registry yet, so the splash keeps the in-memory defaults until
+            // the new Default user's record is applied). Read only; an unreadable registry is left to startup recovery.
+            try { new JsonProfileRepository(storage.scope().root()).defaultProfileId().ifPresent(id -> use(store.forProfile(id, true))); }
+            catch (IOException | RuntimeException unreadable) { /* shared values until a profile is opened */ }
+        }
         catch (RuntimeException unreadable) { readFailure = true; }
         followSystem = true;
         if (mode == Theme.Mode.SYSTEM) { systemDark = detectSystemDark().orElse(null); systemChecked = true; lastSystemCheck = System.nanoTime(); }
@@ -72,6 +88,31 @@ final class ThemeManager {
         catch (IOException | RuntimeException unreadable) { readFailure = true; }
         update();
     }
+    /**
+     * Makes a user's saved appearance the current one, before that user's views are built (startup and every switch).
+     * A slider value still waiting for its save is written to the previous user's record first; then every value is
+     * reset to the defaults and the new user's saved ones (if any) are read over them, so nothing carries over from the
+     * previous user. Re-selecting the current user changes nothing. Without a store (tests, embedded panes) appearance
+     * stays in memory. Nothing is written here: a new user is created with its own complete record
+     * (UserPreferenceDefaults), and an older user without one keeps these in-memory defaults until it changes a setting.
+     */
+    void use(JsonLocalePreferenceRepository preferences) {
+        Objects.requireNonNull(preferences);
+        if (store == null) return;
+        if (preferences.profile().equals(store.profile())) { store = preferences; return; }
+        flush();
+        store = preferences; pending = false; saveFailure = false;
+        accent = Theme.DEFAULT.accent(); mode = Theme.DEFAULT.mode(); opacity = Theme.DEFAULT_OPACITY;
+        custom = false; customHue = Theme.DEFAULT_CUSTOM_HUE; typography = Typography.DEFAULT;
+        try { restore(store.values()); readFailure = false; }
+        catch (IOException | RuntimeException unreadable) { readFailure = true; }
+        // Follow System is resolved now (as at startup) unless it was just checked, so the first frame is already right.
+        if (followSystem && mode == Theme.Mode.SYSTEM && (!systemChecked || System.nanoTime() - lastSystemCheck > TimeUnit.SECONDS.toNanos(SYSTEM_POLL_SECONDS))) {
+            systemDark = detectSystemDark().orElse(null); systemChecked = true; lastSystemCheck = System.nanoTime();
+        }
+        // Settings controls also follow values that leave the colours unchanged (the remembered custom hue).
+        update(); notifyListeners();
+    }
     /** Normal shutdown: a slider value still waiting for its save is written first. */
     void shutdown() { flush(); if (system != null) system.shutdownNow(); system = null; }
     private void restore(Map<String, String> values) {
@@ -84,6 +125,12 @@ final class ThemeManager {
         catch (NumberFormatException invalid) { /* default opacity */ }
         try { if (values.containsKey(HUE_KEY)) customHue = Math.floorMod(Integer.parseInt(values.get(HUE_KEY).strip()), 360); }
         catch (NumberFormatException invalid) { /* default custom hue */ }
+        // Out-of-range sizes are clamped to the nearest supported step; anything but "true" leaves Bold Text off.
+        int fontSize = typography.fontSize();
+        try { if (values.containsKey(FONT_SIZE_KEY)) fontSize = Integer.parseInt(values.get(FONT_SIZE_KEY).strip()); }
+        catch (NumberFormatException invalid) { /* default font size */ }
+        String bold = values.get(BOLD_KEY);
+        typography = new Typography(fontSize, bold == null ? typography.bold() : Boolean.parseBoolean(bold.strip()));
     }
 
     Theme theme() { return theme; }
@@ -93,6 +140,9 @@ final class ThemeManager {
     int customHue() { return customHue; }
     Theme.Mode mode() { return mode; }
     int opacity() { return opacity; }
+    /** Interface text size in percent (85-125, steps of 5). */
+    int fontSize() { return typography.fontSize(); }
+    boolean boldText() { return typography.bold(); }
     boolean readFailure() { return readFailure; }
     boolean saveFailure() { return saveFailure; }
     /** True when Follow System is selected but the operating system's choice could not be read (Light is used). */
@@ -119,11 +169,19 @@ final class ThemeManager {
         if (next != customHue || !custom) { customHue = next; custom = true; pending = true; }
         update();
     }
+    /** Live Font Size preview in 5% steps; persisted like {@link #previewOpacity(int)}. */
+    void previewFontSize(int percent) {
+        int next = Typography.clamp(percent);
+        if (next != typography.fontSize()) { typography = new Typography(next, typography.bold()); pending = true; }
+        update();
+    }
+    boolean selectBoldText(boolean value) { typography = new Typography(typography.fontSize(), value); update(); return save(); }
     boolean save() {
         if (store == null) { pending = false; return true; }
         try {
             store.merge(Map.of(ACCENT_KEY, custom ? Theme.Accent.CUSTOM_ID : accent.id, MODE_KEY, mode.id,
-                OPACITY_KEY, Integer.toString(opacity), HUE_KEY, Integer.toString(customHue)));
+                OPACITY_KEY, Integer.toString(opacity), HUE_KEY, Integer.toString(customHue),
+                FONT_SIZE_KEY, Integer.toString(typography.fontSize()), BOLD_KEY, Boolean.toString(typography.bold())));
             saveFailure = false; readFailure = false; pending = false;
         } catch (IOException | RuntimeException failed) { saveFailure = true; }
         return !saveFailure;
@@ -138,10 +196,14 @@ final class ThemeManager {
     private void update() {
         boolean dark = mode == Theme.Mode.DARK || mode == Theme.Mode.SYSTEM && Boolean.TRUE.equals(systemDark);
         var next = custom ? Theme.custom(customHue, mode, dark, opacity) : new Theme(accent, mode, dark, opacity);
-        if (next.equals(theme)) return;
-        theme = next; sheet = next.stylesheetUrl();
+        if (next.equals(theme) && typography.equals(typeset)) return;
+        theme = next; typeset = typography; sheet = sheet(next, typography);
         scheduleApply();
         notifyListeners();
+    }
+    /** At 100% without Bold Text the typography part is empty, so the sheet is exactly the theme's token sheet. */
+    private static String sheet(Theme theme, Typography typography) {
+        return SHEET_PREFIX + Base64.getEncoder().encodeToString((theme.stylesheet() + typography.stylesheet()).getBytes(StandardCharsets.UTF_8));
     }
     private void notifyListeners() {
         listeners.removeIf(reference -> reference.get() == null);

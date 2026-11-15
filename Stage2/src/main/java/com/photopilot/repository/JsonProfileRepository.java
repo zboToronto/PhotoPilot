@@ -21,6 +21,9 @@ public class JsonProfileRepository {
     private record Pending(LocalProfile profile, Map<String, String> files) { }
     private record Registry(UUID defaultId, List<Entry> entries, Pending pending) { }
 
+    /** Work for a new identity before the registry names it (its initial preferences); if it fails, no profile is created. */
+    @FunctionalInterface public interface NewProfile { void prepare(UUID id) throws IOException; }
+
     public JsonProfileRepository(Path root) { this.root = Objects.requireNonNull(root).toAbsolutePath().normalize(); }
     public Path root() { return root; }
     private Path file() { return root.resolve("profiles.json"); }
@@ -37,7 +40,10 @@ public class JsonProfileRepository {
             });
         } finally { if (held.isEmpty()) HELD.remove(); }
     }
-    public LocalProfile initializeDefault() throws IOException {
+    public LocalProfile initializeDefault() throws IOException { return initializeDefault(id -> { }); }
+    /** As {@link #initializeDefault()}; {@code prepare} runs for the Default identity of a fresh root (no registry, no pre-profile data). */
+    public LocalProfile initializeDefault(NewProfile prepare) throws IOException {
+        Objects.requireNonNull(prepare);
         return locked(() -> {
             Optional<Registry> stored = read(); Registry state;
             if (stored.isEmpty()) {
@@ -50,6 +56,8 @@ public class JsonProfileRepository {
                 }
                 Map<String, byte[]> legacy = legacySnapshot();
                 LocalProfile profile = fresh("Default");
+                // A genuinely new Default user (nothing to import) is prepared before the registry names it.
+                if (legacy.isEmpty()) prepare.prepare(profile.id());
                 Map<String, String> hashes = new TreeMap<>(); legacy.forEach((key, value) -> hashes.put(key, digest(value)));
                 state = new Registry(profile.id(), List.of(), new Pending(profile, hashes));
                 write(state); // Stable UUID and source fingerprints precede any destination creation.
@@ -63,12 +71,21 @@ public class JsonProfileRepository {
             .sorted(Comparator.comparing(LocalProfile::createdAt).thenComparing(p -> p.id().toString())).toList());
     }
     public LocalProfile find(UUID id) throws IOException { return locked(() -> active(ready(), id).profile()); }
-    public LocalProfile create(String name) throws IOException {
+    /**
+     * The stable default profile's UUID as registered (empty before the first initialization). Only reads: no lock, no
+     * directory or file is created, and the registry is never repaired here.
+     */
+    public Optional<UUID> defaultProfileId() throws IOException { ProfilePaths.safe(file()); return read().map(Registry::defaultId); }
+    public LocalProfile create(String name) throws IOException { return create(name, id -> { }); }
+    /** As {@link #create(String)}; {@code prepare} runs for the new identity before it is registered. */
+    public LocalProfile create(String name, NewProfile prepare) throws IOException {
+        Objects.requireNonNull(prepare);
         String valid = LocalProfile.validName(name);
         return locked(() -> {
             Registry state = recover(ready()); LocalProfile profile = fresh(valid);
             if (state.entries().stream().anyMatch(e -> e.profile().id().equals(profile.id())) || Files.exists(scope(profile.id()).directory(), LinkOption.NOFOLLOW_LINKS))
                 throw new IOException("Profile UUID collision; retry creation.");
+            prepare.prepare(profile.id());
             var pending = new Registry(state.defaultId(), state.entries(), new Pending(profile, Map.of()));
             write(pending); recover(pending); return profile;
         });

@@ -11,7 +11,8 @@ import javafx.stage.*;
 
 /**
  * Borderless window for the workspace chooser. JavaFX 21 cannot draw content under a native title bar,
- * so this window owns working move, resize and window controls; the decorated main window is untouched.
+ * so this window owns working move, resize and window controls; the decorated main window is untouched. Its outer
+ * corners are the main window's system frame ({@link WindowFrame}): rounded while restored, square while maximized.
  */
 final class UserSelectionWindow extends Stage {
     private static final double BAR_HEIGHT = 40, EDGE = 6, DEFAULT_WIDTH = 1120, DEFAULT_HEIGHT = 790;
@@ -22,6 +23,7 @@ final class UserSelectionWindow extends Stage {
     private double dragX, dragY;
     private Cursor resizing;
     private Rectangle2D resizeStart;
+    private WindowFrame.Result corners = WindowFrame.Result.UNAVAILABLE;
     // Window fill behind the wave background follows the theme; held here because ThemeManager listens weakly.
     private final Runnable themeChanged = () -> { if (getScene() != null) getScene().setFill(ThemeManager.get().theme().backdropBase()); };
 
@@ -44,6 +46,7 @@ final class UserSelectionWindow extends Stage {
         var scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT, ThemeManager.get().theme().backdropBase());
         scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm()); ThemeManager.get().style(scene.getStylesheets());
         setScene(scene); enableResizing(scene);
+        addEventHandler(WindowEvent.WINDOW_SHOWN, event -> matchMainWindowCorners());
     }
     private Button control(String id, String label, String icon, Runnable action) {
         var button = new Button(); button.setId(id); button.getStyleClass().setAll("window-control");
@@ -70,11 +73,15 @@ final class UserSelectionWindow extends Stage {
     void dispose() { texts.close(); hide(); }
     boolean maximizedToScreen() { return restored != null; }
     void toggleMaximized() {
-        if (restored != null) { apply(restored); restored = null; return; }
+        if (restored != null) { apply(restored); restored = null; matchMainWindowCorners(); return; }
         var current = new Rectangle2D(getX(), getY(), getWidth(), getHeight());
         var screen = Screen.getScreensForRectangle(current).stream().findFirst().orElse(Screen.getPrimary());
-        restored = current; apply(screen.getVisualBounds());
+        restored = current; matchMainWindowCorners(); apply(screen.getVisualBounds());
     }
+    /** The main window's system corners: rounded while restored, square while filling the screen, as a maximized main window. */
+    private void matchMainWindowCorners() { corners = WindowFrame.corners(this, restored == null); }
+    /** What the system did with the latest corner request (for tests). */
+    WindowFrame.Result corners() { return corners; }
     private void apply(Rectangle2D bounds) { setX(bounds.getMinX()); setY(bounds.getMinY()); setWidth(bounds.getWidth()); setHeight(bounds.getHeight()); }
     private void enableResizing(Scene scene) {
         scene.addEventFilter(MouseEvent.MOUSE_MOVED, event -> { if (resizing == null) scene.setCursor(edge(event)); });

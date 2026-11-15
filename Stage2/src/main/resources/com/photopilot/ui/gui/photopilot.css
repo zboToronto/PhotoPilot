@@ -1,6 +1,7 @@
 /* Design tokens. The values below are the Soft Blue / Light theme at the default surface opacity. At runtime
    ThemeManager places a generated sheet with the same token names directly after this file (Theme.tokens()), so the
    selected theme colour, Light/Dark mode and Transparency apply everywhere without restyling individual controls.
+   The same sheet carries the Font Size and Bold Text rules (Typography), derived from the font sizes and weights below.
    Surfaces: level 0 wave background, level 1 structure, level 2 interactive cards. Radii: panels 16, cards 14,
    inputs 8, navigation rows 8, pills 18. Spacing scale: 4 / 8 / 12 / 16 / 24 / 32. */
 .root {
@@ -49,6 +50,7 @@
     -pp-selected: rgba(74,104,204,1.000);
     -pp-selected-soft: rgba(74,104,204,0.150);
     -pp-accent-glow: rgba(74,104,204,0.320);
+    -pp-switch-on: rgba(74,104,204,1.000);
     -pp-primary-fill: linear-gradient(to bottom, rgba(79,111,218,1.000) 0%, rgba(74,104,204,1.000) 100%);
     -pp-primary-hover: linear-gradient(to bottom, rgba(76,107,210,1.000) 0%, rgba(70,99,194,1.000) 100%);
     -pp-primary-pressed: linear-gradient(to bottom, rgba(67,94,184,1.000) 0%, rgba(65,92,180,1.000) 100%);
@@ -283,6 +285,54 @@
 .appearance-slider:focused .thumb { -fx-background-color: -pp-focus-ring, -pp-thumb; }
 /* Custom hue: the track shows the pastel colour each hue produces (after the shared slider track, so it overrides it). */
 .hue-slider .track { -fx-background-color: -pp-hue-spectrum; -fx-background-insets: 0; -fx-background-radius: 4; -fx-padding: 4; -fx-border-color: -pp-hairline; -fx-border-radius: 4; }
+/* Bold Text switch (ToggleSwitch): one light thumb (the sliders' -pp-thumb) in both states and every theme. Off is the
+   sliders' neutral track; on is -pp-switch-on, the theme colour solved so that thumb keeps its contrast in every
+   family and mode. Hover and pressed tint the track as on secondary buttons; focus uses the primary pill's ring.
+   Track 46 x 26, thumb 20. */
+.toggle-switch { -fx-background-color: transparent; -fx-background-insets: 0; -fx-border-color: transparent; -fx-padding: 0; -fx-cursor: hand; }
+.switch-track {
+    -fx-background-color: -pp-track; -fx-background-insets: 0; -fx-background-radius: 13; -fx-padding: 3;
+    -fx-min-width: 46; -fx-pref-width: 46; -fx-max-width: 46; -fx-min-height: 26; -fx-pref-height: 26; -fx-max-height: 26;
+}
+.toggle-switch:hover .switch-track { -fx-background-color: -pp-track, -pp-hover; }
+.toggle-switch:armed .switch-track { -fx-background-color: -pp-track, -pp-pressed; }
+.toggle-switch:selected .switch-track { -fx-background-color: -pp-switch-on; }
+.toggle-switch:selected:hover .switch-track { -fx-background-color: -pp-switch-on, -pp-hover; }
+.toggle-switch:selected:armed .switch-track { -fx-background-color: -pp-switch-on, -pp-pressed; }
+.toggle-switch:focus-visible .switch-track { -fx-background-color: -pp-focus-ring, -pp-track; -fx-background-insets: -2.5, 0; -fx-background-radius: 15.5, 13; }
+.toggle-switch:selected:focus-visible .switch-track { -fx-background-color: -pp-focus-ring, -pp-switch-on; }
+.switch-thumb {
+    -fx-background-color: -pp-hairline, -pp-thumb; -fx-background-insets: 0, 1; -fx-background-radius: 10, 9;
+    -fx-min-width: 20; -fx-pref-width: 20; -fx-max-width: 20; -fx-min-height: 20; -fx-pref-height: 20; -fx-max-height: 20;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 6, 0, 0, 1);
+}
+.toggle-switch:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+/* Check boxes: one filled design for every CheckBox. FilledCheckBoxSkin keeps the standard behaviour and label layout
+   and renames the indicator, so only these rules draw it. Unchecked: the input surface inside a neutral rim; checked
+   and indeterminate: the accent with the on-accent mark. Hover and pressed tint as on the switch (the rim takes the
+   accent border); focus is the focus ring outside the square; disabled keeps the standard control opacity.
+   Same square size as the standard box (17.4 px at 13 px, the mark a whole 10 x 8 px so its size is not rounded up);
+   radius 4. */
+.check-box { -fx-skin: "com.photopilot.ui.gui.FilledCheckBoxSkin"; }
+.check-box > .check-indicator {
+    -fx-background-color: -pp-text-subtle, -pp-input; -fx-background-insets: 0, 1; -fx-background-radius: 4, 3;
+    -fx-padding: 0.361538em 0.284615em;
+}
+.check-box:hover > .check-indicator { -fx-background-color: -pp-accent-border, -pp-input, -pp-hover; -fx-background-insets: 0, 1, 1; -fx-background-radius: 4, 3, 3; }
+.check-box:armed > .check-indicator { -fx-background-color: -pp-accent-border, -pp-input, -pp-pressed; -fx-background-insets: 0, 1, 1; -fx-background-radius: 4, 3, 3; }
+.check-box:selected > .check-indicator, .check-box:indeterminate > .check-indicator { -fx-background-color: -pp-accent; -fx-background-insets: 0; -fx-background-radius: 4; }
+.check-box:selected:hover > .check-indicator, .check-box:indeterminate:hover > .check-indicator { -fx-background-color: -pp-accent-hover; }
+.check-box:selected:armed > .check-indicator, .check-box:indeterminate:armed > .check-indicator { -fx-background-color: -pp-accent-pressed; }
+.check-box:focus-visible > .check-indicator { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; -fx-border-insets: -2; -fx-border-radius: 6; }
+.check-box > .check-indicator > .check-mark {
+    -fx-background-color: transparent; -fx-padding: 0.307692em 0.384615em;
+    -fx-shape: "M1.672 3.628 L3.657 5.614 L8.288 0.371 A0.95 0.95 0 0 1 9.712 1.629 L4.412 7.629 A0.95 0.95 0 0 1 3.028 7.672 L0.328 4.972 A0.95 0.95 0 0 1 1.672 3.628 Z";
+}
+.check-box:selected > .check-indicator > .check-mark { -fx-background-color: -pp-on-accent; }
+.check-box:indeterminate > .check-indicator { -fx-padding: 0.592308em 0.361538em; }
+.check-box:indeterminate > .check-indicator > .check-mark {
+    -fx-background-color: -pp-on-accent; -fx-padding: 0.076923em 0.307692em; -fx-shape: "M1 0 H7 A1 1 0 0 1 7 2 H1 A1 1 0 0 1 1 0 Z";
+}
 
 /* F01/F05/F08 forms and tables share the same input and table treatment. Inputs stay near-opaque at every Transparency. */
 .inventory-content { -fx-padding: 0; }
@@ -337,9 +387,16 @@
 .inventory-content .table-row-cell:filled:selected { -fx-background-color: -pp-accent-soft; }
 .inventory-content .table-cell { -fx-text-fill: -pp-text; -fx-alignment: center-left; -fx-border-color: transparent transparent -pp-hairline transparent; -fx-padding: 9 12; }
 .inventory-content .table-row-cell:filled:selected .table-cell { -fx-text-fill: -pp-text; }
-.inventory-content .session-notes { -fx-background-color: -pp-input; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6 10; }
-.inventory-content .session-notes .content { -fx-background-color: transparent; }
+/* Multi-line notes (session-notes TextAreas): one rounded input surface. The skin's scroll pane, viewport and corner stay
+   transparent, so modena's viewport fill does not show as an inner block. */
+.inventory-content .session-notes { -fx-background-color: -pp-input; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-padding: 6 10; }
+.inventory-content .session-notes > .scroll-pane, .inventory-content .session-notes > .scroll-pane > .viewport,
+.inventory-content .session-notes > .scroll-pane > .corner, .inventory-content .session-notes .content { -fx-background-color: transparent; }
 .inventory-content .session-notes:focused { -fx-border-color: -pp-focus-ring; }
+/* F03 request field (#requirement-request): the same surface, taller and roomier. Typed text and the prompt share the
+   .content inset and wrap width. Native line height on purpose: the skin's scroll range ignores line spacing. */
+.inventory-content #requirement-request { -fx-background-radius: 12; -fx-border-radius: 12; -fx-padding: 6 8; -fx-min-height: 120; }
+.inventory-content #requirement-request > .scroll-pane .content { -fx-padding: 6; }
 
 /* Shared avatars. A user's own photo is drawn unchanged above these placeholder fills. */
 .user-avatar { -fx-background-color: -pp-avatar-soft; -fx-background-radius: 100; }

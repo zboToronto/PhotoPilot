@@ -35,7 +35,13 @@ public final class ProfileManager implements AutoCloseable {
     public synchronized Result<LocalProfile> activeProfile() { return call(() -> repository.find(activeContext().storageScope().profileId().orElseThrow())); }
     public synchronized Result<List<LocalProfile>> listProfiles() { return call(repository::list); }
     public synchronized Result<LocalProfile> getProfile(UUID id) { return call(() -> repository.find(id)); }
-    public synchronized Result<LocalProfile> createProfile(String name) { return call(() -> repository.create(name)); }
+    /**
+     * A new user starts with the standard preferences (UserPreferenceDefaults) under its own UUID, saved before it is
+     * registered: never the active user's, the Default user's or the shared values. If they cannot be saved, no user is created.
+     */
+    public synchronized Result<LocalProfile> createProfile(String name) {
+        return call(() -> repository.create(name, id -> UserPreferenceDefaults.initialize(active.preferences().forProfile(id, false))));
+    }
     public synchronized Result<LocalProfile> renameProfile(UUID id, String name) { return call(() -> repository.rename(id, name)); }
 
     public static Result<byte[]> prepareAvatar(java.nio.file.Path source) {

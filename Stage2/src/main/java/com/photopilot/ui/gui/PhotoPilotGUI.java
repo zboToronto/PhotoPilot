@@ -44,7 +44,14 @@ public class PhotoPilotGUI extends Application {
         stage.setMinWidth(880); stage.setMinHeight(600); stage.setTitle("PhotoPilot"); AppIcons.windowIcon(stage);
         // Saved appearance (theme colour, mode, transparency) is read before the first frame; presentation only.
         ThemeManager.get().initialize(System.getenv()); ThemeManager.get().track();
-        var scene = new javafx.scene.Scene(new SplashScreen(), 1120, 760);
+        // Display-aware default: 16:10, about 85% of the work area's height (taskbar excluded) within 85% of its width,
+        // at most 1600 x 1000, centred on the display; never maximized and still freely resizable.
+        var screen = javafx.stage.Screen.getPrimary().getVisualBounds();
+        double height = Math.min(1000, Math.min(screen.getHeight() * .85, screen.getWidth() * .85 / 1.6)), width = height * 1.6;
+        width = Math.max(width, stage.getMinWidth()); height = Math.max(height, stage.getMinHeight());
+        stage.setWidth(width); stage.setHeight(height);
+        stage.setX(screen.getMinX() + (screen.getWidth() - width) / 2); stage.setY(screen.getMinY() + (screen.getHeight() - height) / 2);
+        var scene = new javafx.scene.Scene(new SplashScreen());
         scene.getStylesheets().add(Objects.requireNonNull(PhotoPilotGUI.class.getResource("photopilot.css")).toExternalForm());
         ThemeManager.get().style(scene.getStylesheets());
         stage.setScene(scene);
@@ -87,6 +94,8 @@ public class PhotoPilotGUI extends Application {
             controller.whenIdle(() -> {
                 try {
                     if (controller.picker() == null || !controller.pickerWindow().isShowing()) throw new IllegalStateException("User selection was not shown");
+                    if (System.getProperty("os.name", "").startsWith("Windows") && controller.pickerWindow().corners() == WindowFrame.Result.UNAVAILABLE)
+                        throw new IllegalStateException("User selection did not reach the system window frame");
                     controller.requestSwitch(initialProfile.id());
                     controller.whenIdle(() -> verifyWorkspace(stage));
                 } catch (RuntimeException | AssertionError error) { smokeFailure = error; controller.whenIdle(stage::close); }

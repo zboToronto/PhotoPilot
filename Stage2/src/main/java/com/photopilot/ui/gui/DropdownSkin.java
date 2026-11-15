@@ -64,9 +64,11 @@ public class DropdownSkin<T> extends ComboBoxListViewSkin<T> {
         list.setMaxHeight(Math.max(80, Math.max(below, above)));
         // As wide as the control; wider only when an option needs it (as standard), never wider than the window.
         list.setMaxWidth(Math.max(combo.getWidth(), scene.getWidth() - 2 * MARGIN));
-        // The list shares the control's font (the Chinese UI font is set on the window content, not on the popup).
+        // The list shares the control's font (the Chinese UI font and the Bold Text face are set on the window content,
+        // not on the popup).
         if (combo.lookup(".list-cell") instanceof Labeled shown)
-            list.setStyle("-fx-font-family: \"" + shown.getFont().getFamily() + "\";");
+            list.setStyle("-fx-font-family: \"" + shown.getFont().getFamily() + "\"; -fx-font-weight: "
+                + (shown.getFont().getStyle().matches("(?i).*\\bbold\\b.*") ? "bold" : "normal") + ";");
     }
     /** After showing or resizing: once per pulse, place the list and refresh its frosted backdrop. */
     private void refreshLater() {
