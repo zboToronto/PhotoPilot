@@ -21,6 +21,77 @@ gear remove <UUID returned by add>
 
 `F05` aliases `gear list`. `gear help` lists exact field names for all five types. Edit changes only supplied fields; `weightGrams=""` clears an optional value. Values containing spaces support single or double quotes. `--confirm-duplicate` accepts a reviewed possible duplicate; it does not bypass duplicate UUID checks. `--confirm` accepts a saved-session removal warning. Unknown actions, options, duplicate options, invalid IDs and unclosed quotes return errors. Tests use fictitious local fixtures, not demonstration results in production code.
 
+### Shutter count checker (2026-11-09)
+
+A second card, **Gear tools > Shutter Count Check** (器材工具 > 快门次数检测), sits directly below the inventory card on the same page, and the CLI has `shutter models` / `shutter check`. Both use `ShutterCountService` through `PhotoPilotFacade.shutterCount()`. It reads a photo's camera counter with the bundled official ExifTool 13.62 (Perl included; no ExifTool or Perl installation needed). It is read-only and local: photos are never modified, copied, uploaded or stored, and no result is persisted.
+
+**No manual camera selection (2026-11-10).** The card has no brand, series, model or search controls; the camera always comes from the photo (`ShutterCountService` → `CameraModelCatalog.detect`). After the description, a blue **Supported models** (支持机型查询) link opens `SupportedModelsDialog`, a lookup-only modal in the application dialog style (`AppDialogs`).
+- It lists the existing catalog one brand at a time (Sony/Nikon segmented control), grouped by series, each model with its support level (evidence as a tooltip).
+- Its search uses `CameraModelCatalog.search`, so it filters as you type by product name, ID or naming variant.
+- It shows the catalog source and closes with Close or Escape. Clicking outside does nothing, as for the other modal dialogs.
+- It selects nothing for the check. The GUI therefore no longer shows selected-versus-detected messages; it shows the detected camera's support level. The CLI's optional `brand=`/`model=` comparison is unchanged.
+
+**Photo import (2026-11-10).** The import area is the shared `FileDropZone` (see [GUI extension points](gui-redesign.md#behavior-and-extension-points)) around the unchanged title, formats line, **Choose photo…** button and privacy note. In this card it is at least 240 px tall (it was about 150 px), with its content centred. Files dragged from File Explorer and the chooser's result go through the same zone validation (one file, not a folder, extension in `ShutterCountService.EXTENSIONS`, any case) and then the same handler, `ShutterCountPane.check(Path)`, so a photo gives the same result either way. While a supported photo is over the area it turns the accent colour and says **Release to import the photo** (松开即可导入照片), at the same size. Unsupported files, folders and several files at once tint it in the danger colour with the reason; a refused drop leaves the previous result on screen and shows the reason in the area until a photo is accepted. While a photo is being read, drops are not accepted (the button is disabled as before), so one drop starts exactly one check. Drops are accepted as copies only, so File Explorer never moves or deletes the original.
+
+**Flow.** File (chooser or drag and drop through the drop zone; `.jpg .jpeg .arw .nef .dng`) → `ShutterCountService.check`: name/extension, existence, regular file, readability, size (1 B – 2 GB), signature (JPEG `FF D8 FF`; ARW/NEF/DNG TIFF `II*\0`/`MM\0*`) → `ExifToolAdapter.read` (`-json -a -G5 -n -api SavePath=1 -charset filename=utf8` and only the tags it needs: camera identity, dates, file type, counter and shutter-type fields; no GPS, serial or owner) → `ShutterCountRules` → `CameraModelCatalog.detect` and the comparison with a model given in the CLI → `ShutterCountResult` → `ShutterCountPresentation` (GUI and CLI wording). The GUI runs the check on the window's worker queue. A new check clears the previous result first, so an earlier photo's count is never shown for another file.
+
+**ExifTool process.** The process is created per profile context in `ApplicationBootstrap`, but nothing starts with the application.
+- **Start.** The first check locates the bundle (`ExifToolRuntime`) and starts `exiftool_files\perl.exe exiftool.pl -stay_open True -@ -`, working directory `exiftool_files`, with `PERL*` variables removed. Each request writes argument lines followed by `-echo4 {readyN}` and `-executeN`. stdout is read up to `{readyN}` and stderr up to the echoed marker, each on its own daemon thread, so no pipe can fill up.
+- **Requests.** Requests are serialized by a lock. Arguments containing line breaks or protocol options are refused. The timeout is 30 s (`PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS`, 5–300).
+- **Failures.** On a timeout or crash the process tree is stopped and reported; the next request starts a fresh process. A pipe found broken when sending is restarted and retried once.
+- **Shutdown.** `close()` (user switch or application exit, via `ProfileManager` → `ApplicationBootstrap.close`) sends `-stay_open False` and stops the process if it has not exited after 3 s.
+- **Locating the bundle.** With classes on disk (`javafx:run`, tests), the bundle is used in place after checking every manifest entry's size. From a JAR it is extracted once to `%LOCALAPPDATA%\PhotoPilot\exiftool\13.62-<manifest hash>`, every file is SHA-256-verified, and the folder is published with an atomic move. Other systems report the feature as unavailable (the bundle is the Windows build).
+
+**Counter rules** (from the bundled `Sony.pm`/`Nikon.pm` and the TagNames notes). Fields are never interchangeable:
+- **Sony.** The model selects the MakerNotes table:
+  - Tag9050d `ShutterCount`: "total number of mechanical shutter actuations" (ILCE-6700/7CM2/7CR, ILME-FX2; ILCE-1M2/7M5/7RM6 only in mechanical-shutter photos).
+  - Tag9050a/b/c `ShutterCount`: "total number of image exposures made by the camera". Tag9050a may wrap at 65536 on some models. For b/c, ExifTool's source notes that the count does not increase during silent shooting (ILCE-7RM2).
+  - MoreInfo0201 and FocusInfo `ShutterCount`: older DSLR/SLT/NEX models.
+  - `ShutterCount2` and `ShutterCount3` have no documented meaning and only cross-check the selected field (shown as matching or differing).
+- **Nikon.** MakerNotes 0x00a7 `ShutterCount`: "includes both mechanical and electronic shutter activations"; 4294965247 means n/a. A ShotInfo copy cross-checks it. `MechanicalShutterCount` is shown as a separate counter.
+- **All brands.**
+  - `ImageCount` is never a shutter count.
+  - Zero, non-numeric, out-of-range and n/a values are reported as an invalid counter.
+  - Several primary tables with different values are reported as a conflict.
+  - No MakerNotes (edited or exported JPEG, converted DNG), no camera data, other brands, damaged files (ExifTool's format warnings) and missing counters each have their own message. A count is never substituted or estimated.
+
+**Model catalog** (`CameraModelCatalog`, resource `catalog/exiftool-camera-models.json` generated by `tools/GenerateCameraCatalog.java` from <https://exiftool.org/models.html>, retrieved 2026-11-09 with ExifTool 13.62).
+- **Contents.** Of 796 Sony and 307 Nikon entries, 360 Sony and 300 Nikon cameras are kept. Phones, camcorders, PDAs, printers, the PSP, NEX-VG camcorders, Coolscan scanners and software are excluded.
+- **Grouping.** Models are grouped into families and series: Sony α1/α9/α7/α7R/α7S/α7C/α6000/α5000·3000, NEX, QX, A-mount SLT·ILCA and DSLR, Cinema Line, ZV, RX, other Cyber-shot, Mavica; Nikon Z FX/DX, D single/two/three/four-digit, Df, Nikon 1, COOLPIX, KeyMission.
+- **Names.** Product names are derived from the IDs (ILCE-7RM5 → α7R V, Z 6_2 → Z 6II). Search and exact lookup accept IDs, product names and variants (A7 IV, Alpha 7 IV, A7M4, ILCE-7M4, NIKON Z 6_2, Z6II).
+- **Support levels.** These are kept apart from being listed: *verified* means checked with a real photo against an independent tool (ILCE-7RM5 only, `catalog/shutter-count-verified.json`, which stores no counts or photo data); *documented* means ExifTool's model conditions name a counter (75 Sony, 48 Nikon); *unverified* applies to 252 Nikon models; *not available* means ExifTool defines no counter (284 Sony, mostly Cyber-shot compacts).
+- **Model check.** CLI only (`shutter check … brand= model=`): the detected model is compared with the given one (match, model mismatch, brand mismatch, or a model that cannot be matched). The GUI has no selection since 2026-11-10.
+
+**Files.**
+- Model: `CameraModel`, `CameraMetadata`, `CounterKind`, `ShutterCountResult`.
+- Integration: `CameraMetadataReader`, `ExifToolAdapter`, `ExifToolProcess`, `ExifToolRuntime`, `ExifToolException`.
+- Service: `CameraModelCatalog`, `ShutterCountRules`, `ShutterCountService`.
+- Presentation and UI: `ShutterCountPresentation`, `ui/cli/ShutterCommands`, `ui/gui/ShutterCountPane` (connected by `GuiProfileController` through `PhotoPilotWorkspace/FeaturePane.connectShutterCount`), `ui/gui/SupportedModelsDialog`, and the shared `ui/gui/FileDropZone` for its import area.
+- Resources: `catalog/*.json`; 201 `shutter.*` and 8 shared `fileDrop.*` keys per bundle; `.shutter-content` CSS with existing tokens (and the card's text field added to the shared input rule); the dashed import look is the shared `.file-drop-zone` rule with its drag states.
+- Bundle and build: `third-party/exiftool/` (official package, `MANIFEST.sha256`, `NOTICE.md`, `.gitattributes` keeping the bytes); a `pom.xml` resource entry; `tools/ExifToolManifest.java`.
+- The inventory card, its table, search and buttons are unchanged.
+
+**Verification (2026-11-09).**
+- The user-supplied Sony ARW (outside the repository) gives ILCE-7RM5 and `MakerNotes › Tag9050c › ShutterCount`, equal to the independent tool's reference, through the service, CLI, GUI card and packaged JAR. The photo was unchanged.
+- Full suite: 485 run, with 1 known baseline-identical `AppearanceGuiTest` failure. JAR and `GUI_SMOKE_OK`.
+- Packaged JAR run from a Unicode install path with a fresh `%LOCALAPPDATA%`: extracted, verified, reused on the next start, and no process left behind.
+- 2026-11-10, drop zone and selection order:
+  - Full suite: 486 run, same single known failure; `GUI_SMOKE_OK`.
+  - `FileDropZoneTest` and `ShutterCountGuiTest` cover drop and chooser equivalence (also with the real ARW), refusals, the busy state and the control order.
+  - The import area's default look is pixel-identical to before.
+  - A real File Explorer drag is a manual check.
+- 2026-11-10, card simplified (no selection, supported-models dialog, taller import area):
+  - Focused shutter, drop-zone and translation classes pass, with the real sample.
+  - Full suite: 486 run, the known `AppearanceGuiTest` failure plus a `DropdownGuiTest` real-screen focus check that passed twice when rerun on its own.
+  - `GUI_SMOKE_OK`.
+- Details: [project memory](../../docs/PROJECT_MEMORY.md#shutter-count-checker-with-bundled-exiftool-2026-11-09).
+
+**Limits.**
+- Only Windows is bundled.
+- Nikon rules are tested with controlled metadata only: no Nikon photograph was available, so no Nikon accuracy is claimed.
+- Sony support beyond the ILCE-7RM5 rests on ExifTool's documentation, not on PhotoPilot samples.
+- The meaning of a counter follows ExifTool's notes, which are sometimes hedged (Tag9050b/c silent-shooting comment).
+
 ## Persistence contract
 
 - Shared location: `<root>/profiles/<uuid>/inventory.json`, where root defaults to `${user.home}/.photopilot/data` or PHOTOPILOT_DATA_DIR. Normal GUI/CLI use the same persisted default UUID. [Phase 3](phase3-local-profiles.md) documents guarded contexts and non-destructive Phase 2 migration. Business files are created on save; startup creates profile metadata and may copy known legacy data.

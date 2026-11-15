@@ -33,7 +33,7 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 5. `PhotoPilotAgent.runWithTools` with `PlanGeneration.SCHEMA`; permitted tools: `calculation`.
 6. `PlanAssembly.plan` converts the untrusted reply: unknown candidate/gear labels, invalid mounts and unreadable times become blocking problems; equipment named in the checklist is left out (reported); gear labels in text are replaced with names; calculations = baseline field of view + every successful tool call, recomputed by F08; session information and fixed constraints are copied from the requirement, never from AI.
 7. `PlanValidator.assess` (below) produces violations, missing information, unverified assumptions and limitations. The preview is approvable only when valid and non-provisional (e.g. a plan without a verified loadout is provisional and cannot be approved).
-8. The preview is registered (by object identity) for that session; nothing is saved.
+8. The complete preview is registered (by object identity) for that session, with its report and a private copy of the plan as validated; nothing is saved.
 
 ## Agent and tool orchestration
 
@@ -59,7 +59,7 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 
 ## Approval and session state
 
-`approve(id, plan)`: the plan must be the exact preview issued for this session and not already approved (foreign/rejected/saved previews fail); the session is reloaded; binding: a new plan needs no saved plan, a revision must be latest saved revision + 1 (otherwise `plan.error.stale`); full revalidation against current requirement, profile, inventory and evidence; `validateChange` for revisions; `approvedCopy()` (provisional plans cannot be approved); `appendApprovedPlan`; `apply(PLAN_APPROVED)` only while Draft (Planned has no second transition); one atomic `SessionRepository.save` with the optimistic revision check. Success is returned only after the save; any failure leaves the stored file byte-identical.
+`approve(id, plan)`: the plan must be the exact preview issued for this session and not already approved (foreign/rejected/saved previews fail); its content must be unchanged since it was issued (`plan.error.modified`: PlanCommands can still edit an unapproved draft); the issued preview's own report must be approvable, so assembly problems whose invalid input was removed from the plan still block approval (the GUI/CLI check is early feedback only, since 2026-11-15); the session is reloaded; the remaining checks and the save use the service's private copy; binding: a new plan needs no saved plan, a revision must be latest saved revision + 1 (otherwise `plan.error.stale`); full revalidation against current requirement, profile, inventory and evidence; `validateChange` for revisions; `approvedCopy()` (provisional plans cannot be approved); `appendApprovedPlan`; `apply(PLAN_APPROVED)` only while Draft (Planned has no second transition); one atomic `SessionRepository.save` with the optimistic revision check. Success is returned only after the save; any failure leaves the stored file byte-identical.
 
 ## UC11 Command-based revision
 
@@ -106,7 +106,7 @@ Coverage of the requested scenarios: valid generation (F10Workflow), missing req
 
 Preparation: `.env` with `LLM_API_KEY`; optionally `$env:GEMINI_TIMEOUT_SECONDS='120'`. Use a demo user/profile, not real data.
 
-1. Status: Home shows **Shoot Planning** as ready; `status` in the CLI lists F10 IMPLEMENTED.
+1. Status: the sidebar lists **Shoot Planning** under Workspace (Home no longer has feature cards since 2026-11-08); `status` in the CLI lists F10 IMPLEMENTED.
 2. F05: add the demo gear (two Sony E bodies, 200-600, 100-400, 70-300 lenses, NP-FZ100 batteries, SD cards).
 3. F01: create "Airshow demo" for a date within the next week. F03: parse "Fast-moving aircraft at an airshow, about three hours, two camera bodies, avoid lens changes, telephoto and portability matter" and confirm.
 4. F07: enter needs (focal length 100–600 mandatory, camera bodies 2, burst ≥ 10, lenses ≤ 2, weight ≤ 6000 optional), confirm, optionally Match My Gear and select a loadout.

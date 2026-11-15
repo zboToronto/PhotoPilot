@@ -234,7 +234,7 @@ Use isolated storage, never a real user's data:
 
 For the live part, set `GEMINI_TIMEOUT_SECONDS=120`.
 
-1. **Feature identification.** Home → **Inspiration** card / sidebar *Workspace > Inspiration*; **Check status** shows the F02 description. CLI: `status`, `F02`.
+1. **Feature identification.** Sidebar *Workspace > Inspiration* (Home's former Inspiration card was removed on 2026-11-08, see [Home dashboard](home-dashboard.md)); **Check status** shows the F02 description. CLI: `status`, `F02`.
 2. **Open Find Something to Shoot.** Note that the page shows inputs and your gear only; nothing is contacted.
 3. **Review inputs.** Enter *Toronto*, choose **Find place coordinates**, pick *Toronto, Ontario, Canada*, then enter:
    - a date within the next week
