@@ -136,13 +136,14 @@ public class ReviewService {
         var in = loaded.value().orElseThrow();
         if (!in.canReview()) return Result.failures(in.reviewBlockers());
         var stats = in.statistics().orElseThrow(); var plan = in.plan().orElseThrow(); var requirement = in.requirement().orElseThrow();
-        String evidence = ReviewEvidence.json(stats, plan, requirement, in.differences(), in.limitations());
-        var context = new AgentContext(id, List.of("Review this completed photography session from the verified evidence."), evidence, List.of(), Optional.empty())
+        var prepared = ReviewEvidence.prepare(stats, plan, requirement, in.differences(), in.limitations());
+        var context = new AgentContext(id, List.of("Review this completed photography session from the verified evidence."), prepared.json(), List.of(), Optional.empty())
             .withResponseSchema(ReviewInterpretation.SCHEMA);
         var run = agent.runWithTools(ReviewEvidence.TASK, context, ReviewInterpretation.class, Set.of());
         if (!run.isSuccess()) return run.hasError("ai.error.malformedOutput") ? Result.failureKey("review.error.malformed") : Result.failure(run);
         var output = run.value().orElseThrow();
-        var checked = ReviewEvidence.check(output.output(), evidence, output.historyEvidence());
+        // Figures are bound to the typed facts of exactly this evidence and the history the agent added (Stage2Review1).
+        var checked = ReviewEvidence.check(output.output(), prepared.claims().withHistory(output.historyEvidence()));
         var notes = new ArrayList<>(in.notes());
         notes.add(LocalizedMessage.of("review.note.history", output.historySessions()));
         if (checked.removed() > 0) notes.add(LocalizedMessage.of("review.note.removed", checked.removed()));

@@ -4,8 +4,9 @@ import java.util.List;
 
 /**
  * F11 structured-output DTO: the exact JSON shape requested from Gemini for a post-shoot review (inside the agent's
- * reply envelope). Every value is untrusted; ReviewEvidence removes statements that cite figures absent from the
- * evidence or claim image content, quality or scores before anything becomes a PostShootReview draft.
+ * reply envelope). Every value is untrusted; ReviewEvidence removes statements with a figure that no evidence fact of the
+ * same metric, statistic, source and subject supports (ReviewClaims; "[S6]"-style record ids are checked, then removed
+ * from the text) or that claim image content, quality or scores before anything becomes a PostShootReview draft.
  */
 public record ReviewInterpretation(String summary, List<String> technicalObservations, List<String> equipmentObservations,
         List<String> exposureObservations, List<String> lessons, List<String> improvements, List<String> limitations) {

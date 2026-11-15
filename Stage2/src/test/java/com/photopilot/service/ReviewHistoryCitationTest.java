@@ -44,15 +44,19 @@ class ReviewHistoryCitationTest {
         assertEquals(1, run.historySessions());
         assertTrue(run.historyEvidence().contains("pastAdvice"), "the earlier advice was sent as background");
 
-        var checked = ReviewEvidence.check(run.output(), CURRENT, run.historyEvidence());
+        // The current evidence as typed facts (12 usable photos), exactly what CURRENT states.
+        var builder = new ReviewClaims.Builder(); String id = builder.record(ReviewClaims.Source.SESSION);
+        builder.add(id, ReviewClaims.Source.SESSION, ReviewClaims.COUNT, "usable", 12, "");
+        var evidence = builder.build();
+        var checked = ReviewEvidence.check(run.output(), evidence.withHistory(run.historyEvidence()));
         assertEquals("12 photos had usable metadata.", checked.summary());
         assertEquals(List.of("The earlier session used 400 mm for 3 of 4 photos."), checked.technical(),
             "facts of the earlier session may be cited; a figure only in earlier advice or nowhere is removed");
         assertEquals(List.of("The earlier session recorded ISO 1600 most often."), checked.exposure());
         assertEquals(2, checked.removed());
 
-        var withoutHistory = ReviewEvidence.check(run.output(), CURRENT, "");
+        var withoutHistory = ReviewEvidence.check(run.output(), evidence);
         assertTrue(withoutHistory.technical().isEmpty() && withoutHistory.exposure().isEmpty(), "without related history no earlier figure is accepted");
-        assertTrue(ReviewEvidence.historyFacts("{not json").isEmpty(), "unreadable history allows nothing");
+        assertEquals(evidence.facts(), evidence.withHistory("{not json").facts(), "unreadable history allows nothing");
     }
 }
