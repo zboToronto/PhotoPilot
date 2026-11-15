@@ -1,6 +1,6 @@
 # Stage 1 feature status
 
-Last delivery/source check: **2026-11-15** (America/Toronto). **Current full regression: 649 tests, 642 passed, 1 failure, 0 errors, 6 skipped. Push is pending.** The remaining failure is the previously recorded PEACH/light transparency screenshot threshold in `AppearanceGuiTest`; the code and assertion were preserved. Seven feature commits compile independently, and final GUI startup returned `GUI_SMOKE_OK`. [Delivery evidence and commit groups](PROJECT_MEMORY.md#git-delivery-review-2026-11-15).
+Last delivery/source check: **2026-11-15** (America/Toronto). **Current full regression: 649 tests, 642 passed, 1 failure, 0 errors, 6 skipped. The reviewed batch was pushed with the user's explicit acceptance of the known failure.** The remaining failure is the previously recorded PEACH/light transparency screenshot threshold in `AppearanceGuiTest`; the code and assertion were preserved. Seven feature commits compile independently, and final GUI startup returned `GUI_SMOKE_OK`. Remote `main` was verified at `037b6b3` after the eight-commit push; a separate documentation update records the publication. [Delivery evidence and commit groups](PROJECT_MEMORY.md#git-delivery-review-2026-11-15).
 
 Historical implementation baseline: the F01–F11 mappings and earlier passing feature acceptance below describe their implementation status; they do not mean that the current full regression suite passes. The 2026-11-15 results above supersede earlier whole-tree verification counts.
 
