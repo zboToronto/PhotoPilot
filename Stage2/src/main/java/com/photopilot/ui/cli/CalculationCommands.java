@@ -15,8 +15,13 @@ final class CalculationCommands {
     int execute(String line) {
         String[] tokens=line.strip().split("\\s+");
         if (tokens.length==1 || tokens[1].equalsIgnoreCase("help")) {
-            for (var tool:CalculationForm.Tool.values()) out.println("calc " + tool.command + " " + String.join(" ",tool.fields.stream().map(f -> f.key()+"=<"+f.unit()+">").toList()));
+            for (var tool:CalculationForm.Tool.values()) {
+                var arguments=new ArrayList<>(tool.fields.stream().map(f -> f.key()+"=<"+f.unit()+">").toList());
+                tool.optional.forEach(f -> arguments.add("["+f.key()+"=<"+f.unit()+">]"));
+                out.println("calc " + tool.command + " " + String.join(" ",arguments));
+            }
             out.println(localization.text("cli.calc.inputHelp"));
+            out.println(localization.text("cli.calc.optionalHelp"));
             out.println(localization.text("cli.calc.gearHelp"));
             return 0;
         }
@@ -42,7 +47,18 @@ final class CalculationCommands {
             if (!parsed.isSuccess()) { out.println(String.join("; ",parsed.errors(localization)));return 2; }
             var result=app.calculate(parsed.value().orElseThrow());
             if (!result.isSuccess()) { out.println(String.join("; ",result.errors(localization)));return 2; }
-            out.println(CalculationForm.format(result.value().orElseThrow(), localization));return 0;
+            out.println(CalculationForm.format(result.value().orElseThrow(), localization));
+            if (tool==CalculationForm.Tool.HYPERFOCAL) {
+                // The near limit when focused at H comes from the depth of field operation at s = H, not from a separate rule.
+                var focused=app.calculate(CalculationForm.atHyperfocal(result.value().orElseThrow()));
+                if (focused.isSuccess()) {
+                    var range=focused.value().orElseThrow().values();
+                    double far=range.get(com.photopilot.service.TechnicalCalculator.FAR_LIMIT);
+                    out.println(localization.text("cli.calc.hyperfocalFocus", CalculationForm.formatNumber(range.get(com.photopilot.service.TechnicalCalculator.NEAR_LIMIT)),
+                        far==Double.POSITIVE_INFINITY ? localization.text("calc.infinity") : CalculationForm.formatNumber(far)+" m"));
+                }
+            }
+            return 0;
         } catch (IllegalArgumentException e) { out.println(String.join("; ", Result.failure(e).errors(localization)));return 2; }
     }
 }

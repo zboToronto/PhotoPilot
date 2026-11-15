@@ -95,29 +95,42 @@ class LocalizationGuiTest {
             InventoryGuiTest.fx(() -> {
                 shell[0] = new PhotoPilotWorkspace(app.localization()); pane[0] = new CalculatorPane(app.facade(), executor, app.localization()); shell[0].connectCalculator(pane[0]);
                 stage[0] = show(shell[0], 864, 561); ((ToggleButton)shell[0].lookup("#nav-F08")).fire();
-                var button = (Button)pane[0].lookup("#calc-run"); button.textProperty().addListener((o, a, b) -> { if (!Platform.isFxApplicationThread()) nonFxMutation.set(true); });
-                CalculatorGuiTest.fill(pane[0], "aperture", "8"); CalculatorGuiTest.fill(pane[0], "shutter", "1/128"); CalculatorGuiTest.fill(pane[0], "iso", "400");
-                button.fire(); assertTrue(pane[0].feedbackText().contains("Calculated result")); return true;
+                var button = (Button)pane[0].lookup("#calc-reset"); button.textProperty().addListener((o, a, b) -> { if (!Platform.isFxApplicationThread()) nonFxMutation.set(true); });
+                // Results follow the inputs without a Calculate button: f/8, 1/128 s, ISO 400 is EV 13 and EV100 11.
+                ((TextField)pane[0].lookup("#calc-shutter")).setText("1/128"); ((TextField)pane[0].lookup("#calc-iso")).setText("400");
+                assertEquals("13.00", ((Label)pane[0].lookup("#calc-result-settingsEv")).getText());
+                assertEquals("11.00", ((Label)pane[0].lookup("#calc-result-ev100")).getText());
+                assertEquals("Reset this calculator", button.getText()); return true;
             });
             CompletableFuture.runAsync(() -> app.localization().useLanguage("zh-CN")).get(10, TimeUnit.SECONDS);
             InventoryGuiTest.fx(() -> {
                 assertFalse(nonFxMutation.get());
-                assertEquals("计算", ((Button)pane[0].lookup("#calc-run")).getText());
+                assertEquals("重置此计算器", ((Button)pane[0].lookup("#calc-reset")).getText());
+                assertEquals("曝光值", ((ToggleButton)pane[0].lookup("#calc-mode-EXPOSURE")).getText());
+                // Inputs, results and the selected calculator stay; only their captions change language.
+                assertEquals("1/128", ((TextField)pane[0].lookup("#calc-shutter")).getText());
+                assertEquals("11.00", ((Label)pane[0].lookup("#calc-result-ev100")).getText());
+                assertEquals("ISO 400", ((Label)pane[0].lookup("#calc-detail-ev100")).getText());
+                assertEquals("计算详情", ((TitledPane)pane[0].lookup("#calc-details")).getText());
+                assertTrue(((ToggleButton)pane[0].lookup("#calc-mode-EXPOSURE")).isSelected());
+                ((ToggleButton)pane[0].lookup("#calc-mode-ND")).fire();
                 assertEquals("可选：已有器材", ((ComboBox<?>)pane[0].lookup("#calc-gear")).getButtonCell().getText());
-                assertTrue(pane[0].feedbackText().contains("计算结果")); assertFalse(pane[0].feedbackText().contains("Calculated result"));
-                assertEquals("1/128", ((TextField)pane[0].lookup("#calc-field-shutter")).getText());
-                var tool = (ComboBox<?>)pane[0].lookup("#calc-tool"); assertEquals(0, tool.getSelectionModel().getSelectedIndex());
-                CalculatorGuiTest.check(pane[0], 1, Map.of("shutter", "1/125", "ndStops", "10"), "8.192 s");
-                var ndUnit = (ComboBox<?>)pane[0].lookup("#calc-nd-unit"); ndUnit.getSelectionModel().select(1);
-                CalculatorGuiTest.fill(pane[0], "shutter", "1/125"); CalculatorGuiTest.fill(pane[0], "ndFactor", "8");
-                ((Button)pane[0].lookup("#calc-run")).fire(); assertTrue(pane[0].feedbackText().contains("0.064 s"));
+                assertEquals("8.19 s", ((Label)pane[0].lookup("#calc-result-adjusted")).getText());
+                ((TextField)pane[0].lookup("#calc-ndFactor")).setText("8");
+                assertEquals("1/15.6 s", ((Label)pane[0].lookup("#calc-result-adjusted")).getText());
                 for (int i = 0; i < 12; i++) app.localization().useLanguage(i % 2 == 0 ? "en" : "zh-CN");
-                assertEquals(1, ndUnit.getSelectionModel().getSelectedIndex());
-                assertEquals("8", ((TextField)pane[0].lookup("#calc-field-ndFactor")).getText());
+                assertTrue(((ToggleButton)pane[0].lookup("#calc-mode-ND")).isSelected());
+                assertEquals("8", ((TextField)pane[0].lookup("#calc-ndFactor")).getText());
+                assertEquals("3", ((TextField)pane[0].lookup("#calc-ndStops")).getText());
+                assertEquals("1/15.6 s", ((Label)pane[0].lookup("#calc-result-adjusted")).getText());
                 CalculatorGuiTest.snapshot(shell[0], "i18n-calculator-zh-narrow");
                 ((ScrollPane)shell[0].lookup(".content-scroll")).setVvalue(1);
                 CalculatorGuiTest.snapshot(shell[0], "i18n-calculator-zh-results");
-                for (int i = 0; i < 7; i++) { tool.getSelectionModel().select(i); noMissing(shell[0]); }
+                for (var tool : CalculatorPane.PAGES) { ((ToggleButton)pane[0].lookup("#calc-mode-" + tool.name())).fire(); noMissing(shell[0]); }
+                ((ToggleButton)pane[0].lookup("#calc-mode-DOF")).fire(); assertEquals("景深与超焦距", ((ToggleButton)pane[0].lookup("#calc-mode-DOF")).getText());
+                ((ToggleButton)pane[0].lookup("#calc-focus-HYPERFOCAL")).fire(); noMissing(shell[0]);
+                assertEquals("超焦距对焦", ((ToggleButton)pane[0].lookup("#calc-focus-HYPERFOCAL")).getText());
+                ((ToggleButton)pane[0].lookup("#calc-focus-MANUAL")).fire();
                 shell[0].verifyNavigation();
                 stage[0].hide(); assertEquals(0, app.localization().listenerCount());
                 app.localization().useLanguage("en"); stage[0].show();

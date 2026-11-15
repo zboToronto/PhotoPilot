@@ -88,10 +88,12 @@ class CalculationTest {
         assertEquals(39.597752709049864,fov.values().get("Horizontal field of view"),1e-10);
         assertEquals(26.991466561591622,fov.values().get("Vertical field of view"),1e-10);
         assertEquals(46.79300334396557,fov.values().get("Diagonal field of view"),1e-10);
-        var storage=calculate(CalculationForm.Tool.STORAGE,Map.of("shotCount","1000","fileSize","25","cardCapacity","16"));
+        // Storage/battery remain engine operations for the planning agent's calculation tool; they are no longer calculator choices.
+        var storageUnits=Map.of("shotCount","shots","fileSize","MB","cardCapacity","GB");var batteryUnits=Map.of("shotCount","shots","ratedShots","shots");
+        var storage=service.calculate(new CalculationInput(CalculationKind.STORAGE,Map.of("shotCount",1000.,"fileSize",25.,"cardCapacity",16.),storageUnits)).value().orElseThrow();
         assertEquals(25,storage.values().get("Required storage"));assertEquals(2,storage.values().get("Cards required"));assertTrue(storage.estimated());
-        assertEquals(2,calculate(CalculationForm.Tool.BATTERY,Map.of("shotCount","1000","ratedShots","600")).values().get("Batteries required"));
-        assertEquals(1,calculate(CalculationForm.Tool.BATTERY,Map.of("shotCount","600","ratedShots","600")).values().get("Batteries required"));
+        assertEquals(2,service.calculate(new CalculationInput(CalculationKind.BATTERY_CAPACITY,Map.of("shotCount",1000.,"ratedShots",600.),batteryUnits)).value().orElseThrow().values().get("Batteries required"));
+        assertEquals(1,service.calculate(new CalculationInput(CalculationKind.BATTERY_CAPACITY,Map.of("shotCount",600.,"ratedShots",600.),batteryUnits)).value().orElseThrow().values().get("Batteries required"));
     }
     @Test void focusAndCapacityInvalidRangesAndNumericalLimits() {
         for (var key:List.of("focalLength","aperture","coc","distance")) for(var bad:List.of("0","-1","NaN","Infinity")) {
@@ -101,9 +103,10 @@ class CalculationTest {
         for(var distance:List.of(".05",".01")) assertFalse(CalculationForm.parse(CalculationForm.Tool.DOF,Map.of("focalLength","50","aperture","8","coc",".03","distance",distance)).isSuccess());
         assertFalse(CalculationForm.parse(CalculationForm.Tool.HYPERFOCAL,Map.of("focalLength","50","aperture","8")).isSuccess());
         var overflow=CalculationForm.parse(CalculationForm.Tool.HYPERFOCAL,Map.of("focalLength","1e308","aperture","1","coc","1e-300")).value().orElseThrow();assertFalse(service.calculate(overflow).isSuccess());
-        for(String bad:List.of("1.5","9007199254740992","0","NaN")) assertFalse(CalculationForm.parse(CalculationForm.Tool.BATTERY,Map.of("shotCount",bad,"ratedShots","600")).isSuccess());
-        assertEquals(7,calculate(CalculationForm.Tool.STORAGE,Map.of("shotCount","1000","fileSize",".07","cardCapacity",".01")).values().get("Cards required"));
-        var tiny=CalculationForm.parse(CalculationForm.Tool.STORAGE,Map.of("shotCount","1","fileSize","4.9e-324","cardCapacity","1e308")).value().orElseThrow();assertFalse(service.calculate(tiny).isSuccess());
-        var huge=CalculationForm.parse(CalculationForm.Tool.STORAGE,Map.of("shotCount","1","fileSize","1e300","cardCapacity","1")).value().orElseThrow();assertFalse(service.calculate(huge).isSuccess());
+        var storageUnits=Map.of("shotCount","shots","fileSize","MB","cardCapacity","GB");
+        for(double bad:List.of(1.5,9007199254740992d,0.,Double.NaN)) assertFalse(new CalculationInput(CalculationKind.BATTERY_CAPACITY,Map.of("shotCount",bad,"ratedShots",600.),Map.of("shotCount","shots","ratedShots","shots")).validate().isSuccess());
+        assertEquals(7,service.calculate(new CalculationInput(CalculationKind.STORAGE,Map.of("shotCount",1000.,"fileSize",.07,"cardCapacity",.01),storageUnits)).value().orElseThrow().values().get("Cards required"));
+        var tiny=new CalculationInput(CalculationKind.STORAGE,Map.of("shotCount",1.,"fileSize",4.9e-324,"cardCapacity",1e308),storageUnits);assertTrue(tiny.validate().isSuccess());assertFalse(service.calculate(tiny).isSuccess());
+        var huge=new CalculationInput(CalculationKind.STORAGE,Map.of("shotCount",1.,"fileSize",1e300,"cardCapacity",1.),storageUnits);assertTrue(huge.validate().isSuccess());assertFalse(service.calculate(huge).isSuccess());
     }
 }

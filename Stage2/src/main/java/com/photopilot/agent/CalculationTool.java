@@ -10,17 +10,19 @@ import com.photopilot.service.TechnicalCalculator;
 
 /** Stage 1 UML element 94: bounded JSON adapter over deterministic F08. No model call. */
 public class CalculationTool implements AgentTool {
+    /** The largest operation schema (MOTION_BLUR: five required and two optional parameters) fits with one to spare. */
+    private static final int MAX_PARAMETERS=8;
     private final TechnicalCalculator calculator;
     public CalculationTool(TechnicalCalculator calculator) { this.calculator=Objects.requireNonNull(calculator); }
     public String name() { return "calculation"; }
     public String inputSchema() {
         return """
             {"type":"object","additionalProperties":false,"required":["operation","parameters","units"],
-             "properties":{"operation":{"type":"string","enum":["DEPTH_OF_FIELD","HYPERFOCAL","FIELD_OF_VIEW","EXPOSURE_ND","STORAGE","BATTERY_CAPACITY"]},
-             "parameters":{"type":"object","maxProperties":6,"additionalProperties":{"type":"number"},
-             "description":"Required keys by operation: DEPTH_OF_FIELD=focalLength,aperture,coc,distance; HYPERFOCAL=focalLength,aperture,coc; FIELD_OF_VIEW=focalLength,sensorWidth,sensorHeight; EXPOSURE_ND=shutter plus aperture+iso and/or exactly one ndStops/ndFactor/opticalDensity; STORAGE=shotCount,fileSize,cardCapacity; BATTERY_CAPACITY=shotCount,ratedShots. Positive finite values; ND stops/OD may be zero; ndFactor>=1; shot counts are integers."},
-             "units":{"type":"object","maxProperties":6,"additionalProperties":{"type":"string"},
-             "description":"Exact same keys as parameters. Optical lengths mm/cm/m; distance m/mm/ft; aperture f-number; shutter s/ms; iso ISO; ndStops stops; ndFactor factor; opticalDensity OD; counts shots; fileSize MB/MiB; cardCapacity GB/GiB."}}}
+             "properties":{"operation":{"type":"string","enum":["DEPTH_OF_FIELD","HYPERFOCAL","FIELD_OF_VIEW","EXPOSURE_ND","STORAGE","BATTERY_CAPACITY","MOTION_BLUR"]},
+             "parameters":{"type":"object","maxProperties":8,"additionalProperties":{"type":"number"},
+             "description":"Required keys by operation: DEPTH_OF_FIELD=focalLength,aperture,coc,distance; HYPERFOCAL=focalLength,aperture,coc; FIELD_OF_VIEW=focalLength,sensorWidth,sensorHeight plus optional distance (adds scene width/height); EXPOSURE_ND=shutter plus aperture+iso and/or exactly one ndStops/ndFactor/opticalDensity; STORAGE=shotCount,fileSize,cardCapacity; BATTERY_CAPACITY=shotCount,ratedShots; MOTION_BLUR=shutter,focalLength,distance,speed,sensorWidth plus optional imageWidth (adds pixel blur) and blurLimit (adds the longest exposure). Positive finite values; ND stops/OD and speed may be zero; ndFactor>=1; shot counts and imageWidth are integers. MOTION_BLUR assumes a stationary camera and lateral subject motion at a distance much larger than the focal length."},
+             "units":{"type":"object","maxProperties":8,"additionalProperties":{"type":"string"},
+             "description":"Exact same keys as parameters. Optical lengths mm/cm/m; distance m/mm/ft; aperture f-number; shutter s/ms; iso ISO; ndStops stops; ndFactor factor; opticalDensity OD; counts shots; fileSize MB/MiB; cardCapacity GB/GiB; speed m/s, km/h, mph or ft/s; imageWidth px; blurLimit mm or um on the sensor, or px (needs imageWidth)."}}}
             """;
     }
     public Result<String> execute(String argumentsJson) {
@@ -46,12 +48,12 @@ public class CalculationTool implements AgentTool {
                     case "operation" -> { require(reader,JsonToken.STRING);operation=reader.nextString(); }
                     case "parameters" -> {
                         reader.beginObject();
-                        while(reader.hasNext()) { String name=reader.nextName();require(reader,JsonToken.NUMBER);if(parameters.putIfAbsent(name,reader.nextDouble())!=null) throw new IllegalArgumentException("Duplicate parameter.");if(parameters.size()>6) throw new IllegalArgumentException("Too many parameters."); }
+                        while(reader.hasNext()) { String name=reader.nextName();require(reader,JsonToken.NUMBER);if(parameters.putIfAbsent(name,reader.nextDouble())!=null) throw new IllegalArgumentException("Duplicate parameter.");if(parameters.size()>MAX_PARAMETERS) throw new IllegalArgumentException("Too many parameters."); }
                         reader.endObject();
                     }
                     case "units" -> {
                         reader.beginObject();
-                        while(reader.hasNext()) { String name=reader.nextName();require(reader,JsonToken.STRING);if(units.putIfAbsent(name,reader.nextString())!=null) throw new IllegalArgumentException("Duplicate unit.");if(units.size()>6) throw new IllegalArgumentException("Too many units."); }
+                        while(reader.hasNext()) { String name=reader.nextName();require(reader,JsonToken.STRING);if(units.putIfAbsent(name,reader.nextString())!=null) throw new IllegalArgumentException("Duplicate unit.");if(units.size()>MAX_PARAMETERS) throw new IllegalArgumentException("Too many units."); }
                         reader.endObject();
                     }
                     default -> throw new IllegalArgumentException("Unsupported JSON key: "+key);

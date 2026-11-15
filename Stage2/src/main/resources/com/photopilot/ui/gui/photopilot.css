@@ -398,6 +398,54 @@
 .inventory-content #requirement-request { -fx-background-radius: 12; -fx-border-radius: 12; -fx-padding: 6 8; -fx-min-height: 120; }
 .inventory-content #requirement-request > .scroll-pane .content { -fx-padding: 6; }
 
+/* Photography Tools > calculators (CalculatorPane): six calculators behind one selector, scoped to .calc-content.
+   Existing tokens only, so every theme, mode, Transparency and Font Size applies. Inputs reuse the form input
+   treatment and the appearance sliders; the selector reuses the settings segments (in a wrapping track); result tiles
+   and the diagram frame use the input surface like the shutter count tiles. The diagrams are canvases coloured from
+   the same tokens and using the two font rules below (CalculatorDiagram). States never rely on colour alone: an
+   unusable input also gets a message, a solved input a caption, the current chip a weight and a border. */
+.calc-content .calc-segments { -fx-background-color: -pp-segment-track; -fx-background-radius: 10; -fx-padding: 2; }
+.calc-content .calc-diagram-box { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 6; }
+.calc-diagram-text { -fx-font-size: 11px; }
+.calc-diagram-strong { -fx-font-size: 12px; -fx-font-weight: bold; }
+.calc-content .calc-tile { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 10 14; }
+.calc-content .calc-tile-primary { -fx-background-color: -pp-accent-soft; -fx-border-color: transparent; }
+.calc-content .calc-tile-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.calc-content .calc-value { -fx-font-size: 20px; -fx-font-weight: bold; }
+.calc-content .calc-tile-primary .calc-value { -fx-text-fill: -pp-accent-text; }
+.calc-content .calc-tile:unavailable .calc-value { -fx-text-fill: -pp-text-subtle; }
+.calc-content .calc-detail { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.calc-content .calc-status { -fx-text-fill: -pp-danger; -fx-font-weight: bold; -fx-line-spacing: 2; }
+.calc-content .calc-note { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+/* A value the calculator keeps locked (hyperfocal focus): said in the accent colour, not only by the selected segment. */
+.calc-content .calc-note:locked { -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+/* A caution that changes how a result should be read stays with the results: text colour and weight, not colour alone. */
+.calc-content .calc-caution { -fx-font-size: 12px; -fx-text-fill: -pp-text; -fx-font-weight: bold; -fx-line-spacing: 2; }
+/* Calculation details: formula and assumptions behind a plain disclosure row that is closed by default, instead of a
+   permanent block. The standard titled pane without its bar and box, in the muted text colour of the notes. */
+.calc-content .calc-details { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.calc-content .calc-details > .title { -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: transparent; -fx-border-radius: 8; -fx-padding: 4 8 4 2; }
+.calc-content .calc-details > .title:hover { -fx-background-color: -pp-surface-2-hover; }
+.calc-content .calc-details:focus-visible > .title { -fx-border-color: -pp-focus-ring; }
+.calc-content .calc-details > .title > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 8 0 4; }
+.calc-content .calc-details > .title > .arrow-button > .arrow { -fx-background-color: -pp-text-muted; -fx-background-insets: 0; -fx-effect: null; }
+.calc-content .calc-details > .content { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 4 0 2 22; }
+.calc-content .calc-field-unit { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.calc-content .calc-field-error { -fx-font-size: 12px; -fx-text-fill: -pp-danger; -fx-font-weight: bold; }
+.calc-content .text-field:invalid { -fx-border-color: -pp-danger; -fx-border-width: 1.5; }
+.calc-content .calc-field:automatic .text-field { -fx-background-color: -pp-input, -pp-accent-soft; -fx-border-color: -pp-accent-border; }
+.calc-content .calc-chip {
+    -fx-background-color: -pp-control; -fx-border-color: -pp-hairline; -fx-background-radius: 14; -fx-border-radius: 14;
+    -fx-padding: 4 11; -fx-font-size: 12px; -fx-text-fill: -pp-text;
+}
+.calc-content .calc-chip:hover { -fx-background-color: -pp-surface-2-hover; -fx-border-color: -pp-border-strong; }
+.calc-content .calc-chip:armed { -fx-background-color: -pp-control, -pp-pressed; }
+.calc-content .calc-chip:focus-visible { -fx-border-color: -pp-focus-ring; }
+.calc-content .calc-chip:current { -fx-background-color: -pp-control, -pp-accent-soft; -fx-border-color: -pp-accent-border; -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+.calc-content .calc-chip:disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+.calc-content .check-box { -fx-text-fill: -pp-text; }
+.calc-content .calc-camera { -fx-border-color: -pp-hairline transparent transparent transparent; -fx-border-width: 1 0 0 0; -fx-padding: 12 0 0 0; }
+
 /* Shared avatars. A user's own photo is drawn unchanged above these placeholder fills. */
 .user-avatar { -fx-background-color: -pp-avatar-soft; -fx-background-radius: 100; }
 .avatar-initial { -fx-font-size: 20px; -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }

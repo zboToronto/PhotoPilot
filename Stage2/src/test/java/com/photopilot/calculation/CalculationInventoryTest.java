@@ -29,8 +29,6 @@ class CalculationInventoryTest {
             assertTrue(CalculationForm.fromGear(CalculationForm.Tool.DOF,zoom).isEmpty());
             var prime=EquipmentForm.parse(EquipmentType.LENS,UUID.randomUUID(),Map.of("brand","Test","model","Prime","mount","E","minFocalMm","50","maxFocalMm","50","maxAperture","1.8"),null).value().orElseThrow();
             assertEquals(Map.of("focalLength","50.0"),CalculationForm.fromGear(CalculationForm.Tool.DOF,prime));
-            var battery=EquipmentForm.parse(EquipmentType.BATTERY,UUID.randomUUID(),Map.of("brand","Test","model","Battery","batteryType","X","capacityMah","2000"),null).value().orElseThrow();
-            assertTrue(CalculationForm.fromGear(CalculationForm.Tool.BATTERY,battery).isEmpty());
         }
     }
 }

@@ -11,32 +11,44 @@ public final class CalculationValidation {
     public static Result<CalculationInput> validate(CalculationInput input) {
         try {
             if (input == null) throw new LocalizedException("error.calc.required");
-            Set<String> allowed = switch (input.operation()) {
-                case EXPOSURE_ND -> Set.of("aperture", "shutter", "iso", "ndStops", "ndFactor", "opticalDensity");
+            Set<String> required = switch (input.operation()) {
+                case EXPOSURE_ND -> Set.of("shutter");
                 case HYPERFOCAL -> Set.of("focalLength", "aperture", "coc");
                 case DEPTH_OF_FIELD -> Set.of("focalLength", "aperture", "coc", "distance");
                 case FIELD_OF_VIEW -> Set.of("focalLength", "sensorWidth", "sensorHeight");
+                case MOTION_BLUR -> Set.of("shutter", "focalLength", "distance", "speed", "sensorWidth");
                 case STORAGE -> Set.of("shotCount", "fileSize", "cardCapacity");
                 case BATTERY_CAPACITY -> Set.of("shotCount", "ratedShots");
             };
+            // Optional parameters add outputs; an input without them is validated and answered exactly as before.
+            Set<String> optional = switch (input.operation()) {
+                case EXPOSURE_ND -> Set.of("aperture", "iso", "ndStops", "ndFactor", "opticalDensity");
+                case FIELD_OF_VIEW -> Set.of("distance");
+                case MOTION_BLUR -> Set.of("imageWidth", "blurLimit");
+                default -> Set.of();
+            };
             for (var key : input.parameters().keySet()) {
-                if (!allowed.contains(key)) throw new LocalizedException("error.calc.parameter", key);
+                if (!required.contains(key) && !optional.contains(key)) throw new LocalizedException("error.calc.parameter", key);
                 double value = input.parameters().get(key);
                 if (!Double.isFinite(value)) throw new LocalizedException("error.validation.finite", key);
-                if (key.equals("ndStops") || key.equals("opticalDensity")) {
+                if (key.equals("ndStops") || key.equals("opticalDensity") || key.equals("speed")) {
                     if (value < 0) throw new LocalizedException("error.validation.nonnegative", key);
                 } else if (value <= 0) throw new LocalizedException("error.validation.positive", key);
                 if (key.equals("ndFactor") && value < 1) throw new LocalizedException("error.calc.ndFactor");
-                if ((key.equals("shotCount") || key.equals("ratedShots")) && (value != Math.rint(value) || value > 9_007_199_254_740_991d))
+                if ((key.equals("shotCount") || key.equals("ratedShots") || key.equals("imageWidth")) && (value != Math.rint(value) || value > 9_007_199_254_740_991d))
                     throw new LocalizedException("error.validation.whole", key);
                 value(input, key);
             }
             if (!input.parameters().keySet().equals(input.units().keySet()))
                 throw new LocalizedException("error.calc.units");
             if (input.operation() != CalculationKind.EXPOSURE_ND) {
-                for (String key : allowed) required(input, key);
-                if (input.operation() == CalculationKind.DEPTH_OF_FIELD && value(input, "distance") <= value(input, "focalLength") / 1000)
+                for (String key : required) required(input, key);
+                boolean focused = input.operation() == CalculationKind.DEPTH_OF_FIELD || input.operation() == CalculationKind.MOTION_BLUR;
+                if (focused && value(input, "distance") <= value(input, "focalLength") / 1000)
                     throw new LocalizedException("error.calc.distance");
+                // A blur limit in pixels only has a physical size once the image width relates pixels to the sensor.
+                if ("px".equals(input.units().get("blurLimit")) && !input.parameters().containsKey("imageWidth"))
+                    throw new LocalizedException("error.calc.blurLimitPixels");
                 return Result.success(input);
             }
             required(input, "shutter");
@@ -51,7 +63,10 @@ public final class CalculationValidation {
     private static void required(CalculationInput input, String key) {
         if (!input.parameters().containsKey(key)) throw new LocalizedException("error.validation.required", key);
     }
-    /** Canonical units: seconds, millimetres for optical dimensions, metres for distance. */
+    /**
+     * Canonical units: seconds, millimetres for optical dimensions, metres for distance, metres per second for speed.
+     * A blur limit keeps the unit family it was given in: millimetres on the sensor (mm, um) or image pixels (px).
+     */
     public static double value(CalculationInput input, String key) {
         String unit = input.units().get(key);
         if (unit == null) throw new LocalizedException("error.validation.unitRequired", key);
@@ -60,6 +75,9 @@ public final class CalculationValidation {
             case "shutter" -> switch (unit) { case "s" -> 1; case "ms" -> .001; default -> invalid(key); };
             case "focalLength", "coc", "sensorWidth", "sensorHeight" -> switch (unit) { case "mm" -> 1; case "cm" -> 10; case "m" -> 1000; default -> invalid(key); };
             case "distance" -> switch (unit) { case "m" -> 1; case "mm" -> .001; case "ft" -> .3048; default -> invalid(key); };
+            case "speed" -> switch (unit) { case "m/s" -> 1; case "km/h" -> 1 / 3.6; case "mph" -> .44704; case "ft/s" -> .3048; default -> invalid(key); };
+            case "imageWidth" -> unit.equals("px") ? 1 : invalid(key);
+            case "blurLimit" -> switch (unit) { case "mm", "px" -> 1; case "um" -> .001; default -> invalid(key); };
             case "shotCount", "ratedShots" -> unit.equals("shots") ? 1 : invalid(key);
             case "fileSize" -> switch (unit) { case "MB" -> 1; case "MiB" -> 1.048576; default -> invalid(key); };
             case "cardCapacity" -> switch (unit) { case "GB" -> 1; case "GiB" -> 1.073741824; default -> invalid(key); };
