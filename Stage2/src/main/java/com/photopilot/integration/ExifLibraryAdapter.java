@@ -30,6 +30,7 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.Strictness;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
@@ -45,15 +46,33 @@ import com.photopilot.model.MetadataScan.Status;
  * Stage 1 UML element 102 (zero-based): {Adapter; JPEG EXIF library and exported metadata reader}
  * Adapts the metadata-extractor library (JPEG APP1 EXIF only: IFD0 make/model and the EXIF sub-IFD; GPS, maker notes,
  * thumbnails and XMP are never read) and ExifTool JSON exports ({@code exiftool -json}, with or without {@code -n}) to
- * {@link ExifRecord}s. The content type is detected from the bytes, not the extension. Files are read once into memory,
- * locally; nothing is modified, copied or sent anywhere. A folder contributes its own JPEG/JSON files (not
- * subfolders). Each selected path gets an outcome; one unreadable file never discards the records of the others.
+ * {@link ExifRecord}s. The content type is detected from the bytes, not the extension. JPEG and JSON files are read
+ * once into memory, locally; nothing is modified, copied or sent anywhere. A folder contributes its own JPEG/JSON files
+ * (and RAW files when enabled; not subfolders). Each selected path gets an outcome; one unreadable file never discards
+ * the records of the others.
+ *
+ * <p>Camera RAW files ({@link #RAW_TYPES}, when {@link #RAW} is enabled) are recognised by their format-specific header,
+ * hashed while streaming (never held in memory, pixels never decoded), and their capture settings are read through the
+ * bundled ExifTool ({@link RawReader}, one request at a time) and mapped exactly like an imported ExifTool JSON export.
+ * The format is then confirmed from ExifTool's answer, not the extension.
  */
 public class ExifLibraryAdapter implements MetadataExtractor {
-    public static final String JPEG = "jpeg", EXIFTOOL_JSON = "exiftool-json";
+    public static final String JPEG = "jpeg", EXIFTOOL_JSON = "exiftool-json", RAW = "raw";
+    /** JPEG EXIF and ExifTool JSON exports, read without any external program. */
     public static final Set<String> DEFAULT_FORMATS = Set.of(JPEG, EXIFTOOL_JSON);
-    public static final long MAX_JPEG_BYTES = 100L * 1024 * 1024, MAX_EXPORT_BYTES = 20L * 1024 * 1024;
+    /** Also camera RAW files through ExifTool; needs a {@link RawReader}. */
+    public static final Set<String> ALL_FORMATS = Set.of(JPEG, EXIFTOOL_JSON, RAW);
+    public static final long MAX_JPEG_BYTES = 100L * 1024 * 1024, MAX_EXPORT_BYTES = 20L * 1024 * 1024, MAX_RAW_BYTES = 256L * 1024 * 1024;
     public static final int MAX_FILES = 2000, MAX_EXPORT_ENTRIES = 20_000;
+    /** Supported RAW extensions (matched case-insensitively) and the ExifTool FileType each file must have. */
+    public static final Map<String, String> RAW_TYPES = Map.of("arw", "ARW", "raf", "RAF", "cr3", "CR3", "nef", "NEF", "dng", "DNG");
+    /**
+     * TIFF-based RAW formats without a marker tag of their own: ExifTool names a TIFF after its extension, so the camera
+     * maker (Make) is the content evidence. DNG is confirmed by its DNGVersion tag instead.
+     */
+    private static final Map<String, List<String>> RAW_MAKERS = Map.of("ARW", List.of("SONY", "HASSELBLAD"), "NEF", List.of("NIKON"));
+    /** After this many ExifTool timeouts or crashes in a row, the remaining RAW files of the scan are not sent to it. */
+    private static final int RAW_FAILURE_LIMIT = 3;
     private static final Pattern FOCAL = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)(?:\\s*mm)?(?:\\s*\\(.*\\))?", Pattern.CASE_INSENSITIVE);
     private static final Pattern EXPOSURE = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)(?:\\s*/\\s*([0-9]+(?:\\.[0-9]+)?))?(?:\\s*s(?:ec)?)?", Pattern.CASE_INSENSITIVE);
     private static final Pattern F_NUMBER = Pattern.compile("(?:f\\s*/?\\s*)?([0-9]+(?:\\.[0-9]+)?)", Pattern.CASE_INSENSITIVE);
@@ -63,11 +82,21 @@ public class ExifLibraryAdapter implements MetadataExtractor {
     private static final Pattern OFFSET = Pattern.compile("Z|[+-]\\d{2}:\\d{2}");
     private static final List<String> GROUPS = List.of("", "EXIF:", "IFD0:", "ExifIFD:");
 
+    /** Reads the review tags of one RAW photo as ExifTool JSON ({@link ExifToolAdapter#reviewJson}); local, read-only. */
+    @FunctionalInterface public interface RawReader { String json(Path file) throws ExifToolException; }
+
     private Set<String> supportedFormats;
+    private final RawReader rawReader;
 
     public ExifLibraryAdapter(Set<String> supportedFormats) {
+        this(supportedFormats, null);
+    }
+
+    public ExifLibraryAdapter(Set<String> supportedFormats, RawReader rawReader) {
         this.supportedFormats = Set.copyOf(supportedFormats);
-        if (!DEFAULT_FORMATS.containsAll(this.supportedFormats)) throw new IllegalArgumentException("Unsupported metadata format: " + supportedFormats);
+        if (!ALL_FORMATS.containsAll(this.supportedFormats)) throw new IllegalArgumentException("Unsupported metadata format: " + supportedFormats);
+        if (this.supportedFormats.contains(RAW) && rawReader == null) throw new IllegalArgumentException("RAW metadata needs an ExifTool reader");
+        this.rawReader = rawReader;
     }
 
     public boolean supports(Path file) {
@@ -92,8 +121,7 @@ public class ExifLibraryAdapter implements MetadataExtractor {
             if (selected == null) continue;
             if (!Files.isDirectory(selected)) { candidates.add(selected); continue; }
             try (var entries = Files.list(selected)) {
-                var found = entries.filter(Files::isRegularFile).filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).matches(".*\\.(jpe?g|json)"))
-                    .sorted().toList();
+                var found = entries.filter(Files::isRegularFile).filter(p -> folderCandidate(name(p))).sorted().toList();
                 if (found.isEmpty()) outcomes.add(outcome(selected, "", Status.UNSUPPORTED, "review.file.emptyFolder"));
                 candidates.addAll(found);
             } catch (IOException | SecurityException denied) {
@@ -105,6 +133,7 @@ public class ExifLibraryAdapter implements MetadataExtractor {
         var realPaths = new HashSet<Path>();
         var contents = new HashMap<String, String>();
         var used = new TreeSet<String>();
+        var rawRun = new RawRun();
         for (Path file : candidates) {
             String name = name(file);
             if (!Files.exists(file)) { outcomes.add(outcome(file, "", Status.MISSING, "review.file.missing")); continue; }
@@ -113,22 +142,29 @@ public class ExifLibraryAdapter implements MetadataExtractor {
                 if (!realPaths.add(file.toRealPath())) { outcomes.add(outcome(file, "", Status.DUPLICATE, "review.file.duplicatePath")); continue; }
                 if (!Files.isReadable(file)) { outcomes.add(outcome(file, "", Status.UNREADABLE, "review.file.unreadable")); continue; }
                 var kind = kind(file);
+                String rawType = RAW_TYPES.get(extension(name));
+                if (kind.isEmpty() && rawType != null && supportedFormats.contains(RAW)) {
+                    // A RAW extension whose content does not start with that format's header.
+                    outcomes.add(new FileOutcome(name, "", Status.UNSUPPORTED, 0, List.of(LocalizedMessage.of("review.file.rawMismatch", rawType, detected(file)))));
+                    continue;
+                }
                 if (kind.isEmpty() || !supportedFormats.contains(kind.get())) {
                     outcomes.add(new FileOutcome(name, "", Status.UNSUPPORTED, 0, List.of(LocalizedMessage.of("review.file.unsupportedType", detected(file)))));
                     continue;
                 }
-                boolean jpeg = kind.get().equals(JPEG);
-                String label = jpeg ? "JPEG" : "EXPORT";
-                long size = Files.size(file), limit = jpeg ? MAX_JPEG_BYTES : MAX_EXPORT_BYTES;
+                boolean jpeg = kind.get().equals(JPEG), rawFile = kind.get().equals(RAW);
+                String label = jpeg ? "JPEG" : rawFile ? rawType : "EXPORT";
+                long size = Files.size(file), limit = jpeg ? MAX_JPEG_BYTES : rawFile ? MAX_RAW_BYTES : MAX_EXPORT_BYTES;
                 if (size > limit) { outcomes.add(new FileOutcome(name, label, Status.TOO_LARGE, 0, List.of(LocalizedMessage.of("review.file.tooLarge", limit / (1024 * 1024))))); continue; }
-                byte[] bytes = Files.readAllBytes(file);
-                String hash = sha256(bytes);
+                // A RAW file is only hashed while streaming (bounded memory); JPEG and JSON are read once and parsed from memory.
+                byte[] bytes = rawFile ? null : Files.readAllBytes(file);
+                String hash = rawFile ? sha256(file) : sha256(bytes);
                 if (contents.containsKey(hash)) {
                     outcomes.add(new FileOutcome(name, label, Status.DUPLICATE, 0, List.of(LocalizedMessage.of("review.file.duplicateContent", contents.get(hash)))));
                     continue;
                 }
                 contents.put(hash, name);
-                var read = jpeg ? jpeg(name, bytes) : export(name, bytes);
+                var read = jpeg ? jpeg(name, bytes) : rawFile ? raw(name, rawType, file, rawRun) : export(name, bytes);
                 outcomes.add(read.outcome()); records.addAll(read.records());
                 if (!read.records().isEmpty()) used.add(hash);
             } catch (IOException | SecurityException unreadable) {
@@ -272,6 +308,78 @@ public class ExifLibraryAdapter implements MetadataExtractor {
         return Optional.of(first);
     }
 
+    /** ExifTool state of one scan: once it is unavailable, or failed {@link #RAW_FAILURE_LIMIT} times in a row, it is not asked again. */
+    private static final class RawRun { String blocked; int consecutiveFailures; }
+
+    /**
+     * One RAW photo through ExifTool, mapped like one entry of an ExifTool JSON export. The format is confirmed from the
+     * answer: ExifTool's FileType must be the one of the extension, a DNG must carry DNGVersion, and an ARW/NEF (TIFF-based,
+     * named by ExifTool after its extension) must name its camera maker. Missing values stay missing.
+     */
+    private Read raw(String name, String type, Path file, RawRun run) {
+        if (run.blocked != null) return rawFailed(name, type, Status.UNREADABLE, run.blocked);
+        String json;
+        try {
+            json = rawReader.json(file);
+            run.consecutiveFailures = 0;
+        } catch (ExifToolException failure) {
+            String key = switch (failure.kind()) {
+                case UNAVAILABLE, STARTUP, CLOSED -> "review.file.exiftoolUnavailable";
+                case TIMEOUT -> "review.file.exiftoolTimeout";
+                case TERMINATED -> "review.file.exiftoolFailed";
+            };
+            boolean unavailable = failure.kind() != ExifToolException.Kind.TIMEOUT && failure.kind() != ExifToolException.Kind.TERMINATED;
+            if (unavailable || ++run.consecutiveFailures >= RAW_FAILURE_LIMIT) run.blocked = key;
+            return rawFailed(name, type, Status.UNREADABLE, key);
+        } catch (IllegalArgumentException unusablePath) {
+            // ExifTool's argument protocol cannot carry a line break; such a path is reported, never sent.
+            return rawFailed(name, type, Status.UNREADABLE, "review.file.unreadable");
+        }
+        JsonObject entry = firstEntry(json);
+        if (entry == null) return rawFailed(name, type, Status.CORRUPT, "review.file.corruptRaw");
+        String error = scalar(entry, "Error");
+        if (!error.isEmpty()) {
+            String lower = error.toLowerCase(Locale.ROOT);
+            return lower.contains("opening") || lower.contains("permission") ? rawFailed(name, type, Status.UNREADABLE, "review.file.unreadable")
+                : rawFailed(name, type, Status.CORRUPT, "review.file.corruptRaw");
+        }
+        String detected = scalar(entry, "FileType"), make = scalar(entry, "Make"), warning = scalar(entry, "Warning");
+        if (!type.equals(detected)) return rawFailed(name, type, Status.UNSUPPORTED, "review.file.rawMismatch", type, detected.isEmpty() ? "?" : detected);
+        String lowerWarning = warning.toLowerCase(Locale.ROOT);
+        boolean damaged = lowerWarning.contains("format error") || lowerWarning.contains("bad ") || lowerWarning.contains("truncat") || lowerWarning.contains("corrupt");
+        if (damaged && make.isEmpty() && scalar(entry, "Model").isEmpty()) return rawFailed(name, type, Status.CORRUPT, "review.file.corruptRaw");
+        if (type.equals("DNG") && scalar(entry, "DNGVersion").isEmpty()) return rawFailed(name, type, Status.UNSUPPORTED, "review.file.rawMismatch", type, "TIFF");
+        var makers = RAW_MAKERS.get(type);
+        String upperMake = make.toUpperCase(Locale.ROOT);
+        if (makers != null && makers.stream().noneMatch(upperMake::startsWith))
+            return rawFailed(name, type, Status.UNSUPPORTED, "review.file.rawMismatch", type, "TIFF");
+        // The record carries the file name only, never the path ExifTool echoes as SourceFile.
+        entry.remove("SourceFile");
+        entry.addProperty("FileName", name);
+        ExifRecord record = record(entry, name, 1);
+        if (record.missingFields().containsAll(ExifRecord.FIELDS) && record.invalidFields().isEmpty())
+            return new Read(new FileOutcome(name, type, Status.NO_METADATA, 1, List.of(LocalizedMessage.of("review.file.noExif"))), List.of(record));
+        return new Read(new FileOutcome(name, type, warning.isEmpty() ? Status.READ : Status.PARTIAL, 1,
+            warning.isEmpty() ? List.of() : List.of(LocalizedMessage.of("review.file.libraryWarnings"))), List.of(record));
+    }
+    private static Read rawFailed(String name, String type, Status status, String key, Object... arguments) {
+        return new Read(new FileOutcome(name, type, status, 0, List.of(LocalizedMessage.of(key, arguments))), List.of());
+    }
+    /** The first object of ExifTool's JSON array, or null when the answer is empty or not that shape. */
+    private static JsonObject firstEntry(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            JsonElement root = JsonParser.parseString(json);
+            if (root.isJsonArray() && !root.getAsJsonArray().isEmpty() && root.getAsJsonArray().get(0).isJsonObject())
+                return root.getAsJsonArray().get(0).getAsJsonObject();
+        } catch (RuntimeException malformed) { /* reported as unreadable metadata */ }
+        return null;
+    }
+    private static String scalar(JsonObject entry, String tag) {
+        JsonElement value = entry.get(tag);
+        return value == null || !value.isJsonPrimitive() ? "" : value.getAsString().strip();
+    }
+
     private record Time(Optional<LocalDateTime> local, Optional<ZoneOffset> offset) { }
     /** EXIF "YYYY:MM:DD HH:MM:SS" (ExifTool may append fractions or an offset); all-zero placeholders are missing. */
     private static Time time(String text, Set<String> invalid) {
@@ -293,13 +401,40 @@ public class ExifLibraryAdapter implements MetadataExtractor {
         try { return Optional.of(ZoneOffset.of(value)); } catch (DateTimeException invalid) { return Optional.empty(); }
     }
 
-    /** Supported content type detected from the first bytes: JPEG by signature, ExifTool JSON by structure and name. */
+    /**
+     * Supported content type detected from the first bytes: JPEG by signature, ExifTool JSON by structure and name, RAW
+     * when the extension names a RAW format and the content starts with that format's own header (TIFF for ARW, NEF and
+     * DNG; "FUJIFILMCCD-RAW" for RAF; an ISO media "ftyp crx " box for CR3). ExifTool confirms RAW files afterwards.
+     */
     private static Optional<String> kind(Path file) throws IOException {
         byte[] head = head(file);
         if (head.length >= 3 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xFF) == 0xD8 && (head[2] & 0xFF) == 0xFF) return Optional.of(JPEG);
+        String rawType = RAW_TYPES.get(extension(name(file)));
+        if (rawType != null) return rawHeader(rawType, head) ? Optional.of(RAW) : Optional.empty();
         String text = new String(head, StandardCharsets.UTF_8).replace("﻿", "").stripLeading();
         boolean json = name(file).toLowerCase(Locale.ROOT).endsWith(".json") && (text.startsWith("[") || text.startsWith("{"));
         return json ? Optional.of(EXIFTOOL_JSON) : Optional.empty();
+    }
+    private static boolean rawHeader(String type, byte[] head) {
+        return switch (type) {
+            case "ARW", "NEF", "DNG" -> head.length >= 4 && ((head[0] == 'I' && head[1] == 'I' && head[2] == 42 && head[3] == 0)
+                || (head[0] == 'M' && head[1] == 'M' && head[2] == 0 && head[3] == 42));
+            case "RAF" -> ascii(head, 0, "FUJIFILMCCD-RAW");
+            case "CR3" -> ascii(head, 4, "ftyp") && ascii(head, 8, "crx ");
+            default -> false;
+        };
+    }
+    private static boolean ascii(byte[] bytes, int offset, String expected) {
+        byte[] wanted = expected.getBytes(StandardCharsets.US_ASCII);
+        return bytes.length >= offset + wanted.length && Arrays.equals(bytes, offset, offset + wanted.length, wanted, 0, wanted.length);
+    }
+    /** Folder entries considered: JPEG and JSON as before, plus the RAW extensions when RAW is enabled. */
+    private boolean folderCandidate(String name) {
+        return name.toLowerCase(Locale.ROOT).matches(".*\\.(jpe?g|json)") || (supportedFormats.contains(RAW) && RAW_TYPES.containsKey(extension(name)));
+    }
+    private static String extension(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
     private static String detected(Path file) {
         try (InputStream in = new BufferedInputStream(new ByteArrayInputStream(head(file)))) {
@@ -322,5 +457,16 @@ public class ExifLibraryAdapter implements MetadataExtractor {
     private static String sha256(byte[] bytes) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }
         catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+    }
+    /** The same content hash computed while streaming the file through a 64 KiB buffer (used for RAW files). */
+    private static String sha256(Path file) throws IOException {
+        MessageDigest digest;
+        try { digest = MessageDigest.getInstance("SHA-256"); }
+        catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
+        byte[] buffer = new byte[64 * 1024];
+        try (InputStream in = Files.newInputStream(file)) {
+            for (int read; (read = in.read(buffer)) > 0; ) digest.update(buffer, 0, read);
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 }

@@ -61,3 +61,11 @@ Thumbs.db
 # Local F05 inventory (including lock and temporary files)
 /Stage2/data/
 /data/
+
+# Private photographs used to verify the shutter count checker never belong in the repository
+# (tests read them from outside it through PHOTOPILOT_SHUTTER_SAMPLE). Camera RAW/DNG files are never source files.
+picturesForTest/
+shuttleCountTest/
+*.[aA][rR][wW]
+*.[nN][eE][fF]
+*.[dD][nN][gG]

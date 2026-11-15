@@ -19,7 +19,7 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 
 /**
- * F11 content in the existing feature surface: completed session -> select JPEG photos / ExifTool JSON exports ->
+ * F11 content in the existing feature surface: completed session -> select JPEG / RAW photos / ExifTool JSON exports ->
  * Analyze metadata (local, off the FX thread, no AI) -> per-file results, saved statistics, limits and plan
  * comparison -> Generate AI review (Gemini, off the FX thread) -> draft with evidence limits -> explicit Save review
  * (Completed -> Reviewed) or Discard; saved reviews reopen read-only. Reuses PlanPane's controls, cards and Task
@@ -138,7 +138,12 @@ final class ReviewPane extends VBox {
     }
     private void browse() {
         var chooser = new FileChooser(); chooser.setTitle(localization.text("review.browseTitle"));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(localization.text("review.browseFilter"), "*.jpg", "*.jpeg", "*.JPG", "*.JPEG", "*.json", "*.JSON"));
+        var patterns = new ArrayList<>(List.of("*.jpg", "*.jpeg", "*.JPG", "*.JPEG", "*.json", "*.JSON"));
+        // RAW photos (read through ExifTool by the shared metadata adapter; the content is checked, not the extension).
+        for (String extension : List.of("arw", "cr3", "dng", "nef", "raf")) {
+            patterns.add("*." + extension); patterns.add("*." + extension.toUpperCase(Locale.ROOT));
+        }
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(localization.text("review.browseFilter"), patterns));
         var chosen = chooser.showOpenMultipleDialog(getScene() == null ? null : getScene().getWindow());
         if (chosen != null) { chosen.forEach(file -> selected.add(file.toPath().toAbsolutePath().normalize())); renderSelection(); }
     }

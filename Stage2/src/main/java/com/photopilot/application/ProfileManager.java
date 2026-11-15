@@ -44,8 +44,10 @@ public final class ProfileManager implements AutoCloseable {
     }
     public synchronized Result<LocalProfile> renameProfile(UUID id, String name) { return call(() -> repository.rename(id, name)); }
 
+    /** The selected image as a 256 × 256 avatar PNG, or why it cannot be used (size, dimensions, format, damage, memory). */
     public static Result<byte[]> prepareAvatar(java.nio.file.Path source) {
         try { return Result.success(AvatarRepository.prepare(source)); }
+        catch (AvatarRepository.RejectedImage rejected) { return Result.failure(rejected.reason()); }
         catch (IOException | RuntimeException error) { return Result.failureKey("avatar.failed"); }
     }
     public synchronized Result<Optional<byte[]>> avatar(UUID id) { return call(() -> new AvatarRepository(repository).read(id)); }

@@ -18,7 +18,7 @@ public record MetadataScan(List<ExifRecord> records, List<FileOutcome> files, St
         /** Same path or content selected again; counted once, so not a failure. */ DUPLICATE;
         public boolean failed() { return this != READ && this != PARTIAL && this != NO_METADATA && this != DUPLICATE; }
     }
-    /** {@code kind}: "JPEG", "EXPORT" or "" when the content type was not recognised. */
+    /** {@code kind}: "JPEG", "EXPORT", a RAW format ("ARW", "RAF", "CR3", "NEF", "DNG") or "" when the content type was not recognised. */
     public record FileOutcome(String name, String kind, Status status, int records, List<LocalizedMessage> notes) {
         public FileOutcome { Objects.requireNonNull(name); Objects.requireNonNull(kind); Objects.requireNonNull(status); notes = List.copyOf(notes); }
     }

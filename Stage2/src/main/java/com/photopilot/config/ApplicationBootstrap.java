@@ -142,7 +142,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
                 new PlanEditor(validator), validator, sessions, inventory, calculator),
             // F11: local JPEG EXIF + ExifTool JSON reading + RAW metadata through the bundled ExifTool; statistics never
             // involve the agent, which only interprets them.
-            new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.DEFAULT_FORMATS), new StatisticsCalculator(), agent, sessions),
+            new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.ALL_FORMATS, exifToolReader::reviewJson), new StatisticsCalculator(), agent, sessions),
             calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel),
             // Home Mini AI: the same model port (key, model, timeout, language policy); sends only when the user asks.
             new MiniAiService(model, inventoryService, java.time.Clock.systemDefaultZone()),
