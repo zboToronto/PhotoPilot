@@ -8,14 +8,21 @@ import java.util.Optional;
 /**
  * F07 result for one Match My Gear request: deterministically verified recommendations in ranked order, the
  * combinations and inventory items UC14 rejected, and how the ranking was produced. Findings stay locale-neutral.
- * AI text is advisory only and is never copied into saved loadouts.
+ * AI text is advisory only and is never copied into saved loadouts. {@code scopeLimit} states when confirmed counts
+ * ask for more bodies or lenses than the search ceiling covers.
  */
 public record GearMatchReport(String strategy, List<Candidate> recommendations, int combinationsChecked, int rejectedCombinations,
         List<LocalizedMessage> rejections, boolean aiRanked, String aiSummary, Optional<LocalizedMessage> rankingNotice, boolean searchLimited,
-        boolean unverifiedExclusions) {
+        boolean unverifiedExclusions, Optional<LocalizedMessage> scopeLimit) {
     public GearMatchReport {
         Objects.requireNonNull(strategy); recommendations = List.copyOf(recommendations); rejections = List.copyOf(rejections);
-        Objects.requireNonNull(aiSummary); Objects.requireNonNull(rankingNotice);
+        Objects.requireNonNull(aiSummary); Objects.requireNonNull(rankingNotice); Objects.requireNonNull(scopeLimit);
+    }
+    public GearMatchReport(String strategy, List<Candidate> recommendations, int combinationsChecked, int rejectedCombinations,
+            List<LocalizedMessage> rejections, boolean aiRanked, String aiSummary, Optional<LocalizedMessage> rankingNotice, boolean searchLimited,
+            boolean unverifiedExclusions) {
+        this(strategy, recommendations, combinationsChecked, rejectedCombinations, rejections, aiRanked, aiSummary, rankingNotice, searchLimited,
+            unverifiedExclusions, Optional.empty());
     }
 
     /**

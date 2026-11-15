@@ -9,7 +9,8 @@ import java.util.UUID;
 /**
  * Stage 1 UML element 63 (zero-based): {F07; immutable selected quantities and evidence}
  * Owned-gear combination built from inventory snapshots. Camera-to-lens assignments record the lens mounted on
- * one body of each camera record; other lenses travel in the bag.
+ * one body of each camera record; other lenses travel in the bag. A record may stand for several bodies, so UC14
+ * (CompatibilityValidator) allocates lens units to the remaining bodies itself when every body must be equipped.
  */
 public class Loadout {
     private final UUID id;
@@ -51,7 +52,8 @@ public class Loadout {
         return new Loadout(id, gear, cameraLensAssignments, report, tradeOffs, report.unmetNeeds());
     }
     public List<GearSnapshot> ofType(EquipmentType type) { return gear.stream().filter(item -> item.type().equals(type.name())).toList(); }
-    public int units(EquipmentType type) { return ofType(type).stream().mapToInt(GearSnapshot::selectedQuantity).sum(); }
+    /** Physical units of one type, saturating at {@link Integer#MAX_VALUE} instead of overflowing. */
+    public int units(EquipmentType type) { return (int) Math.min(Integer.MAX_VALUE, ofType(type).stream().mapToLong(GearSnapshot::selectedQuantity).sum()); }
     public UUID id() { return id; }
     public List<GearSnapshot> gear() { return List.copyOf(gear); }
     public Map<UUID, UUID> cameraLensAssignments() { return cameraLensAssignments; }

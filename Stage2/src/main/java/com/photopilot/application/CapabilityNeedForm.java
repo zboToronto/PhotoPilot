@@ -66,7 +66,9 @@ public final class CapabilityNeedForm {
     public static List<String> review(com.photopilot.service.CapabilityProposal proposal, LocalizationService l) {
         var lines = new ArrayList<String>();
         if (proposal.environmentUsed()) lines.add(l.text("needs.review.environment"));
-        else if (proposal.profile().aiAssisted()) lines.add(l.text("needs.review.noEnvironment")); // F09 results last only while the app runs
+        else if (proposal.environmentNotes().isEmpty() && proposal.profile().aiAssisted()) lines.add(l.text("needs.review.noEnvironment")); // F09 results last only while the app runs
+        // Shared F09 consumption check: why an existing assessment was not used, or what was withheld as stale.
+        proposal.environmentNotes().forEach(note -> lines.add((proposal.environmentUsed() ? "  - " : "") + note.render(l)));
         if (!proposal.adjustments().isEmpty()) {
             lines.add(l.text("needs.review.adjustments"));
             proposal.adjustments().forEach(message -> lines.add("  - " + message.render(l)));

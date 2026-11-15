@@ -66,13 +66,13 @@ class F02WorkflowTest {
         assertFalse(c.usableLoadouts().isEmpty(), "F07 deterministic generation supplies verified loadouts");
         assertTrue(c.notices().stream().anyMatch(n -> n.key().equals("discover.notice.noHistory")), "missing history is optional");
 
-        // Ranked: feasible (interest ties broken by the validated AI priority), then unverified, then not suitable.
-        assertEquals(List.of("Aircraft departures at the island airport", "Skyline reflections along the waterfront"),
-            r.feasible().stream().map(ActivitySuggestion::subject).toList());
-        assertEquals(List.of("Hidden laneway murals"), r.unverified().stream().map(ActivitySuggestion::subject).toList());
+        // Ranked: feasible, then unverified (interest matches, then the validated AI priority), then not suitable. The
+        // skyline idea is only claimed by Gemini to be at the user's place, so its travel stays unverified (Stage2Review1).
+        assertEquals(List.of("Aircraft departures at the island airport"), r.feasible().stream().map(ActivitySuggestion::subject).toList());
+        assertEquals(List.of("Skyline reflections along the waterfront", "Hidden laneway murals"), r.unverified().stream().map(ActivitySuggestion::subject).toList());
         assertEquals(Set.of("Distant bird portraits", "Small-town main street", "Night skyline from a rooftop"),
             Set.copyOf(r.infeasible().stream().map(ActivitySuggestion::subject).toList()));
-        assertEquals(r.ideas().subList(0, 3), List.of(r.feasible().get(0), r.feasible().get(1), r.unverified().getFirst()));
+        assertEquals(r.ideas().subList(0, 3), List.of(r.feasible().get(0), r.unverified().get(0), r.unverified().get(1)));
         assertTrue(r.limitingFactors().isEmpty() && r.rejected().isEmpty());
         var ideas = bySubject(r);
 
@@ -91,6 +91,8 @@ class F02WorkflowTest {
         var skyline = ideas.get("Skyline reflections along the waterfront");
         assertTrue(skyline.atUserLocation());
         assertEquals(DiscoveryFixtures.PLACE, skyline.place());
+        assertEquals(Feasibility.UNVERIFIED, status(skyline, "travel"));
+        assertTrue(finding(skyline, "travel", "discover.check.travel.atLocation"));
         assertTrue(finding(skyline, "equipment", "discover.check.gear.noNeeds"));
 
         var murals = ideas.get("Hidden laneway murals");

@@ -29,10 +29,18 @@ public class ActivitySuggestion {
     }
     /**
      * Straight-line distances (km) from the user's coordinates to every gazetteer match of the suggested place name, or
-     * the reason none could be computed. Never a route distance and never an AI estimate.
+     * the reason none could be computed. Never a route distance and never an AI estimate. {@code places} are the matches
+     * themselves (gazetteer name and point), used only to recognise the user's own place; transient like the rest.
      */
-    public record TravelEvidence(String query, List<String> matches, List<Double> straightLineKm, Optional<LocalizedMessage> problem) {
-        public TravelEvidence { Objects.requireNonNull(query); matches = List.copyOf(matches); straightLineKm = List.copyOf(straightLineKm); Objects.requireNonNull(problem); }
+    public record TravelEvidence(String query, List<String> matches, List<Double> straightLineKm, Optional<LocalizedMessage> problem, List<GeoLocation> places) {
+        public TravelEvidence {
+            Objects.requireNonNull(query); matches = List.copyOf(matches); straightLineKm = List.copyOf(straightLineKm); Objects.requireNonNull(problem);
+            places = List.copyOf(places);
+        }
+        /** Distances without the match points: never establishes that a destination is the user's own place. */
+        public TravelEvidence(String query, List<String> matches, List<Double> straightLineKm, Optional<LocalizedMessage> problem) {
+            this(query, matches, straightLineKm, problem, List.of());
+        }
         public static TravelEvidence unavailable(String query, LocalizedMessage reason) { return new TravelEvidence(query, List.of(), List.of(), Optional.of(reason)); }
     }
 
@@ -187,6 +195,7 @@ public class ActivitySuggestion {
     public String setting() { return setting; }
     /** Where: the suggested destination name, or the user's own location label for an activity there. */
     public String place() { return place; }
+    /** Gemini's claim that the activity is at the user's place; never evidence that it needs no travel (FeasibilityValidator). */
     public boolean atUserLocation() { return atUserLocation; }
     public Optional<ZonedDateTime> start() { return start; }
     public Optional<ZonedDateTime> end() { return start.map(time -> time.plus(estimatedDuration)); }

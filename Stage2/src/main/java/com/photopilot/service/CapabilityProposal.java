@@ -15,13 +15,23 @@ import com.photopilot.model.EquipmentRequirementProfile;
  * @param adjustments deterministic changes made to the model output (dropped items, preserved user constraints)
  * @param missingFields confirmed-requirement fields that are unspecified and affect capability sizing
  * @param environmentUsed whether an F09 assessment from this run was part of the evidence
+ * @param environmentNotes why an existing F09 assessment was not used, or which of its evidence was withheld as stale
  */
 public record CapabilityProposal(EquipmentRequirementProfile profile, List<String> clarificationQuestions, List<String> unsupportedNeeds,
-        List<LocalizedMessage> adjustments, List<String> missingFields, boolean environmentUsed) {
+        List<LocalizedMessage> adjustments, List<String> missingFields, boolean environmentUsed, List<LocalizedMessage> environmentNotes) {
     public CapabilityProposal {
         Objects.requireNonNull(profile, "profile");
         clarificationQuestions = List.copyOf(clarificationQuestions); unsupportedNeeds = List.copyOf(unsupportedNeeds);
-        adjustments = List.copyOf(adjustments); missingFields = List.copyOf(missingFields);
+        adjustments = List.copyOf(adjustments); missingFields = List.copyOf(missingFields); environmentNotes = List.copyOf(environmentNotes);
+    }
+    public CapabilityProposal(EquipmentRequirementProfile profile, List<String> clarificationQuestions, List<String> unsupportedNeeds,
+            List<LocalizedMessage> adjustments, List<String> missingFields, boolean environmentUsed) {
+        this(profile, clarificationQuestions, unsupportedNeeds, adjustments, missingFields, environmentUsed, List.of());
+    }
+
+    /** Same proposal with the shared F09 consumption check's notes for the review. */
+    public CapabilityProposal withEnvironmentNotes(List<LocalizedMessage> notes) {
+        return new CapabilityProposal(profile, clarificationQuestions, unsupportedNeeds, adjustments, missingFields, environmentUsed, notes);
     }
 
     /** Manual entry: the draft alone, with no model output to review. */
@@ -31,6 +41,6 @@ public record CapabilityProposal(EquipmentRequirementProfile profile, List<Strin
 
     /** Same review context around an edited draft (manual edits are kept for clarification and confirmation). */
     public CapabilityProposal withProfile(EquipmentRequirementProfile edited) {
-        return new CapabilityProposal(edited.asDraft(), clarificationQuestions, unsupportedNeeds, adjustments, missingFields, environmentUsed);
+        return new CapabilityProposal(edited.asDraft(), clarificationQuestions, unsupportedNeeds, adjustments, missingFields, environmentUsed, environmentNotes);
     }
 }

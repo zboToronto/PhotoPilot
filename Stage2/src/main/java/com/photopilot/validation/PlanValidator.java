@@ -137,7 +137,7 @@ public class PlanValidator {
     private void loadout(ShootPlan plan, ShootRequirement req, Context context, List<LocalizedMessage> violations, List<LocalizedMessage> missing, List<LocalizedMessage> limitations) {
         if (plan.loadout().isEmpty()) { missing.add(LocalizedMessage.of("plan.missing.loadout")); return; }
         var loadout = plan.loadout().get();
-        var check = compatibility.assess(loadout);
+        var check = compatibility.assess(loadout, CompatibilityValidator.Mounting.of(req));
         violations.addAll(check.violations());
         violations.addAll(check.unverified()); // UC14: unverified is never usable
         limitations.addAll(check.essentials());
@@ -282,12 +282,13 @@ public class PlanValidator {
         if (windows.isEmpty()) return;
         if (windows.size() > MAX_WINDOWS) violations.add(LocalizedMessage.of("plan.violation.tooMany", LocalizedMessage.of("plan.section.schedule"), MAX_WINDOWS));
         var carried = new HashSet<String>();
-        context.base().ifPresent(base -> base.windows().forEach(w -> carried.add(signature(w))));
+        context.base().filter(base -> sameShootingContext(base, req, context)).ifPresent(base -> base.windows().forEach(w -> carried.add(signature(w))));
         var fresh = new ArrayList<ShootingWindow>();
         for (ShootingWindow window : windows) {
             var structural = window.validate();
             if (!structural.isSuccess()) { violations.addAll(structural.messages()); continue; }
-            if (carried.contains(signature(window))) continue; // approved earlier against its own evidence
+            // Approved earlier against its own evidence; that holds only inside the current availability, when one is known.
+            if (carried.contains(signature(window)) && context.availability().map(a -> a.contains(window.start(), window.end())).orElse(true)) continue;
             fresh.add(window);
         }
         if (!fresh.isEmpty()) {
@@ -317,6 +318,16 @@ public class PlanValidator {
         });
     }
     private static String signature(ShootingWindow w) { return w.start() + "|" + w.end() + "|" + w.arrival() + "|" + w.conditions(); }
+    /**
+     * Whether the base plan's windows were planned for the same shoot: same plan date and, when the confirmed requirement
+     * names a location, the same location (EnvironmentEvidence label rule). A re-confirmed date or place makes carried
+     * windows new windows again, so a revision cannot keep timing that belongs to another shooting context.
+     */
+    private static boolean sameShootingContext(ShootPlan base, ShootRequirement req, Context context) {
+        var info = base.sessionInfo();
+        if (context.date().isPresent() && !context.date().get().toString().equals(info.get("date"))) return false;
+        return req == null || req.location().map(place -> info.containsKey("location") && EnvironmentEvidence.sameLabel(place.label(), info.get("location"))).orElse(true);
+    }
 
     /** Inventory categories and other equipment words; matching is case-insensitive and word-based. */
     static final Map<String, List<String>> GEAR_TERMS = gearTerms();

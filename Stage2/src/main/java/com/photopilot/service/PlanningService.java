@@ -19,6 +19,7 @@ import com.photopilot.model.PhotographySession;
 import com.photopilot.model.ShootRequirement;
 import com.photopilot.repository.InventoryRepository;
 import com.photopilot.repository.SessionRepository;
+import com.photopilot.validation.EnvironmentEvidence;
 import com.photopilot.validation.PlanValidator;
 
 /**
@@ -37,14 +38,27 @@ public class PlanningService {
     private InventoryRepository inventory;
     private TechnicalCalculator calculator;
     private final PlanAssembly assembly;
-    /** Latest successful F09 assessment per session in this process, for F10 (never persisted). */
-    private final Map<UUID, EnvironmentAssessment> assessments = new java.util.concurrent.ConcurrentHashMap<>();
+    /**
+     * Latest successful F09 assessment per session in this process (never persisted), with the confirmed requirement it
+     * was made under. F06 and F10 use it only through the shared {@link EnvironmentEvidence} check.
+     */
+    private record Assessed(EnvironmentAssessment assessment, EnvironmentEvidence.Basis basis) { }
+    private final Map<UUID, Assessed> assessments = new java.util.concurrent.ConcurrentHashMap<>();
     /** Previews issued by this service, keyed by the exact preview object, with their owning session. */
     private record Issued(ShootPlan plan) {
         @Override public boolean equals(Object other) { return other instanceof Issued that && that.plan == plan; }
         @Override public int hashCode() { return System.identityHashCode(plan); }
     }
-    private final Map<Issued, UUID> issued = new java.util.LinkedHashMap<>();
+    /**
+     * What approval trusts about an issued plan (never persisted): the complete preview as issued, whose report holds the
+     * assembly problems found while converting the model reply (removed from the plan, never repaired), a private copy of
+     * the plan as validated (never handed out, so nothing can change it) and that copy's content. Unapproved drafts can
+     * still be changed by PlanCommands, so the caller's object must still have this content, and only the copy is saved.
+     */
+    private record Registered(PlanPreview preview, ShootPlan reviewed, List<Object> content) {
+        Registered { Objects.requireNonNull(preview, "preview"); Objects.requireNonNull(reviewed, "reviewed"); content = List.copyOf(content); }
+    }
+    private final Map<Issued, Registered> issued = new java.util.LinkedHashMap<>();
 
     public PlanningService(RequirementService requirements, GearMatchingService matching, EnvironmentService environment, PhotoPilotAgent agent, PlanEditor editor, PlanValidator validator, SessionRepository sessions, InventoryRepository inventory, TechnicalCalculator calculator) {
         this.requirements = Objects.requireNonNull(requirements, "requirements");
@@ -122,14 +136,26 @@ public class PlanningService {
     public Result<CapabilityProposal> proposeNeeds(UUID id) {
         var session = needsSession(id);
         if (!session.isSuccess()) return Result.failure(session);
-        return requirements.analyzeProfile(confirmedRequirement(session.value().orElseThrow()), environmentEvidence(id));
+        var found = session.value().orElseThrow(); var requirement = confirmedRequirement(found);
+        var environment = storedEvidence(found, requirement);
+        return withEnvironment(requirements.analyzeProfile(requirement, needsEnvironment(environment)), environment);
     }
 
     /** F06 clarification: the current draft (with manual edits) and the answers are resubmitted; still unreviewed. */
     public Result<CapabilityProposal> clarifyNeeds(UUID id, CapabilityProposal current, String answers) {
         var session = needsSession(id);
         if (!session.isSuccess()) return Result.failure(session);
-        return requirements.clarifyProfile(confirmedRequirement(session.value().orElseThrow()), environmentEvidence(id), current, answers);
+        var found = session.value().orElseThrow(); var requirement = confirmedRequirement(found);
+        var environment = storedEvidence(found, requirement);
+        return withEnvironment(requirements.clarifyProfile(requirement, needsEnvironment(environment), current, answers), environment);
+    }
+    /** Why the F09 assessment was not used, or which of its groups were withheld, shown with the F06 proposal. */
+    private static Result<CapabilityProposal> withEnvironment(Result<CapabilityProposal> proposal, EnvironmentEvidence environment) {
+        if (!proposal.isSuccess()) return proposal;
+        var notes = new ArrayList<>(environment.notes());
+        if (environment.usable() && !environment.stale().isEmpty())
+            notes.add(com.photopilot.i18n.LocalizedMessage.of("env.notice.stale", String.join(", ", new java.util.TreeSet<>(environment.stale()))));
+        return notes.isEmpty() ? proposal : Result.success(proposal.value().orElseThrow().withEnvironmentNotes(notes));
     }
 
     /** Manual entry (also when Gemini is unavailable): the saved profile as a draft, or an empty one. No AI involved. */
@@ -154,11 +180,14 @@ public class PlanningService {
         return session.requirements().filter(ShootRequirement::confirmed).orElseThrow();
     }
 
-    /** Light phases, accepted windows and fresh weather of this process's F09 assessment; no place or coordinates. */
-    private String environmentEvidence(UUID id) {
-        var found = environmentFor(id);
-        if (found.isEmpty()) return "";
-        var assessment = found.get();
+    /**
+     * F06 evidence from this process's F09 assessment, only after the shared check: light phases, the F09 windows whose
+     * evidence is still fresh and the daily weather while it is fresh; stale groups are named, never sent as facts. No
+     * place or coordinates. Empty when no assessment applies to the confirmed requirement.
+     */
+    private static String needsEnvironment(EnvironmentEvidence environment) {
+        if (!environment.usable()) return "";
+        var assessment = environment.assessment().orElseThrow();
         var json = new com.google.gson.JsonObject();
         var windows = new com.google.gson.JsonArray();
         for (var window : assessment.windows()) {
@@ -174,12 +203,32 @@ public class PlanningService {
         }
         if (!windows.isEmpty()) json.add("shootingWindows", windows);
         if (!phases.isEmpty()) json.add("lightPhases", phases);
-        if (assessment.staleFields().isEmpty() && !assessment.context().weather().isEmpty()) {
+        // Field-level freshness evaluated now: the filtered copy carries the daily summary only while it is fresh.
+        if (!assessment.context().weather().isEmpty()) {
             var weather = new com.google.gson.JsonObject();
             assessment.context().weather().forEach(weather::addProperty);
             json.add("weather", weather);
         }
-        return json.isEmpty() ? "" : json.toString();
+        if (json.isEmpty()) return "";
+        if (!environment.stale().isEmpty()) {
+            var omitted = new com.google.gson.JsonArray(); new java.util.TreeSet<>(environment.stale()).forEach(omitted::add);
+            json.add("staleOmitted", omitted);
+        }
+        if (environment.status() == EnvironmentEvidence.Status.PARTIAL) json.addProperty("availabilityCoversShootingTime", "partly");
+        return json.toString();
+    }
+
+    /** The shared F06/F10 check of {@code assessment} against the session's current confirmed requirement, evaluated now. */
+    private EnvironmentEvidence environmentEvidence(PhotographySession session, ShootRequirement requirement, EnvironmentAssessment assessment) {
+        if (assessment == null) return EnvironmentEvidence.none();
+        var stored = assessments.get(session.id());
+        // The recorded basis belongs to the stored assessment only; any other instance is checked without it.
+        var basis = stored != null && stored.assessment() == assessment ? Optional.of(stored.basis()) : Optional.<EnvironmentEvidence.Basis>empty();
+        return environment.evidence(assessment, requirement, PlanAssembly.shootingDate(session, requirement), basis);
+    }
+    private EnvironmentEvidence storedEvidence(PhotographySession session, ShootRequirement requirement) {
+        var stored = assessments.get(session.id());
+        return environmentEvidence(session, requirement, stored == null ? null : stored.assessment());
     }
 
     public Result<EquipmentRequirementProfile> confirmProfile(UUID id, EquipmentRequirementProfile edited) {
@@ -258,7 +307,10 @@ public class PlanningService {
         if (!profile.isSuccess()) return Result.failure(profile);
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
-        return matching.analyze(profile.value().orElseThrow(), gear.value().orElseThrow(), strategy, shootContext(session));
+        return matching.analyze(profile.value().orElseThrow(), confirmedOrNull(session), gear.value().orElseThrow(), strategy, shootContext(session));
+    }
+    private static ShootRequirement confirmedOrNull(PhotographySession session) {
+        return session.requirements().filter(ShootRequirement::confirmed).orElse(null);
     }
 
     public Result<Loadout> selectLoadout(UUID id, Loadout selected) {
@@ -267,10 +319,12 @@ public class PlanningService {
     }
 
     /**
-     * Explicit F07 selection. Revalidates everything against current data before the atomic save: the candidate must
-     * still be generated from the current inventory (unknown/stale IDs are rejected), every item must be owned and
-     * unchanged, UC14 must verify it, and needs are re-evaluated against the current profile. An existing selection
-     * is replaced only when {@code replace} is true. Success is reported only after the save succeeded.
+     * Explicit F07 selection. Revalidates everything against current data before the atomic save: every item must be
+     * owned, unchanged and available in the carried quantity; the candidate must be rebuilt from the current inventory
+     * inside the same candidate space F07 recommends from (requirement + profile scope, not a narrower default; unknown
+     * or stale IDs are rejected, larger combinations are reported as outside the search range); UC14 must verify it; and
+     * needs are re-evaluated against the current profile. An existing selection is replaced only when {@code replace}
+     * is true. Success is reported only after the save succeeded.
      */
     public Result<Loadout> selectLoadout(PhotographySession expected, Loadout selected, boolean replace) {
         if (expected == null) return Result.failureKey("error.session.id");
@@ -286,16 +340,16 @@ public class PlanningService {
         var unavailable = matching.validator().availability(selected, gear);
         if (!unavailable.isEmpty()) return Result.failures(unavailable);
         if (!GearMatchingService.candidateId(selected.gear()).equals(selected.id())) return Result.failureKey("match.error.staleCandidate");
-        var current = matching.compatibleCandidates(gear);
-        if (!current.isSuccess()) return Result.failure(current);
-        var fresh = current.value().orElseThrow().stream().filter(l -> l.id().equals(selected.id())).findFirst();
-        if (fresh.isEmpty()) return Result.failureKey("match.error.staleCandidate");
-        var check = matching.validator().assess(fresh.get());
+        var scope = GearMatchingService.scope(profile.get(), confirmedOrNull(expected));
+        var rebuilt = matching.reconstruct(selected, gear, scope);
+        if (!rebuilt.isSuccess()) return Result.failure(rebuilt);
+        var fresh = rebuilt.value();
+        var check = matching.validator().assess(fresh.get(), scope.mounting());
         if (!check.usable()) {
             var problems = new java.util.ArrayList<>(check.violations()); problems.addAll(check.unverified());
             return Result.failures(problems);
         }
-        var evaluated = matching.evaluate(fresh.get(), profile.get()).loadout();
+        var evaluated = matching.evaluate(fresh.get(), profile.get(), scope.mounting()).loadout();
         var attached = expected.attachSelectedLoadout(evaluated);
         if (!attached.isSuccess()) return Result.failure(attached);
         var saved = sessions.save(attached.value().orElseThrow());
@@ -312,9 +366,10 @@ public class PlanningService {
         if (saved.isEmpty()) return Result.failureKey("match.error.noSavedSelection");
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
-        var check = matching.validator().assess(saved.get());
+        var mounting = com.photopilot.validation.CompatibilityValidator.Mounting.of(confirmedOrNull(session));
+        var check = matching.validator().assess(saved.get(), mounting);
         var compatibility = new java.util.ArrayList<>(check.violations()); compatibility.addAll(check.unverified());
-        var evaluation = matching.evaluate(saved.get(), session.profile().filter(EquipmentRequirementProfile::reviewed).orElse(null));
+        var evaluation = matching.evaluate(saved.get(), session.profile().filter(EquipmentRequirementProfile::reviewed).orElse(null), mounting);
         return Result.success(new com.photopilot.model.GearMatchReport.SelectionStatus(saved.get(), evaluation, compatibility,
             matching.validator().availability(saved.get(), gear.value().orElseThrow())));
     }
@@ -344,10 +399,12 @@ public class PlanningService {
         if (!session.isSuccess()) return Result.failure(session);
         var requirement = session.value().orElseThrow().requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) return Result.failureKey("env.error.needsInput", "confirmed requirement or reviewed environment inputs");
-        return remember(id, environment.assess(requirement.get()));
+        return remember(session.value().orElseThrow(), environment.assess(requirement.get()));
     }
-    private Result<EnvironmentAssessment> remember(UUID id, Result<EnvironmentAssessment> assessed) {
-        assessed.value().ifPresent(value -> assessments.put(id, value));
+    /** Keeps a successful assessment with the confirmed requirement it was made under (F03 is never changed here). */
+    private Result<EnvironmentAssessment> remember(PhotographySession session, Result<EnvironmentAssessment> assessed) {
+        var basis = new EnvironmentEvidence.Basis(session.requirements().filter(ShootRequirement::confirmed));
+        assessed.value().ifPresent(value -> assessments.put(session.id(), new Assessed(value, basis)));
         return assessed;
     }
 
@@ -360,8 +417,8 @@ public class PlanningService {
         if (!found.isSuccess()) return Result.failure(found);
         var session = found.value().orElseThrow();
         var assessed = environment.assess(session.requirements().filter(ShootRequirement::confirmed).orElse(null), request);
-        if (!assessed.isSuccess() || request == null || request.date() == null || session.date().equals(request.date())) return remember(id, assessed);
-        return remember(id, Result.success(assessed.value().orElseThrow().withNotices(List.of(com.photopilot.i18n.LocalizedMessage.of(
+        if (!assessed.isSuccess() || request == null || request.date() == null || session.date().equals(request.date())) return remember(session, assessed);
+        return remember(session, Result.success(assessed.value().orElseThrow().withNotices(List.of(com.photopilot.i18n.LocalizedMessage.of(
             "env.notice.sessionDate", session.date().toString(), request.date().toString())))));
     }
 
@@ -399,7 +456,7 @@ public class PlanningService {
         var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
         if (requirement.isEmpty()) blockers.add(com.photopilot.i18n.LocalizedMessage.of("plan.missing.requirement"));
         if (profile.isEmpty()) blockers.add(com.photopilot.i18n.LocalizedMessage.of("plan.missing.profile"));
-        var assessment = Optional.ofNullable(assessments.get(id));
+        var assessment = environmentFor(id);
         int offered = 0;
         if (requirement.isPresent() && profile.isPresent()) {
             var gear = inventory.load();
@@ -408,13 +465,18 @@ public class PlanningService {
                 var offers = assembly.offers(session, requirement.get(), profile.get(), gear.value().orElseThrow(), latest(session.plans()));
                 offered = offers.offers().size(); notes.addAll(offers.notes());
             }
-            notes.addAll(assembly.timing(session, requirement.get(), assessment, staleOf(assessment)).notes());
+            notes.addAll(assembly.timing(session, requirement.get(), storedEvidence(session, requirement.get())).notes());
         }
         return Result.success(new PlanInputs(session, requirement, profile, offered, assessment, blockers, notes, session.plans()));
     }
 
-    /** Latest F09 assessment of this session made through this service in this process (never persisted). */
-    public Optional<EnvironmentAssessment> environmentFor(UUID id) { return id == null ? Optional.empty() : Optional.ofNullable(assessments.get(id)); }
+    /**
+     * Latest F09 assessment of this session made through this service in this process (never persisted), as made.
+     * Whether F06/F10 may use it is decided again at each use against the current confirmed requirement.
+     */
+    public Optional<EnvironmentAssessment> environmentFor(UUID id) {
+        return id == null ? Optional.empty() : Optional.ofNullable(assessments.get(id)).map(Assessed::assessment);
+    }
 
     /** Approved revisions of the session's plan, oldest first; nothing unapproved is ever stored. */
     public Result<List<ShootPlan>> plans(UUID id) {
@@ -436,7 +498,7 @@ public class PlanningService {
 
     /** UC10 with the session's latest F09 assessment from this process, if any. */
     public Result<PlanPreview> generatePreview(UUID id) {
-        return generatePreview(id, id == null ? null : assessments.get(id));
+        return generatePreview(id, environmentFor(id).orElse(null));
     }
 
     /**
@@ -455,8 +517,7 @@ public class PlanningService {
         if (existing.isPresent() && existing.get().fixedConstraints().equals(PlanValidator.constraintsOf(in.requirement(), Optional.of(in.profile()))))
             return Result.failureKey("plan.error.exists", existing.get().revision());
         var offers = assembly.offers(in.session(), in.requirement(), in.profile(), in.gear(), existing);
-        var environmentEvidence = Optional.ofNullable(assessment);
-        var timing = assembly.timing(in.session(), in.requirement(), environmentEvidence, staleOf(environmentEvidence));
+        var timing = assembly.timing(in.session(), in.requirement(), environmentEvidence(in.session(), in.requirement(), assessment));
         var context = new AgentContext(id, List.of("Generate the shoot plan for this photography session."),
             assembly.evidence(in.requirement(), in.profile(), offers, timing, Optional.empty()), List.of(), Optional.empty())
             .withResponseSchema(PlanGeneration.SCHEMA);
@@ -469,10 +530,9 @@ public class PlanningService {
         if (existing.isPresent()) plan = plan.asRegeneration().withExplanation(plan.summary(), com.photopilot.i18n.EnglishMessages.text("plan.regenerated"),
             plan.limitations(), plan.calculations(), plan.provisionalReasons());
         var report = merge(validator.assess(plan, in.requirement(), validation(in, timing, Optional.empty())), built.problems());
-        issue(plan, id);
         var evidence = evidence(in, offers, built.notes(), output);
         var changed = existing.map(plan::differingSections).orElse(List.of()).stream().filter(ShootPlan.DECISIONS::contains).toList();
-        return Result.success(new PlanPreview(id, plan, existing, report, evidence, output.tools(), texts(output.output().questions()), "", changed));
+        return Result.success(issue(new PlanPreview(id, plan, existing, report, evidence, output.tools(), texts(output.output().questions()), "", changed)));
     }
 
     /** Stage 1 SD04 entry for UC11: the validated, approvable revision preview or the reasons it is not; nothing is saved. */
@@ -497,8 +557,7 @@ public class PlanningService {
         var base = latest(in.session().plans());
         if (base.isEmpty()) return Result.failureKey("plan.error.noSavedPlan");
         var offers = assembly.offers(in.session(), in.requirement(), in.profile(), in.gear(), base);
-        var assessment = Optional.ofNullable(assessments.get(id));
-        var timing = assembly.timing(in.session(), in.requirement(), assessment, staleOf(assessment));
+        var timing = assembly.timing(in.session(), in.requirement(), storedEvidence(in.session(), in.requirement()));
         String request = text.strip();
         var context = new AgentContext(id, List.of("Change request:\n" + request),
             assembly.evidence(in.requirement(), in.profile(), offers, timing, base), List.of(), Optional.empty())
@@ -536,9 +595,8 @@ public class PlanningService {
         draft = draft.withExplanation(base.get().summary(), (com.photopilot.i18n.EnglishMessages.text("plan.changeRequest", request) + " " + summary).strip(),
             limitations, calculations, provisional);
         var report = validator.assess(draft, in.requirement(), validation(in, timing, base));
-        issue(draft, id);
         var changed = draft.differingSections(base.get()).stream().filter(ShootPlan.DECISIONS::contains).toList();
-        return Result.success(new PlanPreview(id, draft, base, report, evidence(in, offers, notes, output), output.tools(), texts(change.questions()), request, changed));
+        return Result.success(issue(new PlanPreview(id, draft, base, report, evidence(in, offers, notes, output), output.tools(), texts(change.questions()), request, changed)));
     }
 
     /** The user rejected a preview: it can no longer be approved. Nothing was or is saved. */
@@ -548,34 +606,41 @@ public class PlanningService {
     }
 
     /**
-     * SD04 approval of the preview the user reviewed: reloads the session, rejects foreign or stale proposals (it must
-     * be issued for this session as a new plan, or as the next revision of the latest saved one), revalidates it against
-     * the current requirement, profile, inventory and evidence, re-runs validateChange for revisions, appends the
-     * approved copy (no command is reapplied), applies PLAN_APPROVED only for the first approval of a Draft session and
-     * saves plan and state atomically. Success is reported only after the save; a failure leaves storage unchanged.
+     * SD04 approval of the preview the user reviewed: it must be the exact plan object this service issued for this
+     * session, with its content unchanged since then, and that issued preview must itself have been approvable: its
+     * original report (assembly problems included) is authoritative, whatever the caller checked or shows. Then it reloads
+     * the session, rejects stale proposals (a new plan, or the next revision of the latest saved one), revalidates against
+     * the current requirement, profile, inventory and evidence, re-runs validateChange for revisions, appends the approved
+     * copy (no command is reapplied), applies PLAN_APPROVED only for the first approval of a Draft session and saves plan
+     * and state atomically. Success is reported only after the save; a failure leaves storage unchanged.
      */
     public Result<ShootPlan> approve(UUID id, ShootPlan plan) {
         if (id == null) return Result.failureKey("error.session.id");
         if (plan == null) return Result.failureKey("plan.error.noDraft");
         if (plan.approved()) return Result.failureKey("plan.error.alreadyApproved");
-        UUID owner; synchronized (issued) { owner = issued.get(new Issued(plan)); }
-        if (!id.equals(owner)) return Result.failureKey("plan.error.foreign");
+        Registered registered; synchronized (issued) { registered = issued.get(new Issued(plan)); }
+        // Unknown, rejected, saved, evicted or other-session previews (and every preview after a restart) fail closed.
+        if (registered == null || !id.equals(registered.preview().sessionId()) || registered.preview().plan() != plan) return Result.failureKey("plan.error.foreign");
+        if (!registered.content().equals(content(plan))) return Result.failureKey("plan.error.modified");
+        var eligible = approvable(registered.preview());
+        if (!eligible.isSuccess()) return Result.failure(eligible);
+        // From here on only the service's own copy is checked and saved, never the caller's (still editable) object.
+        var reviewed = registered.reviewed();
         var inputs = planningInputs(id);
         if (!inputs.isSuccess()) return Result.failure(inputs);
         var in = inputs.value().orElseThrow();
         var existing = latest(in.session().plans());
-        if (plan.revision() == 1 ? existing.isPresent() || in.session().plans().stream().anyMatch(p -> p.id().equals(plan.id()))
-                : existing.filter(p -> p.id().equals(plan.id()) && p.revision() == plan.revision() - 1).isEmpty())
+        if (reviewed.revision() == 1 ? existing.isPresent() || in.session().plans().stream().anyMatch(p -> p.id().equals(reviewed.id()))
+                : existing.filter(p -> p.id().equals(reviewed.id()) && p.revision() == reviewed.revision() - 1).isEmpty())
             return Result.failureKey("plan.error.stale");
-        var assessment = Optional.ofNullable(assessments.get(id));
-        var timing = assembly.timing(in.session(), in.requirement(), assessment, staleOf(assessment));
-        var report = validator.assess(plan, in.requirement(), validation(in, timing, plan.regeneration() ? Optional.empty() : existing));
+        var timing = assembly.timing(in.session(), in.requirement(), storedEvidence(in.session(), in.requirement()));
+        var report = validator.assess(reviewed, in.requirement(), validation(in, timing, reviewed.regeneration() ? Optional.empty() : existing));
         if (!report.valid()) return Result.failures(report.blocking());
-        if (plan.revision() > 1 && !plan.regeneration()) {
-            var change = validator.validateChange(existing.orElseThrow(), plan);
+        if (reviewed.revision() > 1 && !reviewed.regeneration()) {
+            var change = validator.validateChange(existing.orElseThrow(), reviewed);
             if (!change.isSuccess()) return Result.failure(change);
         }
-        var approved = plan.approvedCopy();
+        var approved = reviewed.approvedCopy();
         if (!approved.isSuccess()) return Result.failure(approved);
         var candidate = in.session().appendApprovedPlan(approved.value().orElseThrow());
         if (!candidate.isSuccess()) return Result.failure(candidate);
@@ -588,7 +653,7 @@ public class PlanningService {
         var saved = sessions.save(next);
         if (!saved.isSuccess()) return Result.failure(saved);
         reject(id, plan);
-        return saved.value().orElseThrow().plans().stream().filter(p -> p.id().equals(plan.id()) && p.revision() == plan.revision()).findFirst()
+        return saved.value().orElseThrow().plans().stream().filter(p -> p.id().equals(reviewed.id()) && p.revision() == reviewed.revision()).findFirst()
             .map(Result::success).orElseGet(() -> Result.failureKey("plan.error.notSaved"));
     }
 
@@ -610,9 +675,6 @@ public class PlanningService {
     private static PlanValidator.Context validation(Planning in, PlanAssembly.Timing timing, Optional<ShootPlan> base) {
         return new PlanValidator.Context(Optional.of(in.profile()), Optional.of(in.gear()), timing.environment(), timing.availability(), timing.zone(),
             Optional.of(timing.date()), base);
-    }
-    private java.util.Set<String> staleOf(Optional<EnvironmentAssessment> assessment) {
-        return assessment.map(a -> environment.staleFields(a.context())).orElse(java.util.Set.of());
     }
     private static Result<ShootPlan> approvable(PlanPreview preview) {
         if (preview.approvable()) return Result.success(preview.plan());
@@ -643,10 +705,21 @@ public class PlanningService {
     private static List<String> texts(List<String> values) {
         return values == null ? List.of() : values.stream().filter(Objects::nonNull).map(String::strip).filter(v -> !v.isEmpty()).toList();
     }
-    private void issue(ShootPlan plan, UUID session) {
+    /** Registers the complete preview (its report, a private copy of its plan and that content) for a later approval. */
+    private PlanPreview issue(PlanPreview preview) {
+        var p = preview.plan();
+        var reviewed = p.withExplanation(p.summary(), p.changeSummary(), p.limitations(), p.calculations(), p.provisionalReasons());
         synchronized (issued) {
-            issued.put(new Issued(plan), session);
+            issued.put(new Issued(p), new Registered(preview, reviewed, content(reviewed)));
             while (issued.size() > MAX_ISSUED) issued.remove(issued.keySet().iterator().next());
         }
+        return preview;
+    }
+    /**
+     * Comparable content of a plan: every section's value plus the loadout and windows themselves (sections() summarises
+     * them) and the draft's revision record. A PlanCommand applied to an issued draft replaces these values.
+     */
+    private static List<Object> content(ShootPlan plan) {
+        return List.of(plan.sections(), plan.loadout(), plan.windows(), plan.provisionalReasons(), plan.revisedSections(), plan.regeneration(), plan.changeSummary());
     }
 }

@@ -49,10 +49,11 @@ class DiscoveryHandoffTest {
         assertFalse(made.draft().confirmed(), "the F03 draft still needs explicit confirmation");
         assertTrue(made.session().requirements().isEmpty(), "selection writes no requirement");
 
-        var stored = ok(app.facade().discovery().saveInNewSession(r.feasible().get(1)));
+        // Second usable idea: the at-location skyline idea, unverified since Stage2Review1 and still savable with its caveats.
+        var stored = ok(app.facade().discovery().saveInNewSession(r.usable().get(1)));
         assertEquals(2, sessions());
         var reloaded = ok(app.facade().sessions().open(stored.id()));
-        assertEquals(List.of(r.feasible().get(1).id()), reloaded.savedIdeas().stream().map(ActivitySuggestion::id).toList(), "session and idea written together");
+        assertEquals(List.of(r.usable().get(1).id()), reloaded.savedIdeas().stream().map(ActivitySuggestion::id).toList(), "session and idea written together");
     }
 
     @Test void refusedIdeasNeverLeaveAnEmptySession() throws Exception {

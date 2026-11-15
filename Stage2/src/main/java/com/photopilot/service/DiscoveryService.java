@@ -40,8 +40,9 @@ public class DiscoveryService {
         3. Timing: start plus durationMinutes must lie completely inside the availability period, which is a fixed user
            constraint, and durationMinutes must not exceed maxActivityMinutes. Write start as local date-time with the
            UTC offset exactly as shown in the evidence (for example 2026-11-07T15:30-05:00).
-        4. Place: placeType "atLocation" means at or within walking distance of the user's stated location; otherwise
-           use "destination" with destination = one searchable place name (a town, neighbourhood, park or landmark) and
+        4. Place: placeType "atLocation" only when the activity happens at the user's stated location itself and needs no
+           travel at all; a nearby park, street, building or viewpoint is a "destination" even within walking distance.
+           For a destination give destination = one searchable place name (a town, neighbourhood, park or landmark) and
            region = province/state and country. Never state distances, travel times, opening hours, prices, admission
            or accessibility: the application checks distance itself and cannot verify the rest. Do not invent specific
            public events (festivals, shows, games); if an activity only works during a scheduled event, set
@@ -332,8 +333,9 @@ public class DiscoveryService {
             else if (!proposedIds.add(label)) reasons.add(LocalizedMessage.of("discover.reject.duplicateId", label));
             String genre = text(raw.genre()), setting = text(raw.setting()), type = text(raw.placeType()), destination = text(raw.destination()), region = text(raw.region());
             if (subject.isEmpty() || subject.length() > 160 || genre.length() > 60 || setting.length() > MAX_STATEMENT) reasons.add(LocalizedMessage.of("discover.reject.text"));
-            boolean atLocation = type.equals("atLocation");
-            if (!atLocation && !type.equals("destination")) reasons.add(LocalizedMessage.of("discover.reject.placeType", type));
+            // "atLocation" is Gemini's claim; a place it names anyway is checked as a destination, so evidence decides.
+            boolean claimedHere = type.equals("atLocation"), atLocation = claimedHere && destination.isEmpty();
+            if (!claimedHere && !type.equals("destination")) reasons.add(LocalizedMessage.of("discover.reject.placeType", type));
             else if (!atLocation && (destination.isEmpty() || destination.length() > 120 || region.length() > 120)) reasons.add(LocalizedMessage.of("discover.reject.destination"));
             var start = FeasibilityValidator.parseProposed(raw.start(), zone);
             if (!start.isSuccess()) reasons.addAll(start.messages());
@@ -375,6 +377,7 @@ public class DiscoveryService {
             }
             if (!gearNotes.isEmpty()) gear.add(gearNotes);
             if (dropped[0] > 0) notes.add(LocalizedMessage.of("discover.note.statementsDropped", dropped[0]));
+            if (claimedHere && !atLocation) notes.add(LocalizedMessage.of("discover.note.placeTypeIgnored", destination));
             if (!atLocation) notes.add(LocalizedMessage.of("discover.note.placeUnverified", destination));
             String place = atLocation ? context.location().orElseThrow().label() : region.isEmpty() ? destination : destination + ", " + region;
             var idea = new ActivitySuggestion(UUID.randomUUID(), subject, genre, setting, place, atLocation, Optional.of(start.value().orElseThrow()),
@@ -406,12 +409,13 @@ public class DiscoveryService {
     }
 
     /**
-     * Straight-line distances to the gazetteer matches of an AI-suggested place, narrowed by its stated region. At most
+     * Straight-line distances to the gazetteer matches of an AI-suggested place, narrowed by its stated region, with the
+     * matches themselves so the validator can recognise the user's own place (also with a 0 km limit). At most
      * {@link #MAX_LOOKUPS} distinct lookups per request; repeated destinations reuse the first answer.
      */
     private TravelEvidence travel(String destination, String region, DiscoveryContext context, Map<String, TravelEvidence> cache) {
         String query = destination.split(",")[0].strip();
-        if (!context.hasCoordinates() || context.maxDistanceKm() == 0) return new TravelEvidence(query, List.of(), List.of(), Optional.empty());
+        if (!context.hasCoordinates()) return new TravelEvidence(query, List.of(), List.of(), Optional.empty());
         String key = query.toLowerCase(Locale.ROOT) + "|" + region.toLowerCase(Locale.ROOT);
         if (!cache.containsKey(key) && cache.size() >= MAX_LOOKUPS)
             return TravelEvidence.unavailable(query, LocalizedMessage.of("discover.check.travel.lookupLimit", MAX_LOOKUPS));
@@ -426,7 +430,8 @@ public class DiscoveryService {
             var origin = context.location().orElseThrow();
             double lat = origin.latitude().orElseThrow(), lon = origin.longitude().orElseThrow();
             return new TravelEvidence(query, matches.stream().map(PlaceCandidate::displayName).toList(),
-                matches.stream().map(c -> FeasibilityValidator.straightLineKm(lat, lon, c.latitude(), c.longitude())).toList(), Optional.empty());
+                matches.stream().map(c -> FeasibilityValidator.straightLineKm(lat, lon, c.latitude(), c.longitude())).toList(), Optional.empty(),
+                matches.stream().map(PlaceCandidate::location).toList());
         });
     }
 

@@ -15,6 +15,7 @@ import com.photopilot.model.EnvironmentAssessment.Interpretation;
 import com.photopilot.model.EnvironmentAssessment.LightPhase;
 import com.photopilot.model.EnvironmentAssessment.RejectedWindow;
 import com.photopilot.model.EnvironmentContext.Hour;
+import com.photopilot.validation.EnvironmentEvidence;
 import com.photopilot.validation.FeasibilityValidator;
 
 /**
@@ -109,6 +110,24 @@ public class EnvironmentService {
         context.staleFields(now, WEATHER_MAX_AGE).stream().filter(f -> !f.equals(EnvironmentContext.SUN)).forEach(stale::add);
         context.staleFields(now, SUN_MAX_AGE).stream().filter(f -> f.equals(EnvironmentContext.SUN)).forEach(stale::add);
         return Collections.unmodifiableSet(stale);
+    }
+
+    /**
+     * F06/F10 use of an earlier assessment, evaluated now with this service's clock and the same type-specific limits
+     * as retrieval ({@link #staleFields}); the assessment's own {@code staleFields()} is only the state at assessment
+     * time. A group that has data but no retrieval time cannot be shown to be fresh and counts as stale.
+     * {@code basis} is the confirmed requirement this process assessed under (empty when unknown).
+     */
+    public EnvironmentEvidence evidence(EnvironmentAssessment assessment, ShootRequirement requirement, LocalDate shootingDate,
+            Optional<EnvironmentEvidence.Basis> basis) {
+        if (assessment == null) return EnvironmentEvidence.none();
+        var context = assessment.context();
+        var stale = new TreeSet<>(staleFields(context));
+        var stamps = context.sourceTimestamps();
+        if (!context.weather().isEmpty() && !stamps.containsKey(EnvironmentContext.DAILY)) stale.add(EnvironmentContext.DAILY);
+        if (!context.hourly().isEmpty() && !stamps.containsKey(EnvironmentContext.HOURLY)) stale.add(EnvironmentContext.HOURLY);
+        if (!context.sunEvents().isEmpty() && !stamps.containsKey(EnvironmentContext.SUN)) stale.add(EnvironmentContext.SUN);
+        return EnvironmentEvidence.check(assessment, requirement, shootingDate, basis, stale, clock.instant());
     }
 
     /**

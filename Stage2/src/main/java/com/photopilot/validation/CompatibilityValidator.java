@@ -13,6 +13,7 @@ import com.photopilot.model.GearMatchReport.NeedResult;
 import com.photopilot.model.GearMatchReport.NeedStatus;
 import com.photopilot.model.GearSnapshot;
 import com.photopilot.model.Loadout;
+import com.photopilot.model.ShootRequirement;
 
 /**
  * Stage 1 UML element 58 (zero-based): {F07; deterministic mount/filter/battery/storage rules}
@@ -20,9 +21,31 @@ import com.photopilot.model.Loadout;
  * specifications (via immutable snapshots). Missing data, including placeholder text such as "n/a" or "未知"
  * (SpecificationValues), is UNVERIFIED and never treated as compatible, even when both sides match; no
  * adapter, step ring or interchangeable battery is ever assumed, because the inventory model records none.
+ * Quantities count physical units: one inventory record may stand for several bodies or lenses, and when the
+ * confirmed requirement needs every body equipped at once ({@link Mounting}) distinct lens units are allocated to all
+ * camera units ({@link #simultaneousMounts}); one lens unit never serves two bodies.
  */
 public class CompatibilityValidator {
     public enum Status { COMPATIBLE, INCOMPATIBLE, UNVERIFIED }
+    /**
+     * Whether the confirmed shooting requirement needs every camera body carried to hold its own lens unit at the same
+     * time. DEDICATED: lens changes are to be avoided, so a body without its own compatible lens could only shoot after
+     * one. UNSPECIFIED: several bodies are requested but lens changes are not specified, so simultaneous use is neither
+     * required nor ruled out and an allocation that cannot be shown is unverified, not a conflict. NONE: lens changes
+     * are allowed, or no requirement asks for several bodies, so bodies may share lenses.
+     */
+    public enum Mounting {
+        NONE, UNSPECIFIED, DEDICATED;
+
+        public static Mounting of(ShootRequirement requirement) {
+            if (requirement == null) return NONE;
+            var changes = requirement.lensChangesAllowed();
+            if (changes.equals(Optional.of(false))) return DEDICATED;
+            return changes.isEmpty() && requirement.cameraCount().filter(count -> count > 1).isPresent() ? UNSPECIFIED : NONE;
+        }
+    }
+    /** Key of the UNSPECIFIED finding: an unanswered requirement question, not a missing gear specification. */
+    public static final String MOUNTING_UNSPECIFIED = "compat.bodiesUnspecified";
     /** Outcome of one equipment relationship with the reason shown to the photographer. */
     public record Check(Status status, LocalizedMessage reason) { }
     /** Locale-neutral UC14 findings; essentials are missing power/storage for a body (a partial, not a conflict). */
@@ -34,7 +57,12 @@ public class CompatibilityValidator {
     }
 
     public CompatibilityReport validate(Loadout loadout) {
-        var found = assess(loadout);
+        return validate(loadout, Mounting.NONE);
+    }
+
+    /** UC14 report under the mounting rule of the confirmed requirement ({@link Mounting#of}). */
+    public CompatibilityReport validate(Loadout loadout, Mounting mounting) {
+        var found = assess(loadout, mounting);
         return new CompatibilityReport(found.usable(), english(found.unverified()), english(found.violations()), english(found.essentials()));
     }
 
@@ -58,8 +86,14 @@ public class CompatibilityValidator {
         return Optional.empty();
     }
 
-    /** Full UC14 check of one loadout's internal relationships. */
+    /** Full UC14 check of one loadout's internal relationships, without a requirement-specific mounting rule. */
     public Assessment assess(Loadout loadout) {
+        return assess(loadout, Mounting.NONE);
+    }
+
+    /** Full UC14 check of one loadout's internal relationships under the confirmed requirement's mounting rule. */
+    public Assessment assess(Loadout loadout, Mounting mounting) {
+        Objects.requireNonNull(mounting, "mounting");
         var violations = new ArrayList<LocalizedMessage>(); var unverified = new ArrayList<LocalizedMessage>(); var essentials = new ArrayList<LocalizedMessage>();
         var cameras = loadout.ofType(EquipmentType.CAMERA); var lenses = loadout.ofType(EquipmentType.LENS);
         if (cameras.isEmpty()) violations.add(LocalizedMessage.of("compat.noCamera"));
@@ -80,6 +114,9 @@ public class CompatibilityValidator {
         });
         // Every carried item must fit at least one partner in this loadout; otherwise it is a conflict or unverified.
         for (GearSnapshot lens : lenses) fits(lens, cameras, violations, unverified);
+        // A body that no carried lens fits can never shoot, whatever the lens-change rule.
+        for (GearSnapshot camera : cameras) fits(camera, lenses, violations, unverified);
+        mountsEveryBody(loadout, mounting, violations, unverified);
         for (GearSnapshot filter : loadout.ofType(EquipmentType.FILTER)) fits(filter, lenses, violations, unverified);
         for (GearSnapshot battery : loadout.ofType(EquipmentType.BATTERY)) fits(battery, cameras, violations, unverified);
         for (GearSnapshot storage : loadout.ofType(EquipmentType.STORAGEMEDIA)) fits(storage, cameras, violations, unverified);
@@ -227,6 +264,78 @@ public class CompatibilityValidator {
         (firstProblem.status() == Status.UNVERIFIED ? unverified : violations).add(firstProblem.reason());
     }
     private Status mountedStatus(GearSnapshot camera, GearSnapshot accessory) { return check(camera, accessory).map(Check::status).orElse(Status.UNVERIFIED); }
+
+    /**
+     * Mounting rule: assignments name inventory records, and one record may stand for several bodies, so when every body
+     * must be equipped at once the units themselves are allocated. A shortfall that remains even if every pair with
+     * missing mount data fitted is a conflict (DEDICATED) or an unanswered requirement question (UNSPECIFIED); one that
+     * only missing mount data leaves open is unverified.
+     */
+    private static void mountsEveryBody(Loadout loadout, Mounting mounting, List<LocalizedMessage> violations, List<LocalizedMessage> unverified) {
+        if (mounting == Mounting.NONE || loadout.ofType(EquipmentType.LENS).isEmpty()) return;
+        long bodies = units(loadout, EquipmentType.CAMERA);
+        if (bodies < 2) return; // a single body is covered by the mount checks above
+        long verified = simultaneousMounts(loadout, false);
+        if (verified >= bodies) return;
+        long possible = simultaneousMounts(loadout, true);
+        if (possible >= bodies) unverified.add(LocalizedMessage.of("compat.bodiesUnverified", verified, bodies));
+        else if (mounting == Mounting.DEDICATED) violations.add(LocalizedMessage.of("compat.bodiesShort", possible, bodies));
+        else unverified.add(LocalizedMessage.of(MOUNTING_UNSPECIFIED, possible, bodies));
+    }
+
+    /**
+     * Largest number of camera units of the loadout that can each have their own lens unit mounted at the same time.
+     * Recorded mounts are kept (each uses one body of its camera record and one unit of its lens record); the remaining
+     * units are allocated by maximum bipartite matching over records with unit capacities, so no lens unit is counted
+     * twice and no record supplies more units than selected. Verified mounts only, unless {@code assumeUnrecorded} also
+     * counts pairs whose mount data is missing. Work depends on the number of records, never on quantities.
+     */
+    public static long simultaneousMounts(Loadout loadout, boolean assumeUnrecorded) {
+        var cameras = loadout.ofType(EquipmentType.CAMERA); var lenses = loadout.ofType(EquipmentType.LENS);
+        int c = cameras.size(), l = lenses.size(), n = c + l + 2, source = n - 2, sink = n - 1;
+        long[] bodies = new long[c], units = new long[l];
+        var cameraAt = new HashMap<UUID, Integer>(); var lensAt = new HashMap<UUID, Integer>();
+        for (int i = 0; i < c; i++) { bodies[i] = cameras.get(i).selectedQuantity(); cameraAt.put(cameras.get(i).sourceGearId(), i); }
+        for (int j = 0; j < l; j++) { units[j] = lenses.get(j).selectedQuantity(); lensAt.put(lenses.get(j).sourceGearId(), j); }
+        long mounted = 0;
+        for (var pin : new TreeMap<>(loadout.cameraLensAssignments()).entrySet()) {
+            Integer i = cameraAt.get(pin.getKey()), j = lensAt.get(pin.getValue());
+            if (i == null || j == null || bodies[i] == 0 || units[j] == 0 || !fitsOn(cameras.get(i), lenses.get(j), assumeUnrecorded)) continue;
+            bodies[i]--; units[j]--; mounted++;
+        }
+        long[][] capacity = new long[n][n];
+        for (int i = 0; i < c; i++) {
+            capacity[source][i] = bodies[i];
+            for (int j = 0; j < l; j++) if (fitsOn(cameras.get(i), lenses.get(j), assumeUnrecorded)) capacity[i][c + j] = bodies[i];
+        }
+        for (int j = 0; j < l; j++) capacity[c + j][sink] = units[j];
+        return mounted + maxFlow(capacity, source, sink);
+    }
+    private static boolean fitsOn(GearSnapshot camera, GearSnapshot lens, boolean assumeUnrecorded) {
+        var status = mount(camera, lens).status();
+        return status == Status.COMPATIBLE || assumeUnrecorded && status == Status.UNVERIFIED;
+    }
+    /** Edmonds-Karp (shortest augmenting paths): the number of rounds depends on the graph size, not on capacities. */
+    private static long maxFlow(long[][] capacity, int source, int sink) {
+        int n = capacity.length; long flow = 0;
+        while (true) {
+            int[] parent = new int[n]; Arrays.fill(parent, -1); parent[source] = source;
+            var queue = new ArrayDeque<Integer>(); queue.add(source);
+            while (!queue.isEmpty() && parent[sink] < 0) {
+                int u = queue.poll();
+                for (int v = 0; v < n; v++) if (parent[v] < 0 && capacity[u][v] > 0) { parent[v] = u; queue.add(v); }
+            }
+            if (parent[sink] < 0) return flow;
+            long push = Long.MAX_VALUE;
+            for (int v = sink; v != source; v = parent[v]) push = Math.min(push, capacity[parent[v]][v]);
+            for (int v = sink; v != source; v = parent[v]) { capacity[parent[v]][v] -= push; capacity[v][parent[v]] += push; }
+            flow += push;
+        }
+    }
+    /** Physical units of one type, summed without int overflow. */
+    public static long units(Loadout loadout, EquipmentType type) {
+        return loadout.ofType(type).stream().mapToLong(GearSnapshot::selectedQuantity).sum();
+    }
 
     private static Check mount(GearSnapshot camera, GearSnapshot lens) {
         String body = text(camera, "mount"), optic = text(lens, "mount");

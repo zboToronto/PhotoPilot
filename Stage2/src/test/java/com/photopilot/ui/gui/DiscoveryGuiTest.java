@@ -74,13 +74,13 @@ class DiscoveryGuiTest {
                 return pane.busy() && pane.feedbackText().contains("asking Gemini") && pane.lookup("#discover-location").getParent().getParent().getParent().isDisabled(); }));
             ready();
             var result = fx(() -> pane.result());
-            assertEquals(2, result.feasible().size());
-            assertTrue(fx(() -> pane.feedbackText().contains("2 feasible and 1 unverified")), () -> pane.feedbackText());
+            assertEquals(1, result.feasible().size(), "the at-location idea is only Gemini's claim, so it stays unverified");
+            assertTrue(fx(() -> pane.feedbackText().contains("1 feasible and 2 unverified")), () -> pane.feedbackText());
             var first = result.ideas().getFirst();
             assertEquals(String.join("\n", DiscoveryPresentation.idea(first, app.localization())), label("discover-idea-1"), "GUI cards use the shared presentation (same text as the CLI)");
             assertTrue(label("discover-idea-1").contains("Straight-line distance") && label("discover-idea-1").contains("Light and weather: Feasible"));
             assertTrue(label("discover-context").contains("verified by the weather provider"));
-            assertTrue(label("discover-summary").contains("2 feasible, 1 unverified, 3 not suitable"));
+            assertTrue(label("discover-summary").contains("1 feasible, 2 unverified, 3 not suitable"));
             assertNotNull(fx(() -> pane.lookup("#discover-continue-3")), "unverified ideas can continue with their limitations");
             assertNull(fx(() -> pane.lookup("#discover-continue-4")), "not-suitable ideas are never offered for planning");
             assertNull(fx(() -> pane.lookup("#discover-save-5")));

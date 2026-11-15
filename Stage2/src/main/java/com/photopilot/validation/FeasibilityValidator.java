@@ -30,7 +30,8 @@ import com.photopilot.model.ShootingWindow;
  * inside the user's availability, is consistent with the sun data for its declared light, cites known evidence and
  * quotes no measurement absent from the provider data. Invalid windows are rejected with reasons; valid ones are kept.
  * F02 {@link #validate} checks each AI-proposed activity for time, straight-line travel, owned-equipment, light/weather
- * evidence, avoided subjects and event dependence, reusing the F07 need comparison and the F09 light rules.
+ * evidence, avoided subjects and event dependence, reusing the F07 need comparison and the F09 light rules. Gemini's
+ * place classification is a claim, never evidence: only looked-up places decide where an activity is.
  */
 public class FeasibilityValidator {
     public static final Duration MIN_WINDOW = Duration.ofMinutes(5), SUN_TOLERANCE = Duration.ofMinutes(2);
@@ -80,16 +81,55 @@ public class FeasibilityValidator {
         if (from.toInstant().isBefore(clock.instant())) found.add(LocalizedMessage.of("discover.check.time.past", clock(from)));
         if (!found.isEmpty()) return new Check("time", Feasibility.INFEASIBLE, found);
         found.add(LocalizedMessage.of("discover.check.time.ok", clock(from), clock(to), idea.estimatedDuration().toMinutes()));
-        if (!idea.atUserLocation()) found.add(LocalizedMessage.of("discover.check.time.travelExcluded"));
+        if (place(idea, context) != Place.SAME) found.add(LocalizedMessage.of("discover.check.time.travelExcluded"));
         return new Check("time", Feasibility.FEASIBLE, found);
     }
     private static String clock(ZonedDateTime time) { return time.toLocalDate() + " " + time.toLocalTime().truncatedTo(ChronoUnit.MINUTES); }
 
-    /** Only straight-line distances to gazetteer matches count; route distance and travel time are never estimated. */
+    /** What deterministic evidence says about an idea's place relative to the place the user confirmed. */
+    private enum Place {
+        /** Every gazetteer match is the user's exact place: same name and same point, and the user's point is not approximate. */
+        SAME,
+        /** A match has the user's place name and point, but the user's point is approximate or the name also matches other places. */
+        POSSIBLE,
+        /** A separate place, or nothing to compare: Gemini's "atLocation" claim alone, no coordinates or no lookup result. */
+        OTHER
+    }
+
+    /**
+     * Location identity from evidence only. Gemini's placeType never counts, and proximity is not identity: a place a few
+     * metres away, or under the same point with another name, is a separate destination. Points are compared at the
+     * 4-decimal precision F09 uses for one place ({@link EnvironmentEvidence#samePoint}), names as F06/F10 compare labels.
+     */
+    private static Place place(ActivitySuggestion idea, DiscoveryContext context) {
+        if (!context.hasCoordinates()) return Place.OTHER;
+        var evidence = idea.travel().filter(e -> e.problem().isEmpty() && !e.places().isEmpty());
+        if (evidence.isEmpty()) return Place.OTHER;
+        var home = context.location().orElseThrow();
+        var places = evidence.get().places();
+        long same = places.stream().filter(p -> p.validate().isSuccess() && p.latitude().isPresent()
+            && EnvironmentEvidence.sameLabel(p.label(), home.label()) && EnvironmentEvidence.samePoint(p, home)).count();
+        if (same == 0) return Place.OTHER;
+        return same == places.size() && !home.approximate() ? Place.SAME : Place.POSSIBLE;
+    }
+
+    /**
+     * Travel from the place the user confirmed. Gemini's "atLocation" names nothing PhotoPilot can look up, so it stays
+     * unverified (never "no travel needed"); looked-up evidence always takes precedence over that claim. A destination
+     * counts as the user's own place only as {@link Place#SAME}. With a 0 km limit any other destination is infeasible
+     * (it is proposed as somewhere to go) unless the evidence leaves identity open; otherwise only straight-line distances
+     * to gazetteer matches count. Route distance and travel time are never estimated.
+     */
     private static Check travel(ActivitySuggestion idea, DiscoveryContext context) {
         String max = num(context.maxDistanceKm());
-        if (idea.atUserLocation()) return check("travel", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.travel.atLocation", idea.place()));
-        if (context.maxDistanceKm() == 0) return check("travel", Feasibility.INFEASIBLE, LocalizedMessage.of("discover.check.travel.noTravel", idea.place()));
+        boolean noTravel = context.maxDistanceKm() == 0;
+        var where = place(idea, context);
+        if (where == Place.SAME) return check("travel", Feasibility.FEASIBLE, LocalizedMessage.of("discover.check.travel.samePlace", idea.place()));
+        boolean measured = context.hasCoordinates() && idea.travel().filter(e -> e.problem().isEmpty() && !e.straightLineKm().isEmpty()).isPresent();
+        if (idea.atUserLocation() && !measured)
+            return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of(noTravel ? "discover.check.travel.atLocationNoTravel" : "discover.check.travel.atLocation", idea.place(), max));
+        if (noTravel) return where == Place.POSSIBLE ? check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.samePlaceUnverified", idea.place()))
+            : check("travel", Feasibility.INFEASIBLE, LocalizedMessage.of("discover.check.travel.noTravel", idea.place()));
         if (!context.hasCoordinates()) return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.noCoordinates", idea.place()));
         var evidence = idea.travel();
         if (evidence.isEmpty()) return check("travel", Feasibility.UNVERIFIED, LocalizedMessage.of("discover.check.travel.notChecked", idea.place()));

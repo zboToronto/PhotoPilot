@@ -15,6 +15,7 @@ import com.photopilot.model.EnvironmentAssessment.Availability;
 import com.photopilot.model.GearMatchReport.Candidate;
 import com.photopilot.model.GearMatchReport.NeedStatus;
 import com.photopilot.validation.CompatibilityValidator;
+import com.photopilot.validation.EnvironmentEvidence;
 import com.photopilot.validation.FeasibilityValidator;
 import com.photopilot.validation.PlanValidator;
 
@@ -85,7 +86,8 @@ final class PlanAssembly {
 
     /** A verified loadout offered to the model under a label, with its F07 evaluation. */
     record Offer(String label, Candidate candidate, String source) { }
-    record Offers(List<Offer> offers, Map<UUID, String> gearLabels, List<LocalizedMessage> notes) {
+    /** Offered loadouts, their gear labels and notes, and the UC14 mounting rule they were verified under. */
+    record Offers(List<Offer> offers, Map<UUID, String> gearLabels, List<LocalizedMessage> notes, CompatibilityValidator.Mounting mounting) {
         Optional<Offer> byLabel(String label) { return offers.stream().filter(o -> o.label().equalsIgnoreCase(Objects.toString(label, "").strip())).findFirst(); }
         Optional<Offer> byLoadout(UUID id) { return offers.stream().filter(o -> o.candidate().loadout().id().equals(id)).findFirst(); }
         Optional<UUID> gear(String label) {
@@ -111,23 +113,30 @@ final class PlanAssembly {
     private final TechnicalCalculator calculator;
     PlanAssembly(GearMatchingService matching, TechnicalCalculator calculator) { this.matching = matching; this.calculator = calculator; }
 
-    /** F07 selection first (if still current), then the base plan's loadout, then the best verified candidates that meet the requirement's hard limits. */
+    /**
+     * F07 selection first (if still current), then the base plan's loadout, then the best verified candidates that meet the
+     * requirement's hard limits, generated in the same candidate space F07 recommends from (requirement + profile scope).
+     */
     Offers offers(PhotographySession session, ShootRequirement req, EquipmentRequirementProfile profile, GearInventory gear, Optional<ShootPlan> base) {
         var notes = new ArrayList<LocalizedMessage>();
         var chosen = new LinkedHashMap<UUID, Offer>();
+        // One candidate space and UC14 mounting rule for the saved selection, the current plan and the alternatives.
+        var scope = GearMatchingService.scope(profile, req);
+        var mounting = scope.mounting();
         session.selectedLoadout().ifPresent(selected -> {
-            if (!matching.validator().availability(selected, gear).isEmpty() || !matching.validator().assess(selected).usable()) notes.add(LocalizedMessage.of("plan.note.selectionStale"));
+            if (!matching.validator().availability(selected, gear).isEmpty() || !matching.validator().assess(selected, mounting).usable()) notes.add(LocalizedMessage.of("plan.note.selectionStale"));
             else if (!meetsLimits(selected, req)) notes.add(LocalizedMessage.of("plan.note.selectionLimits"));
-            else put(chosen, matching.evaluate(selected, profile), "F07 selection");
+            else put(chosen, matching.evaluate(selected, profile, mounting), "F07 selection");
         });
         base.flatMap(ShootPlan::loadout).ifPresent(current -> {
-            if (matching.validator().availability(current, gear).isEmpty() && matching.validator().assess(current).usable() && meetsLimits(current, req))
-                put(chosen, matching.evaluate(current, profile), "current plan");
+            if (matching.validator().availability(current, gear).isEmpty() && matching.validator().assess(current, mounting).usable() && meetsLimits(current, req))
+                put(chosen, matching.evaluate(current, profile, mounting), "current plan");
         });
-        var generated = matching.compatibleCandidates(gear);
+        var generated = matching.compatibleCandidates(gear, scope);
+        GearMatchingService.scopeLimit(gear, scope).ifPresent(notes::add);
         if (!generated.isSuccess()) notes.addAll(generated.messages());
         else {
-            var ranked = generated.value().orElseThrow().stream().filter(l -> meetsLimits(l, req)).map(l -> matching.evaluate(l, profile))
+            var ranked = generated.value().orElseThrow().stream().filter(l -> meetsLimits(l, req)).map(l -> matching.evaluate(l, profile, mounting))
                 .sorted(Comparator.comparing((Candidate c) -> !c.fullySuitable()).thenComparingLong(Candidate::mandatoryUnmet)
                     .thenComparingDouble(c -> c.loadout().totalWeightGrams().orElse(Double.MAX_VALUE)).thenComparing(c -> c.loadout().id().toString()))
                 .toList();
@@ -138,7 +147,7 @@ final class PlanAssembly {
         for (var offer : chosen.values()) offers.add(new Offer("L" + (++index), offer.candidate(), offer.source()));
         var labels = new LinkedHashMap<UUID, String>();
         for (var offer : offers) for (var item : offer.candidate().loadout().gear()) labels.putIfAbsent(item.sourceGearId(), "G" + (labels.size() + 1));
-        return new Offers(offers, labels, notes);
+        return new Offers(offers, labels, notes, mounting);
     }
     private static void put(Map<UUID, Offer> chosen, Candidate candidate, String source) { chosen.putIfAbsent(candidate.loadout().id(), new Offer("", candidate, source)); }
     /** Requirement hard limits a candidate must meet to be offered at all: bodies, lens changes, weight. */
@@ -149,26 +158,26 @@ final class PlanAssembly {
         return req.maxWeightGrams().map(limit -> loadout.totalWeightGrams().filter(w -> w <= limit).isPresent()).orElse(true);
     }
 
-    /** F09 assessment for the plan date (fresh groups only), otherwise the requirement's own start time and duration. */
-    Timing timing(PhotographySession session, ShootRequirement req, Optional<EnvironmentAssessment> assessment, Set<String> stale) {
-        LocalDate date = req.date().orElse(session.date());
+    /** Local shooting date of the confirmed requirement: its own date, otherwise the session date. Shared by F06 and F10. */
+    static LocalDate shootingDate(PhotographySession session, ShootRequirement req) { return req.date().orElse(session.date()); }
+
+    /**
+     * F09 evidence that passed the shared consumption check ({@link EnvironmentEvidence}: same place, date, zone and
+     * shooting time as the confirmed requirement, fresh groups only), otherwise the requirement's own start time and
+     * duration. A rejected assessment is named with its reason, never used for windows, the prompt or validation.
+     */
+    Timing timing(PhotographySession session, ShootRequirement req, EnvironmentEvidence evidence) {
+        LocalDate date = shootingDate(session, req);
         var notes = new ArrayList<LocalizedMessage>();
-        var usable = assessment;
-        if (usable.isPresent()) {
-            var assessed = usable.get();
-            var envDate = assessed.request().map(EnvironmentRequest::date).or(() -> assessed.context().date());
-            if (envDate.isPresent() && !envDate.get().equals(date)) { notes.add(LocalizedMessage.of("plan.env.dateMismatch", envDate.get().toString(), date.toString())); usable = Optional.empty(); }
-            else if (assessed.context().zone().isEmpty() || assessed.availability().isEmpty()) { notes.add(LocalizedMessage.of("plan.env.zoneUnverified")); usable = Optional.empty(); }
-            else {
-                String place = assessed.context().place().map(GeoLocation::label).orElse("");
-                notes.add(LocalizedMessage.of("plan.env.used", place, assessed.context().retrievedAt().toString()));
-                if (!stale.isEmpty()) notes.add(LocalizedMessage.of("plan.env.stale", String.join(", ", new TreeSet<>(stale))));
-            }
+        if (evidence.usable()) {
+            var assessed = evidence.assessment().orElseThrow();
+            String place = assessed.context().place().map(GeoLocation::label).orElse("");
+            notes.add(LocalizedMessage.of("plan.env.used", place, assessed.context().retrievedAt().toString()));
+            if (!evidence.stale().isEmpty()) notes.add(LocalizedMessage.of("plan.env.stale", String.join(", ", new TreeSet<>(evidence.stale()))));
+            notes.addAll(evidence.notes());
+            return new Timing(Optional.of(assessed), assessed.availability(), assessed.context().zone(), date, evidence.stale(), "F09", notes);
         }
-        if (usable.isPresent()) {
-            var assessed = usable.get();
-            return new Timing(usable, assessed.availability(), assessed.context().zone(), date, Set.copyOf(stale), "F09", notes);
-        }
+        notes.addAll(evidence.notes());
         if (req.time().isPresent() && req.duration().isPresent()) {
             var start = req.time().get();
             notes.add(LocalizedMessage.of("plan.env.requirementTiming"));
@@ -402,7 +411,7 @@ final class PlanAssembly {
             if (!role.isEmpty()) equipmentNotes.add(CompatibilityValidator.name(lens.get()) + " on " + CompatibilityValidator.name(camera.get()) + ": " + role);
         }
         var custom = new Loadout(loadout.id(), loadout.gear(), assignments, loadout.compatibility(), loadout.tradeOffs(), loadout.unmetNeeds());
-        return Optional.of(matching.evaluate(custom, profile).loadout());
+        return Optional.of(matching.evaluate(custom, profile, offers.mounting()).loadout());
     }
     private static Map<String, String> settings(List<PlanGeneration.Setting> proposed, Optional<Loadout> loadout, Offers offers, List<LocalizedMessage> problems) {
         var settings = new LinkedHashMap<String, String>();

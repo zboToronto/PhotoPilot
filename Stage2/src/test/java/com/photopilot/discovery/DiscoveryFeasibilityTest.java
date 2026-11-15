@@ -79,7 +79,9 @@ class DiscoveryFeasibilityTest {
         assertTrue(mixed.estimatedTravelKm().isEmpty());
         var stay = context(Optional.of(HOME), 0, empty, Optional.empty(), Set.of(), List.of());
         assertEquals(Feasibility.INFEASIBLE, status(ok(validator.validate(destination, stay)), "travel"));
-        assertEquals(Feasibility.FEASIBLE, status(ok(validator.validate(idea(true, START, 60, "any", false, false, false, List.of()), stay)), "travel"));
+        var claimed = ok(validator.validate(idea(true, START, 60, "any", false, false, false, List.of()), stay));
+        assertEquals(Feasibility.UNVERIFIED, status(claimed, "travel"), "Gemini's at-location claim is not evidence that no travel is needed (Stage2Review1)");
+        assertTrue(keys(claimed, "travel").contains("discover.check.travel.atLocationNoTravel"));
         var nameOnly = context(Optional.of(GeoLocation.manual("Toronto area")), 40, empty, Optional.empty(), Set.of(), List.of());
         assertTrue(keys(ok(validator.validate(destination, nameOnly)), "travel").contains("discover.check.travel.noCoordinates"));
         assertEquals(3.0, FeasibilityValidator.straightLineKm(43.6532, -79.3832, 43.6275, -79.3961), 0.3);
