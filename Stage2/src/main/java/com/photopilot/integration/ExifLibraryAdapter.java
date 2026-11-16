@@ -118,10 +118,14 @@ public class ExifLibraryAdapter implements MetadataExtractor {
         var outcomes = new ArrayList<FileOutcome>();
         var candidates = new ArrayList<Path>();
         for (Path selected : files) {
+            if (candidates.size() > MAX_FILES) return Result.failureKey("review.error.tooManyFiles", MAX_FILES);
             if (selected == null) continue;
             if (!Files.isDirectory(selected)) { candidates.add(selected); continue; }
             try (var entries = Files.list(selected)) {
-                var found = entries.filter(Files::isRegularFile).filter(p -> folderCandidate(name(p))).sorted().toList();
+                // Name first (no file-system access), and at most one file more than the limit leaves room for: a huge
+                // folder is never stat-ed or sorted in full and still fails below; smaller folders give the same list.
+                var found = entries.filter(p -> folderCandidate(name(p))).filter(Files::isRegularFile)
+                    .limit(MAX_FILES + 1L - candidates.size()).sorted().toList();
                 if (found.isEmpty()) outcomes.add(outcome(selected, "", Status.UNSUPPORTED, "review.file.emptyFolder"));
                 candidates.addAll(found);
             } catch (IOException | SecurityException denied) {
@@ -155,9 +159,12 @@ public class ExifLibraryAdapter implements MetadataExtractor {
                 boolean jpeg = kind.get().equals(JPEG), rawFile = kind.get().equals(RAW);
                 String label = jpeg ? "JPEG" : rawFile ? rawType : "EXPORT";
                 long size = Files.size(file), limit = jpeg ? MAX_JPEG_BYTES : rawFile ? MAX_RAW_BYTES : MAX_EXPORT_BYTES;
-                if (size > limit) { outcomes.add(new FileOutcome(name, label, Status.TOO_LARGE, 0, List.of(LocalizedMessage.of("review.file.tooLarge", limit / (1024 * 1024))))); continue; }
-                // A RAW file is only hashed while streaming (bounded memory); JPEG and JSON are read once and parsed from memory.
-                byte[] bytes = rawFile ? null : Files.readAllBytes(file);
+                var tooLarge = new FileOutcome(name, label, Status.TOO_LARGE, 0, List.of(LocalizedMessage.of("review.file.tooLarge", limit / (1024 * 1024))));
+                if (size > limit) { outcomes.add(tooLarge); continue; }
+                // A RAW file is only hashed while streaming (bounded memory); JPEG and JSON are read once and parsed from
+                // memory, at most one byte past the limit, so a file that grew after the size check is still refused.
+                byte[] bytes = rawFile ? null : readAtMost(file, limit + 1);
+                if (bytes != null && bytes.length > limit) { outcomes.add(tooLarge); continue; }
                 String hash = rawFile ? sha256(file) : sha256(bytes);
                 if (contents.containsKey(hash)) {
                     outcomes.add(new FileOutcome(name, label, Status.DUPLICATE, 0, List.of(LocalizedMessage.of("review.file.duplicateContent", contents.get(hash)))));
@@ -447,6 +454,10 @@ public class ExifLibraryAdapter implements MetadataExtractor {
     }
     private static byte[] head(Path file) throws IOException {
         try (InputStream in = Files.newInputStream(file)) { return in.readNBytes(64); }
+    }
+    /** The whole file when it has at most {@code count} bytes, else its first {@code count} bytes (count is below 2 GB). */
+    private static byte[] readAtMost(Path file, long count) throws IOException {
+        try (InputStream in = Files.newInputStream(file)) { return in.readNBytes(Math.toIntExact(count)); }
     }
     private static FileOutcome outcome(Path file, String kind, Status status, String key) {
         return new FileOutcome(name(file), kind, status, 0, List.of(LocalizedMessage.of(key)));

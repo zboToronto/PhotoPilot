@@ -19,6 +19,12 @@ import com.photopilot.common.Result;
 public class PostShootReview {
     public static final String DRAFT = "DRAFT", SAVED = "SAVED";
     public static final int MAX_ITEMS = 12, MAX_TEXT = 1200;
+    /**
+     * planDifferences and limitations are written mostly by the application: one comparison line per planned or recorded
+     * camera and lens and per camera-bound setting, plus every evidence limit. They grow with the plan and the import, so
+     * a valid two-body plan could exceed the model sections' MAX_ITEMS * 2 and never be reviewed; they get this bound.
+     */
+    public static final int MAX_EVIDENCE_ITEMS = 240;
 
     private UUID id;
     private Instant createdAt;
@@ -68,14 +74,18 @@ public class PostShootReview {
 
     /** Structural limits of a review before it may be saved: bounded sections and some interpretation to keep. */
     public Result<PostShootReview> validate() {
-        var sections = List.of(planDifferences, lessons, limitations, technicalObservations, equipmentObservations, exposureObservations, improvements);
-        for (var section : sections)
-            if (section.size() > MAX_ITEMS * 2 || section.stream().anyMatch(item -> item == null || item.isBlank() || item.length() > MAX_TEXT))
-                return Result.failureKey("review.error.invalidReview");
+        for (var section : List.of(planDifferences, limitations))
+            if (invalid(section, MAX_EVIDENCE_ITEMS)) return Result.failureKey("review.error.invalidReview");
+        for (var section : List.of(lessons, technicalObservations, equipmentObservations, exposureObservations, improvements))
+            if (invalid(section, MAX_ITEMS * 2)) return Result.failureKey("review.error.invalidReview");
         if (summary.length() > MAX_TEXT * 2 || evidence.size() > 60) return Result.failureKey("review.error.invalidReview");
         if (summary.isBlank() && technicalObservations.isEmpty() && equipmentObservations.isEmpty() && exposureObservations.isEmpty())
             return Result.failureKey("review.error.unsupported");
         return Result.success(this);
+    }
+
+    private static boolean invalid(List<String> section, int maxItems) {
+        return section.size() > maxItems || section.stream().anyMatch(item -> item == null || item.isBlank() || item.length() > MAX_TEXT);
     }
 
     /** The copy a session stores once the user explicitly saves the draft. */
