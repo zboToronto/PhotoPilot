@@ -252,6 +252,11 @@ public class PlanningService {
         if (!expected.state().canEditPlan()) return Result.failureKey("needs.error.historical");
         var requirement = expected.requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) return Result.failureKey("needs.error.requirement");
+        // A version that is no longer the stored one is reported as changed before the profile is validated against its
+        // (possibly outdated) requirement, so the caller can reload instead of being shown a conflict that no longer exists.
+        var stored = sessions.find(expected.id());
+        if (!stored.isSuccess()) return Result.failure(stored);
+        if (!stored.value().orElseThrow().revision().equals(expected.revision())) return Result.failureKey("error.session.changed");
         if (expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent() && !replace) return Result.failureKey("needs.error.replaceRequired");
         var structural = requirements.validateProfile(edited);
         if (!structural.isSuccess()) return structural;
@@ -579,7 +584,12 @@ public class PlanningService {
         }
         var commands = assembly.commands(change, base.get(), offers, timing, in.profile());
         if (!commands.isSuccess()) return Result.failure(commands);
-        var previewed = editor.preview(base.get(), commands.value().orElseThrow());
+        var planned = new ArrayList<com.photopilot.command.PlanCommand>(commands.value().orElseThrow());
+        // A re-confirmed date or place does not change the fixed constraints (so it is revised, not regenerated); the
+        // revision then records the current shoot's facts instead of the base's, which windows are also checked against.
+        if (!sameShoot(base.get(), in.session(), in.requirement()))
+            planned.add(new com.photopilot.command.ReviseSessionInfoCommand(PlanAssembly.sessionInfo(in.session(), in.requirement(), timing)));
+        var previewed = editor.preview(base.get(), planned);
         if (!previewed.isSuccess()) return Result.failure(previewed);
         var draft = previewed.value().orElseThrow();
         boolean sameLoadout = draft.loadout().map(l -> l.id() + new java.util.TreeMap<>(l.cameraLensAssignments()).toString())
@@ -595,6 +605,9 @@ public class PlanningService {
         draft = draft.withExplanation(base.get().summary(), (com.photopilot.i18n.EnglishMessages.text("plan.changeRequest", request) + " " + summary).strip(),
             limitations, calculations, provisional);
         var report = validator.assess(draft, in.requirement(), validation(in, timing, base));
+        // The change summary may be long because it echoes the request; the model's own part keeps MAX_SUMMARY.
+        if (summary.length() > PlanValidator.MAX_SUMMARY)
+            report = merge(report, List.of(com.photopilot.i18n.LocalizedMessage.of("plan.violation.text", com.photopilot.i18n.LocalizedMessage.of("plan.section.summary"))));
         var changed = draft.differingSections(base.get()).stream().filter(ShootPlan.DECISIONS::contains).toList();
         return Result.success(issue(new PlanPreview(id, draft, base, report, evidence(in, offers, notes, output), output.tools(), texts(change.questions()), request, changed)));
     }
@@ -633,6 +646,8 @@ public class PlanningService {
         if (reviewed.revision() == 1 ? existing.isPresent() || in.session().plans().stream().anyMatch(p -> p.id().equals(reviewed.id()))
                 : existing.filter(p -> p.id().equals(reviewed.id()) && p.revision() == reviewed.revision() - 1).isEmpty())
             return Result.failureKey("plan.error.stale");
+        // Date and place are not fixed constraints; a plan prepared for another shoot date or place is not approved.
+        if (!sameShoot(reviewed, in.session(), in.requirement())) return Result.failureKey("plan.violation.constraintsChanged");
         var timing = assembly.timing(in.session(), in.requirement(), storedEvidence(in.session(), in.requirement()));
         var report = validator.assess(reviewed, in.requirement(), validation(in, timing, reviewed.regeneration() ? Optional.empty() : existing));
         if (!report.valid()) return Result.failures(report.blocking());
@@ -658,6 +673,16 @@ public class PlanningService {
             .map(Result::success).orElseGet(() -> Result.failureKey("plan.error.notSaved"));
     }
 
+    /**
+     * Whether a plan records the current shoot: the shooting date, and the confirmed place when the requirement names one
+     * (labels compared as EnvironmentEvidence does). This is the rule PlanValidator uses to carry a base plan's windows;
+     * facts that depend on in-memory F09 evidence (a looked-up place, its availability) are deliberately not compared.
+     */
+    private static boolean sameShoot(ShootPlan plan, PhotographySession session, ShootRequirement requirement) {
+        var info = plan.sessionInfo();
+        if (!PlanAssembly.shootingDate(session, requirement).toString().equals(info.get("date"))) return false;
+        return requirement.location().map(place -> info.containsKey("location") && EnvironmentEvidence.sameLabel(place.label(), info.get("location"))).orElse(true);
+    }
     private record Planning(PhotographySession session, ShootRequirement requirement, EquipmentRequirementProfile profile, com.photopilot.model.GearInventory gear) { }
     /** UC10/UC11 preconditions: editable session, confirmed requirement, reviewed profile, readable inventory. */
     private Result<Planning> planningInputs(UUID id) {

@@ -26,6 +26,12 @@ import com.photopilot.service.TechnicalCalculator;
  */
 public class PlanValidator {
     public static final int MAX_ITEMS = 12, MAX_TEXT = 600, MAX_SUMMARY = 1500, MAX_WINDOWS = 6, MAX_SETTING = 120;
+    /**
+     * A revision's change summary echoes the user's request (accepted up to 2000 characters by
+     * PlanningService.MAX_CHANGE_REQUEST) with its wording, followed by the model's summary of at most MAX_SUMMARY.
+     * Checking it against MAX_SUMMARY alone made every request over about 1490 characters unapprovable.
+     */
+    public static final int MAX_CHANGE_SUMMARY = MAX_SUMMARY + 2100;
     private CompatibilityValidator compatibility;
     private TechnicalCalculator calculator;
     private final FeasibilityValidator feasibility;
@@ -358,7 +364,7 @@ public class PlanValidator {
     }
 
     private void text(ShootPlan plan, List<LocalizedMessage> violations, List<LocalizedMessage> unverified) {
-        if (plan.summary().length() > MAX_SUMMARY || plan.changeSummary().length() > MAX_SUMMARY) violations.add(LocalizedMessage.of("plan.violation.text", LocalizedMessage.of("plan.section.summary")));
+        if (plan.summary().length() > MAX_SUMMARY || plan.changeSummary().length() > MAX_CHANGE_SUMMARY) violations.add(LocalizedMessage.of("plan.violation.text", LocalizedMessage.of("plan.section.summary")));
         var lists = new LinkedHashMap<String, List<String>>();
         lists.put("preparation", plan.preparation()); lists.put("checklist", plan.checklist()); lists.put("shotPriorities", plan.shotPriorities());
         lists.put("tradeOffs", plan.tradeOffs()); lists.put("equipmentNotes", plan.equipmentNotes()); lists.put("limitations", plan.limitations());

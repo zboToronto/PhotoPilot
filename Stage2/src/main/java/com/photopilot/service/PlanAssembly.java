@@ -362,7 +362,8 @@ final class PlanAssembly {
     Result<List<PlanCommand>> commands(PlanChangeInterpretation change, ShootPlan base, Offers offers, Timing timing, EquipmentRequirementProfile profile) {
         var sections = new LinkedHashSet<String>();
         for (String section : change.changes() == null ? List.<String>of() : change.changes()) {
-            if (!PlanChangeInterpretation.SECTIONS.contains(section)) return Result.failureKey("plan.problem.section", section);
+            // List.of(...).contains(null) throws; a null entry is an unknown section like any other.
+            if (section == null || !PlanChangeInterpretation.SECTIONS.contains(section)) return Result.failureKey("plan.problem.section", Objects.toString(section, ""));
             sections.add(section);
         }
         if (sections.isEmpty()) return Result.failureKey("plan.error.noChange");

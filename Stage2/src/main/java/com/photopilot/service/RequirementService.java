@@ -312,6 +312,7 @@ public class RequirementService {
     ShootRequirement toDraft(String originalText, RequirementExtraction out) {
         Set<String> flagged = new TreeSet<>();
         for (String name : list(out.flaggedFields())) {
+            if (name == null) continue; // Map.of(...).getOrDefault(null) throws; a null entry names no field
             String field = RequirementExtraction.SCHEMA_NAMES.getOrDefault(name, name);
             if (ShootRequirement.FIELDS.contains(field)) flagged.add(field);
         }

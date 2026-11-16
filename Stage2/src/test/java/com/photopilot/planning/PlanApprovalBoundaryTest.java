@@ -335,6 +335,32 @@ class PlanApprovalBoundaryTest {
         assertArrayEquals(before, stored()); assertEquals("DRAFT", status(id)); assertTrue(ok(planning().plans(id)).isEmpty());
     }
 
+    // Persistence boundary: no save path other than approval can store an approved plan.
+    @Test void aBlockedPlanCannotBeStoredThroughAPlainSessionSave() throws Exception {
+        var id = ready();
+        var blocked = generate(id, Mistake.DUPLICATE_SETTING);
+        var forged = ok(ok(ok(app.facade().sessions().open(id)).appendApprovedPlan(ok(blocked.plan().approvedCopy()))).apply(com.photopilot.state.SessionEvent.PLAN_APPROVED));
+        byte[] before = stored();
+        rejected(app.facade().sessions().save(forged), "error.session.history");
+        rejected(app.facade().sessions().update(forged, "Renamed", forged.date(), forged.location(), forged.notes()), "error.session.history");
+        rejected(planning().confirm(forged, forged.requirements().orElseThrow()), "error.session.history");
+        assertArrayEquals(before, stored()); assertEquals("DRAFT", status(id)); assertTrue(ok(planning().plans(id)).isEmpty());
+    }
+
+    // Approval through a profile-scoped context (ProfileAccess) appends like the plain bootstrap.
+    @Test void approvalWorksThroughAProfileScopedContext() throws Exception {
+        app.close(); app = null;
+        try (var profiles = new com.photopilot.application.ProfileManager(providers.environment(gemini.environment(root.resolve("profiles"))))) {
+            app = profiles.activeContext();
+            var id = ready();
+            var preview = generate(id);
+            assertTrue(preview.approvable(), () -> preview.validation().toString());
+            assertEquals(1, ok(planning().approve(id, preview.plan())).revision());
+            assertEquals("PLANNED", status(id));
+            app = null;
+        }
+    }
+
     // Q (CLI; the GUI counterpart is PlanApprovalGuiTest)
     @Test void cliRefusesABlockedPreviewAndApprovesAValidOne() throws Exception {
         var id = ready();

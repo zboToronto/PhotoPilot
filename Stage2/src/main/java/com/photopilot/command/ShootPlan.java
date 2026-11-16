@@ -186,6 +186,8 @@ public class ShootPlan {
         if (kept.size() != settings.size()) { settings = Map.copyOf(kept); revised("settings"); }
     }
     void reviseEquipmentNotes(List<String> notes) { editable(); equipmentNotes = List.copyOf(notes); revised("equipmentNotes"); }
+    /** Receiver operation of ReviseSessionInfoCommand: the session facts copied from the current confirmed requirement. */
+    void reviseSessionInfo(Map<String, String> info) { editable(); sessionInfo = Map.copyOf(info); revised("sessionInfo"); }
 
     void reviseSchedule(List<ShootingWindow> windows) {
         editable();
