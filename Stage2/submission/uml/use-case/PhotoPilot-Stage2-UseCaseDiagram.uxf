@@ -1,0 +1,1051 @@
+<?xml version='1.0' encoding='utf-8'?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>272</x>
+      <y>103</y>
+      <w>1378</w>
+      <h>1017</h>
+    </coordinates>
+    <panel_attributes>PhotoPilot
+halign=left
+fontsize=19
+bg=#F6F9FC
+fg=#46627E
+layer=-3</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>178</y>
+      <w>337</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;87;12;87;78;325;78;325;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>178</y>
+      <w>668</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;97;12;97;85;656;85;656;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>178</y>
+      <w>999</w>
+      <h>104</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;107;12;107;92;987;92;987;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>178</y>
+      <w>1330</w>
+      <h>111</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;117;12;117;99;1318;99;1318;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>367</y>
+      <w>337</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;87;12;87;78;325;78;325;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>367</y>
+      <w>668</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;97;12;97;85;656;85;656;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>367</y>
+      <w>999</w>
+      <h>104</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;107;12;107;92;987;92;987;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>367</y>
+      <w>1330</w>
+      <h>111</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;117;12;117;99;1318;99;1318;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>558</y>
+      <w>337</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;87;12;87;78;325;78;325;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>558</y>
+      <w>668</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;97;12;97;85;656;85;656;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>558</y>
+      <w>999</w>
+      <h>104</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;107;12;107;92;987;92;987;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>783</y>
+      <w>337</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;87;12;87;78;325;78;325;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>783</y>
+      <w>668</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;97;12;97;85;656;85;656;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>783</y>
+      <w>999</w>
+      <h>104</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;107;12;107;92;987;92;987;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>783</y>
+      <w>1330</w>
+      <h>111</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;117;12;117;99;1318;99;1318;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>983</y>
+      <w>337</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;87;12;87;78;325;78;325;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>983</y>
+      <w>668</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;97;12;97;85;656;85;656;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>983</y>
+      <w>999</w>
+      <h>104</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;107;12;107;92;987;92;987;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>122</x>
+      <y>983</y>
+      <w>1330</w>
+      <h>111</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#6C8295
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;117;12;117;99;1318;99;1318;60</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>477</x>
+      <y>606</y>
+      <w>857</w>
+      <h>83</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#374E68
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;40;793;40;793;71;845;71</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>808</x>
+      <y>606</y>
+      <w>526</w>
+      <h>97</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#374E68
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;54;478;54;478;85;514;85</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1139</x>
+      <y>606</y>
+      <w>195</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#374E68
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;68;163;68;163;98;183;98</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1569</x>
+      <y>180</y>
+      <w>235</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#46627E
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;14;104;14;104;12;223;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1569</x>
+      <y>200</y>
+      <w>235</w>
+      <h>146</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#46627E
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;132;12;132;134;223;134</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1569</x>
+      <y>389</y>
+      <w>235</w>
+      <h>115</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#46627E
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;104;12;104;103;223;103</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1569</x>
+      <y>772</y>
+      <w>235</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#46627E
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;45;104;45;104;12;223;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1569</x>
+      <y>938</y>
+      <w>235</w>
+      <h>91</h>
+    </coordinates>
+    <panel_attributes>lt=-
+fg=#46627E
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;79;104;79;104;12;223;12</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>22</y>
+      <w>1930</w>
+      <h>36</h>
+    </coordinates>
+    <panel_attributes>PhotoPilot Stage 2  |  Use case diagram
+halign=left
+fontsize=26
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>58</y>
+      <w>1930</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>Original UC01–UC14 retained  ·  Stage 2 additions are labeled separately  ·  Shared business entry points unless noted
+halign=left
+fontsize=15
+fg=#425B72</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>302</x>
+      <y>130</y>
+      <w>1010</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>Sessions and preparation
+halign=left
+fontsize=18
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>45</x>
+      <y>168</y>
+      <w>136</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Photographer
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>306</x>
+      <y>167</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC01
+Manage sessions
+and search history
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>637</x>
+      <y>167</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC02
+Discover activities
+and save or select
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>968</x>
+      <y>167</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC03
+Interpret and confirm
+shoot requirements
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>1299</x>
+      <y>167</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC09
+Assess conditions
+and shooting windows
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>302</x>
+      <y>319</y>
+      <w>1010</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>Equipment
+halign=left
+fontsize=18
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>45</x>
+      <y>357</y>
+      <w>136</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Photographer
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>306</x>
+      <y>356</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC05
+Manage owned
+gear inventory
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>637</x>
+      <y>356</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC06
+Confirm capability needs
+and inspect owned gear
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>968</x>
+      <y>356</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC08
+Calculate shooting
+settings
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>1299</x>
+      <y>356</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC04
+Recognize gear and
+confirm import
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>302</x>
+      <y>510</y>
+      <w>1010</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>Matching and planning
+halign=left
+fontsize=18
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>45</x>
+      <y>548</y>
+      <w>136</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Photographer
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>306</x>
+      <y>547</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC07
+Match and select
+owned gear
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>637</x>
+      <y>547</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC10
+Generate and approve
+a shoot plan
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>968</x>
+      <y>547</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC11
+Revise and approve
+a shoot plan
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>302</x>
+      <y>735</y>
+      <w>1010</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>Post-shoot work and new business features
+halign=left
+fontsize=18
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>45</x>
+      <y>773</y>
+      <w>136</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Photographer
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>306</x>
+      <y>772</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC12
+Import metadata and
+view statistics
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>637</x>
+      <y>772</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC13
+Obtain and save
+a post-shoot review
+fontsize=16
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>968</x>
+      <y>772</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>N01
+Ask Home Mini AI
+GUI only
+fontsize=16
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>1299</x>
+      <y>772</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>N02
+Inspect shutter count
+on supported files
+fontsize=16
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>302</x>
+      <y>935</y>
+      <w>1010</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>Profile and application support
+halign=left
+fontsize=18
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>45</x>
+      <y>973</y>
+      <w>136</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Photographer
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>306</x>
+      <y>972</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>S01
+Manage local
+workspaces
+fontsize=16
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>637</x>
+      <y>972</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>S02
+Set language
+fontsize=16
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>968</x>
+      <y>972</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>S03
+Set appearance
+GUI only
+fontsize=16
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>1299</x>
+      <y>972</y>
+      <w>282</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>S04
+Check Gemini connection
+CLI only
+fontsize=16
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLUseCase</id>
+    <coordinates>
+      <x>1322</x>
+      <y>659</y>
+      <w>265</w>
+      <h>71</h>
+    </coordinates>
+    <panel_attributes>UC14
+Validate gear compatibility
+fontsize=16
+bg=#FFF5DF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1200</x>
+      <y>603</y>
+      <w>158</w>
+      <h>28</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;include&gt;&gt; × 3
+halign=center
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>1737</x>
+      <y>170</y>
+      <w>152</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Weather and sun
+providers
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1701</x>
+      <y>285</y>
+      <w>225</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>UC09
+halign=center
+fontsize=13
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>1737</x>
+      <y>312</y>
+      <w>152</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Place lookup
+provider
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1701</x>
+      <y>427</y>
+      <w>225</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>UC09, UC02
+halign=center
+fontsize=13
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>1737</x>
+      <y>470</y>
+      <w>152</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Gear specification
+catalogues
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1701</x>
+      <y>585</y>
+      <w>225</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>UC04
+halign=center
+fontsize=13
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>1737</x>
+      <y>762</y>
+      <w>152</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Local ExifTool
+process
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1701</x>
+      <y>877</y>
+      <w>225</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>N02, UC12
+halign=center
+fontsize=13
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLActor</id>
+    <coordinates>
+      <x>1737</x>
+      <y>928</y>
+      <w>152</w>
+      <h>76</h>
+    </coordinates>
+    <panel_attributes>Gemini API
+service
+fontsize=15
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1701</x>
+      <y>1043</y>
+      <w>225</w>
+      <h>57</h>
+    </coordinates>
+    <panel_attributes>S04, UC02, UC03, UC04
+UC06, UC07, UC09, UC10
+UC11, UC13, N01
+halign=center
+fontsize=13
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>273</x>
+      <y>1139</y>
+      <w>1377</w>
+      <h>56</h>
+    </coordinates>
+    <panel_attributes>UC14 is included by UC07, UC10 and UC11. UC08 exposes six direct calculations, including motion blur. Capacity estimates remain internal.
+UC09 uses manually entered or looked-up locations. The optional device location port has no configured desktop provider.
+halign=left
+fontsize=15
+bg=#FFF5DF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+</diagram>

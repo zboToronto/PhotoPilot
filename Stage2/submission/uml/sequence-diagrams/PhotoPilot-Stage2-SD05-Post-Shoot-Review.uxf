@@ -1,0 +1,1125 @@
+<?xml version='1.0' encoding='utf-8'?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>130</x>
+      <y>216</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>252</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>288</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;892;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>324</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>892;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>360</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>790</x>
+      <y>396</y>
+      <w>67</w>
+      <h>37</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;55;12;55;25;12;25</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>454</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>232;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>490</y>
+      <w>464</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;452;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>526</y>
+      <w>464</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>452;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>622</y>
+      <w>67</w>
+      <h>37</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;55;12;55;25;12;25</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>663</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;892;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>699</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>892;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>735</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>232;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>130</x>
+      <y>828</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>864</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>900</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;892;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>936</y>
+      <w>464</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;452;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>972</y>
+      <w>464</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>452;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1008</y>
+      <w>684</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;672;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1044</y>
+      <w>684</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>672;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1080</y>
+      <w>67</w>
+      <h>37</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;55;12;55;25;12;25</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>1121</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>232;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>130</x>
+      <y>1200</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>1236</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;232;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1272</y>
+      <w>67</w>
+      <h>37</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;55;12;55;25;12;25</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1330</y>
+      <w>67</w>
+      <h>37</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;55;12;55;25;12;25</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1371</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;&gt;&gt;
+fg=#172B40
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;892;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>1407</y>
+      <w>904</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>892;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>1443</y>
+      <w>244</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#425B72
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>232;12;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>130</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>350</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>570</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>790</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1010</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1230</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1450</x>
+      <y>148</y>
+      <w>24</w>
+      <h>1357</h>
+    </coordinates>
+    <panel_attributes>lt=.
+fg=#7D90A2
+lw=1
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;1345</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>22</y>
+      <w>1590</w>
+      <h>36</h>
+    </coordinates>
+    <panel_attributes>SD05  |  Post-shoot statistics and review
+halign=left
+fontsize=26
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>58</y>
+      <w>1590</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>F11  ·  UC12 and UC13  ·  Local metadata processing precedes a separate AI request
+halign=left
+fontsize=15
+fg=#425B72</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>47</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>Photographer
+actor
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>267</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>GUI or CLI
+through facade
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>487</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>ReviewService
+analysis and drafts
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>707</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>ExifLibraryAdapter
+MetadataExtractor
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>927</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>StatisticsCalculator
+local evidence
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>1147</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotAgent
+structured LLM request
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>1367</x>
+      <y>107</y>
+      <w>190</w>
+      <h>53</h>
+    </coordinates>
+    <panel_attributes>SessionRepository
+scoped port
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>44</x>
+      <y>182</y>
+      <w>1582</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>UC12  ·  Select files and store usable statistics
+halign=left
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>91</x>
+      <y>205</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Select photos, exports or a folder
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>311</x>
+      <y>241</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>analysis(id, files, replace)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>277</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>find(id): completed session
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>313</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Session and existing statistics
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>531</x>
+      <y>349</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>scan(files)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>852</x>
+      <y>395</y>
+      <w>407</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>Read JPEG/JSON locally; use ExifTool for supported
+RAW
+halign=left
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>531</x>
+      <y>443</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Records and per-file outcomes
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>479</y>
+      <w>440</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>summarize(records)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>515</y>
+      <w>440</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Usable statistics and limitations
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>632</x>
+      <y>621</y>
+      <w>407</w>
+      <h>22</h>
+    </coordinates>
+    <panel_attributes>attachStatistics(summary)
+halign=left
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>652</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>save(updated session)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>688</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Saved session
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>311</x>
+      <y>724</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Statistics and file-level outcomes
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLFrame</id>
+    <coordinates>
+      <x>506</x>
+      <y>563</y>
+      <w>1032</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>opt
+--
+[usable data and replacement confirmed when needed]
+fontsize=14
+fg=#46627E</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>44</x>
+      <y>794</y>
+      <w>1582</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>UC13  ·  Compare with the plan and request an interpretation
+halign=left
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>91</x>
+      <y>817</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Request review
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>311</x>
+      <y>853</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>inputs(id) and draft(id)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>889</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>find(id): load plan and saved statistics
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>925</y>
+      <w>440</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>differences(stats, plan)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>961</y>
+      <w>440</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Deterministic comparisons
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>997</y>
+      <w>660</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>run(): ReviewEvidence and bounded history
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>1033</y>
+      <w>660</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Structured interpretation or provider failure
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>632</x>
+      <y>1079</y>
+      <w>407</w>
+      <h>22</h>
+    </coordinates>
+    <panel_attributes>ReviewClaims checks; register immutable draft
+halign=left
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>277</x>
+      <y>1110</y>
+      <w>390</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Draft, evidence limitations and proposed advice
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>44</x>
+      <y>1166</y>
+      <w>1582</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>UC13  ·  Confirm persistence
+halign=left
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>91</x>
+      <y>1189</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Explicitly save or discard
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>311</x>
+      <y>1225</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>save(id, draft) or discard(id, draft)
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>632</x>
+      <y>1271</y>
+      <w>407</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>Check issued identity, statistics and approved
+revision
+halign=left
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>632</x>
+      <y>1329</y>
+      <w>407</w>
+      <h>22</h>
+    </coordinates>
+    <panel_attributes>appendReview(); apply(REVIEW_SAVED)
+halign=left
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>1360</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>append(updated session) only if accepted
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>582</x>
+      <y>1396</y>
+      <w>880</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Saved review and Reviewed state, or error
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>311</x>
+      <y>1432</y>
+      <w>322</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>Review save result
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>45</x>
+      <y>1514</y>
+      <w>1580</w>
+      <h>61</h>
+    </coordinates>
+    <panel_attributes>A scan with no usable data leaves existing statistics intact. An outdated or unissued draft cannot be saved.
+Model context contains summaries and typed facts, without photo files. Specific historical sessions and some free-text quantities remain review limitations.
+halign=left
+fontsize=15
+bg=#FFF5DF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+</diagram>

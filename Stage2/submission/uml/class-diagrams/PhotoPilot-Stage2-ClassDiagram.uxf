@@ -1,0 +1,1146 @@
+<?xml version='1.0' encoding='utf-8'?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>30</x>
+      <y>104</y>
+      <w>1660</w>
+      <h>329</h>
+    </coordinates>
+    <panel_attributes>Presentation and application
+halign=left
+fontsize=19
+bg=#F6F9FC
+fg=#46627E
+layer=-3</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>30</x>
+      <y>454</y>
+      <w>1660</w>
+      <h>469</h>
+    </coordinates>
+    <panel_attributes>Workflow services and integration ports
+halign=left
+fontsize=19
+bg=#F6F9FC
+fg=#46627E
+layer=-3</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLGeneric</id>
+    <coordinates>
+      <x>30</x>
+      <y>944</y>
+      <w>1660</w>
+      <h>175</h>
+    </coordinates>
+    <panel_attributes>Additional runtime collaborators
+halign=left
+fontsize=19
+bg=#F6F9FC
+fg=#46627E
+layer=-3</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>164</x>
+      <y>359</y>
+      <w>406</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>394;12;394;61;12;61;12;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>438</x>
+      <y>359</y>
+      <w>211</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>199;12;199;61;12;61;12;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>703</x>
+      <y>359</y>
+      <w>34</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;61;22;61;22;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>820</x>
+      <y>359</y>
+      <w>192</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;61;180;61;180;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>949</x>
+      <y>359</y>
+      <w>338</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;61;326;61;326;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1093</x>
+      <y>359</y>
+      <w>461</w>
+      <h>155</h>
+    </coordinates>
+    <panel_attributes>lt=-&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;61;449;61;449;143</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>279</x>
+      <y>170</y>
+      <w>78</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;66;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>463</x>
+      <y>123</y>
+      <w>632</w>
+      <h>33</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;21;12;12;620;12;620;21</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>771</x>
+      <y>207</y>
+      <w>26</w>
+      <h>62</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>13;12;12;34;12;34;14;50</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>463</x>
+      <y>207</y>
+      <w>167</w>
+      <h>62</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;12;34;155;34;154;50</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1201</x>
+      <y>170</y>
+      <w>80</w>
+      <h>34</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;68;22</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1121</x>
+      <y>227</y>
+      <w>348</w>
+      <h>99</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>336;12;335;86;12;87</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>160</x>
+      <y>571</y>
+      <w>531</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>519;12;519;31;12;31;12;54</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>430</x>
+      <y>571</y>
+      <w>521</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>509;12;509;29;12;29;12;54</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>700</x>
+      <y>571</y>
+      <w>312</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>300;12;300;38;13;38;12;54</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1003</x>
+      <y>571</y>
+      <w>54</w>
+      <h>66</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>42;12;42;40;12;40;12;54</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1126</x>
+      <y>654</y>
+      <w>61</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;49;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1097</x>
+      <y>602</y>
+      <w>456</w>
+      <h>35</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;23;12;12;444;12;444;23</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>169</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>437</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>699</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1000</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1261</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1526</x>
+      <y>789</y>
+      <w>24</w>
+      <h>54</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;42;12;12</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>160</x>
+      <y>695</y>
+      <w>33</w>
+      <h>67</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;21;55</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>437</x>
+      <y>695</y>
+      <w>214</w>
+      <h>67</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>202;12;202;33;13;33;12;55</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>699</x>
+      <y>695</y>
+      <w>43</w>
+      <h>67</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14
+via LocationService</panel_attributes>
+    <additional_attributes>31;12;12;55</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1000</x>
+      <y>695</y>
+      <w>27</w>
+      <h>67</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>15;12;12;55</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1261</x>
+      <y>543</y>
+      <w>156</w>
+      <h>219</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>137;12;144;12;144;186;12;186;12;207</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1384</x>
+      <y>855</y>
+      <w>40</w>
+      <h>24</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;
+fg=#46627E
+lw=1.4
+fontsize=14</panel_attributes>
+    <additional_attributes>12;12;28;12</additional_attributes>
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>22</y>
+      <w>1600</w>
+      <h>36</h>
+    </coordinates>
+    <panel_attributes>PhotoPilot Stage 2  |  Class diagram
+halign=left
+fontsize=26
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>30</x>
+      <y>58</y>
+      <w>1600</w>
+      <h>27</h>
+    </coordinates>
+    <panel_attributes>Application architecture and configured integrations  ·  Source main 93f9264
+halign=left
+fontsize=15
+fg=#425B72</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>61</x>
+      <y>144</y>
+      <w>230</w>
+      <h>75</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotGUI
+--
++ start()
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>345</x>
+      <y>144</y>
+      <w>260</w>
+      <h>75</h>
+    </coordinates>
+    <panel_attributes>GuiProfileController
+--
+install()
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>672</x>
+      <y>144</y>
+      <w>223</w>
+      <h>75</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotCLI
+--
++ execute(line)
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>953</x>
+      <y>144</y>
+      <w>260</w>
+      <h>75</h>
+    </coordinates>
+    <panel_attributes>ProfileManager
+--
++ selectProfile(id, handled)
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1269</x>
+      <y>144</y>
+      <w>375</w>
+      <h>95</h>
+    </coordinates>
+    <panel_attributes>ApplicationBootstrap
+--
++ facade()
++ close()
+fontsize=15
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>533</x>
+      <y>257</y>
+      <w>600</w>
+      <h>114</h>
+    </coordinates>
+    <panel_attributes>{Facade}
+PhotoPilotFacade
+--
++ discover(request), parse(id, text), recognize(image), calculate(input)
++ sessions(), inventory(), planning(), reviews(), capabilities()
++ miniAi(), shutterCount(), aiDiagnostics()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>54</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>SessionService
+--
++ create(), open(), recordEvent()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>328</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>DiscoveryService
+--
++ discover(), select(), save()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>603</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>InventoryService
+--
++ list(), confirm(), remove()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>878</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>PlanningService
+--
++ confirmProfile(), matchGear()
++ generatePreview(), approve()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1153</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>ReviewService
+--
++ analysis(), draft(), save()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1420</x>
+      <y>502</y>
+      <w>245</w>
+      <h>81</h>
+    </coordinates>
+    <panel_attributes>TechnicalCalculator
+--
++ calculate()
+fontsize=15
+bg=#E8F5F2
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>50</x>
+      <y>625</y>
+      <w>245</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>GearRecognitionService
+--
++ recognize(), verify()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>320</x>
+      <y>625</y>
+      <w>245</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>RequirementService
+--
++ parse(), analyzeProfile()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>590</x>
+      <y>625</y>
+      <w>245</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>EnvironmentService
+--
++ retrieve(), evidence()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>893</x>
+      <y>625</y>
+      <w>245</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>PhotoPilotAgent
+--
++ run(), runWithTools()
+fontsize=15
+bg=#F1EFF8
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1175</x>
+      <y>625</y>
+      <w>205</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>HistoryRetriever
+--
++ contextFor(id)
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1417</x>
+      <y>625</y>
+      <w>248</w>
+      <h>82</h>
+    </coordinates>
+    <panel_attributes>ToolRegistry
+--
++ execute(call, permitted)
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>49</x>
+      <y>750</y>
+      <w>265</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+EquipmentSpecificationProvider
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>49</x>
+      <y>831</y>
+      <w>265</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>EquipmentCatalogAdapter
+--
++ search()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>325</x>
+      <y>750</y>
+      <w>249</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+EnvironmentProvider
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>325</x>
+      <y>831</y>
+      <w>249</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>EnvironmentApiAdapter
+--
++ fetch()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>587</x>
+      <y>750</y>
+      <w>249</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+PlaceLookupProvider
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>587</x>
+      <y>831</y>
+      <w>249</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>GeocodingAdapter
+--
++ search()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>890</x>
+      <y>750</y>
+      <w>245</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+LLMClient
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>890</x>
+      <y>831</y>
+      <w>245</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>LanguageAwareLLMClient
+--
++ complete()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1151</x>
+      <y>750</y>
+      <w>245</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+MetadataExtractor
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1151</x>
+      <y>831</y>
+      <w>245</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>ExifLibraryAdapter
+--
++ scan()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1412</x>
+      <y>750</y>
+      <w>253</w>
+      <h>51</h>
+    </coordinates>
+    <panel_attributes>&lt;&lt;interface&gt;&gt;
+CameraMetadataReader
+fontsize=14
+bg=#EAF2FB
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1412</x>
+      <y>831</y>
+      <w>253</w>
+      <h>72</h>
+    </coordinates>
+    <panel_attributes>ExifToolAdapter
+--
++ read(), reviewJson()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>55</x>
+      <y>986</y>
+      <w>292</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>GeminiAdapter
+--
++ complete()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>55</x>
+      <y>1062</y>
+      <w>292</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>Implements LLMClient
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>378</x>
+      <y>986</y>
+      <w>292</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>CalculationTool
+--
++ execute(arguments)
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>378</x>
+      <y>1062</y>
+      <w>292</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>Only registered AgentTool
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>700</x>
+      <y>986</y>
+      <w>292</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>MiniAiService
+--
++ ask(), gear()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>700</x>
+      <y>1062</y>
+      <w>292</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>Uses decorated LLMClient
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1022</x>
+      <y>986</y>
+      <w>292</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>ShutterCountService
+--
++ check(file)
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1022</x>
+      <y>1062</y>
+      <w>292</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>Uses CameraMetadataReader
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1344</x>
+      <y>986</y>
+      <w>292</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>GearCapabilityService
+--
++ analyze()
+fontsize=15
+bg=#FFFFFF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>Text</id>
+    <coordinates>
+      <x>1344</x>
+      <y>1062</y>
+      <w>292</w>
+      <h>26</h>
+    </coordinates>
+    <panel_attributes>Uses InventoryService
+halign=center
+fontsize=14
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+  <element>
+    <id>UMLNote</id>
+    <coordinates>
+      <x>31</x>
+      <y>1140</y>
+      <w>1658</w>
+      <h>52</h>
+    </coordinates>
+    <panel_attributes>Repository guards, ranking, events and commands appear in the companion pattern view. Session and equipment relationships appear in the domain view.
+Interface ports are shown selectively. DeviceLocationProvider has no configured adapter. Only CalculationTool is registered.
+halign=left
+fontsize=15
+bg=#FFF5DF
+fg=#172B40</panel_attributes>
+    <additional_attributes />
+  </element>
+</diagram>
