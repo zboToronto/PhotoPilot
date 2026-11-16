@@ -12,17 +12,24 @@ import java.util.stream.Collectors;
 public final class CapabilityPresentation {
     private CapabilityPresentation() { }
     public enum Section { OVERVIEW, COVERAGE, APERTURE, COMPATIBILITY, SUMMARY }
+    /** Camera fields that describe another equipment type; shown only when that type is shown. */
+    private static final Map<String, EquipmentType> FIELD_TYPES = Map.of("batteryTypes", EquipmentType.BATTERY, "storageFormats", EquipmentType.STORAGEMEDIA);
     public static String format(GearCapabilityAnalysis report, Section section, LocalizationService l) {
+        return format(report, section, l, EnumSet.allOf(EquipmentType.class));
+    }
+    /** As {@link #format(GearCapabilityAnalysis, Section, LocalizationService)}, with the overview limited to {@code types}. */
+    public static String format(GearCapabilityAnalysis report, Section section, LocalizationService l, Set<EquipmentType> types) {
         var lines = new ArrayList<String>();
         switch (section) {
             case OVERVIEW -> {
-                lines.add(l.text("capability.count", report.equipment().size()));
-                for (var type : EquipmentType.values()) lines.add(l.text("capability.quantity", l.text("gear.type." + type.name()), report.quantities().getOrDefault(type, 0L)));
-                if (report.equipment().isEmpty()) lines.add(l.text("capability.empty"));
-                for (var e : report.equipment()) {
+                var equipment = report.equipment().stream().filter(e -> types.contains(e.type())).toList();
+                lines.add(l.text("capability.count", equipment.size()));
+                for (var type : EquipmentType.values()) if (types.contains(type)) lines.add(l.text("capability.quantity", l.text("gear.type." + type.name()), report.quantities().getOrDefault(type, 0L)));
+                if (equipment.isEmpty()) lines.add(l.text("capability.empty"));
+                for (var e : equipment) {
                     lines.add(name(e) + " [" + e.id() + "]");
                     lines.add(l.text("capability.item", l.text("gear.type." + e.type().name()), e.quantity()));
-                    for (var field : e.type().fields()) lines.add("  " + l.text("gear.field." + field.key()) + ": "
+                    for (var field : e.type().fields()) if (types.contains(FIELD_TYPES.getOrDefault(field.key(), e.type()))) lines.add("  " + l.text("gear.field." + field.key()) + ": "
                         + e.specifications().getOrDefault(field.key(), l.text("capability.unknown")));
                 }
                 lines.add(l.text("capability.evidence"));

@@ -3,7 +3,10 @@ package com.photopilot.ui.gui;
 import com.photopilot.application.*;
 import com.photopilot.common.Result;
 import com.photopilot.i18n.LocalizationService;
+import com.photopilot.model.EquipmentType;
 import com.photopilot.model.GearCapabilityAnalysis;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import javafx.concurrent.Task;
 import javafx.scene.control.*;
@@ -15,6 +18,8 @@ import javafx.scene.layout.VBox;
  * and worker lifecycle.
  */
 final class CapabilityPane extends VBox {
+    /** Gear Overview omits battery and storage-media records and the camera fields that describe them. */
+    private static final Set<EquipmentType> SHOWN_TYPES = EnumSet.of(EquipmentType.CAMERA, EquipmentType.LENS, EquipmentType.FILTER);
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -69,7 +74,7 @@ final class CapabilityPane extends VBox {
         if (report == null) return;
         for (var section : CapabilityPresentation.Section.values()) {
             var title = FeaturePane.label(localization.text("capability.section." + section.name()), "section-title");
-            var body = FeaturePane.label(CapabilityPresentation.format(report, section, localization), "secondary-text");
+            var body = FeaturePane.label(CapabilityPresentation.format(report, section, localization, SHOWN_TYPES), "secondary-text");
             body.setId("capability-" + section.name().toLowerCase(java.util.Locale.ROOT));
             var card = new VBox(10, title, body); card.getStyleClass().add("feedback-box");
             results.getChildren().add(card);
