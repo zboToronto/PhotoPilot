@@ -1,5 +1,12 @@
 # PhotoPilot project memory
 
+## Stage 2 report and UML publication (2026-11-16)
+
+- The [submission index](../Stage2/submission/README.md) organizes the supplied implementation report under `report/` and nine UML diagrams under class, use-case and sequence folders. Both PNG and editable UXF are included. The report is provided as Word and a 28-page PDF exported with Microsoft Word.
+- The source materials remain unchanged in the local `Project/Stage2` folder. All 18 copied UML assets match their source SHA-256 hashes. Only 18 UML hyperlink targets changed in the Word archive; all other archive entries, including document text, styling and embedded figures, remain identical. The PDF retains all 18 links.
+- Verification: nine UXF files parse as XML; all PDF pages and UML previews were visually inspected; credential-pattern checks passed; submission navigation and report UML targets resolve to included files. No application code changed, so Java tests were not rerun. The report preserves the code/test baseline at `93f9264` rather than claiming a new run.
+- Remaining submission gap: the report has a Drive folder link but no feature-by-feature video/timestamp index. Video availability and permissions are unverified. The unrelated local demo tool and its existing documentation changes are outside this publication.
+
 Last reviewed: 2026-11-15 (America/Toronto). This is the current context index; [FEATURE_STATUS.md](FEATURE_STATUS.md) owns per-feature status. Confirm against source before development. Design contracts below are requirements, not claims that their behavior works.
 
 ## Appearance and capability delivery verification (2026-11-15)

@@ -4,6 +4,8 @@ PhotoPilot is an EECS3311 photography workflow agent built around sessions, equi
 
 The selected local design is `Project/Stage1/Stage1.docx` revision 46 and its matching `Stage1PPP.pdf` export, with the seven supplied UMLet diagrams. See [verified sources and unresolved gaps](docs/source-verification.md), [feature mapping](docs/feature-mapping.md), [all 87 UML types and 83 relationships](docs/class-inventory.md), [additional decisions](docs/additional-decisions.md), and [actual verification results](docs/verification.md).
 
+The [Stage 2 submission index](submission/README.md) links the implementation report in PDF and Word, all nine updated UML diagrams in PNG and UXF, and the remaining demonstration-index requirement.
+
 ## Prerequisites and setup
 
 For a new checkout:

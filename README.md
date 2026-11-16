@@ -5,6 +5,8 @@ PhotoPilot is a Java 21 / JavaFX photography workflow agent with a GUI and a CLI
 
 AI features (F02, F03, F04, F06, F07 ranking, F09 interpretation, F10 planning/revision, F11 review) call Gemini through `PhotoPilotAgent` → `LanguageAwareLLMClient` → `GeminiAdapter`. Every reply is decoded strictly, checked deterministically (compatibility, calculations, timing, evidence) and saved only after explicit user confirmation. Deterministic features (F01, F05, F08, F11 statistics) and manual entry paths work without a key; AI features then report a clear configuration error.
 
+Stage 2 deliverables: [submission index](Stage2/submission/README.md), [implementation report (PDF)](Stage2/submission/report/stage2-report.pdf), [Word report](Stage2/submission/report/stage2-report.docx), and [updated UML](Stage2/submission/README.md#updated-uml). The index records the remaining feature-by-feature demonstration-index gap.
+
 ## Local Gemini key setup
 
 1. Sign in to [Google AI Studio's API Keys page](https://aistudio.google.com/apikey). Create a key in your own Google Cloud project (import/select a project if needed), following [Google's key setup instructions](https://ai.google.dev/gemini-api/docs/api-key). The TA should create their own key using this same process; no developer credential is distributed.
