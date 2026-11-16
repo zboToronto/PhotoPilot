@@ -414,7 +414,8 @@ public class DiscoveryService {
      * {@link #MAX_LOOKUPS} distinct lookups per request; repeated destinations reuse the first answer.
      */
     private TravelEvidence travel(String destination, String region, DiscoveryContext context, Map<String, TravelEvidence> cache) {
-        String query = destination.split(",")[0].strip();
+        // A positive limit always yields one element (",".split(",") is empty); other inputs are unchanged.
+        String query = destination.split(",", 2)[0].strip();
         if (!context.hasCoordinates()) return new TravelEvidence(query, List.of(), List.of(), Optional.empty());
         String key = query.toLowerCase(Locale.ROOT) + "|" + region.toLowerCase(Locale.ROOT);
         if (!cache.containsKey(key) && cache.size() >= MAX_LOOKUPS)
