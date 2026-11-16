@@ -167,27 +167,30 @@ public class EnvironmentApiAdapter implements EnvironmentProvider {
     }
     private static String coordinate(double value) { return String.format(Locale.ROOT, "%.5f", value); }
 
-    /** One GET; provider failures become explicit localized errors that never contain request coordinates. */
+    /**
+     * One GET with a hard deadline and at most {@link #MAX_BODY} bytes ({@link BoundedHttp}); provider failures become
+     * explicit localized errors that never contain request coordinates.
+     */
     private Result<JsonObject> get(URI uri) {
         String host = Objects.toString(uri.getHost(), "provider");
-        HttpResponse<String> response;
+        HttpResponse<byte[]> response;
         try {
-            response = http.send(HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET().build(),
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            response = BoundedHttp.send(http, HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET().build(), MAX_BODY);
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("env.error.timeout", host, String.valueOf(timeout.toSeconds()));
+        } catch (BoundedHttp.BodyTooLargeException tooLarge) {
+            return Result.failureKey("env.error.format", host);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             return Result.failureKey("env.error.interrupted", host);
         } catch (IOException | SecurityException | IllegalArgumentException unreachable) {
             return Result.failureKey("env.error.network", host);
         }
-        String body = Objects.toString(response.body(), "");
+        String body = new String(response.body(), StandardCharsets.UTF_8);
         int status = response.statusCode();
         if (status == 429) return Result.failureKey("env.error.rateLimited", host);
         if (status >= 500) return Result.failureKey("env.error.unavailable", host, String.valueOf(status));
         if (status != 200) return Result.failureKey("env.error.provider", host, String.valueOf(status), reason(body));
-        if (body.length() > MAX_BODY) return Result.failureKey("env.error.format", host);
         try {
             JsonElement root = JsonParser.parseString(body);
             if (!root.isJsonObject()) return Result.failureKey("env.error.format", host);

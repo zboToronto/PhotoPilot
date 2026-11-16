@@ -404,19 +404,22 @@ public class EquipmentCatalogAdapter implements EquipmentSpecificationProvider {
         return URI.create(base + (base.contains("?") ? "&" : "?") + query);
     }
 
-    /** GET with timeout and identifying agent: 200 = body, 404 = empty, anything else an explicit failure. */
+    /**
+     * GET with timeout and identifying agent: 200 = body, 404 = empty, anything else an explicit failure. The exchange has
+     * a hard deadline and a body above {@link #MAX_BODY} is refused before it is buffered ({@link BoundedHttp}).
+     */
     private Result<Optional<String>> fetch(URI uri, String source) {
         var request = HttpRequest.newBuilder(uri).timeout(timeout).header("User-Agent", USER_AGENT)
             .header("Accept", "application/json, application/xml, text/xml;q=0.9, */*;q=0.5").GET().build();
         try {
-            HttpResponse<byte[]> response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response = BoundedHttp.send(http, request, MAX_BODY);
             if (response.statusCode() == 404) return Result.success(Optional.empty());
             if (response.statusCode() != 200) return Result.failureKey("import.error.catalogHttp", source, response.statusCode());
-            byte[] body = response.body();
-            if (body == null || body.length > MAX_BODY) return Result.failureKey("import.error.catalogResponse", source);
-            return Result.success(Optional.of(new String(body, StandardCharsets.UTF_8)));
+            return Result.success(Optional.of(new String(response.body(), StandardCharsets.UTF_8)));
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("import.error.catalogTimeout", source);
+        } catch (BoundedHttp.BodyTooLargeException tooLarge) {
+            return Result.failureKey("import.error.catalogResponse", source);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             return Result.failureKey("import.error.catalogNetwork", source);

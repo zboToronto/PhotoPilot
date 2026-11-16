@@ -34,6 +34,8 @@ public class GeminiAdapter implements LLMClient {
     /** Stable, low-cost Gemini text model; override with GEMINI_MODEL. */
     public static final String DEFAULT_MODEL = "gemini-3.5-flash-lite";
     private static final int MAX_PROVIDER_MESSAGE = 200;
+    /** Generous bound for one generateContent reply (text answers are far smaller); larger replies are unreadable. */
+    private static final int MAX_BODY = 8 * 1024 * 1024;
 
     private URI endpoint;
     private String modelName;
@@ -68,25 +70,31 @@ public class GeminiAdapter implements LLMClient {
         }
         if (!configuration.isApiKeyConfigured()) return Result.failureKey(keyStatusError(configuration.keyStatus()));
         String apiKey = configuration.requireApiKey();
-        HttpRequest request = HttpRequest.newBuilder(generateContentUri())
-            .timeout(timeout)
-            .header("Content-Type", "application/json; charset=UTF-8")
-            // Header, never query string: keeps the key out of URLs, logs and exception messages.
-            .header("x-goog-api-key", apiKey)
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody(context), StandardCharsets.UTF_8))
-            .build();
-        HttpResponse<String> response;
+        HttpResponse<byte[]> response;
         try {
-            response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            // Built inside the try: an unusable GEMINI_MODEL or GEMINI_ENDPOINT must be a failure result, so the
+            // callers' Result-based fallbacks still apply, never an exception.
+            HttpRequest request = HttpRequest.newBuilder(generateContentUri())
+                .timeout(timeout)
+                .header("Content-Type", "application/json; charset=UTF-8")
+                // Header, never query string: keeps the key out of URLs, logs and exception messages.
+                .header("x-goog-api-key", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody(context), StandardCharsets.UTF_8))
+                .build();
+            response = BoundedHttp.send(http, request, MAX_BODY);
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("ai.error.timeout", String.valueOf(timeout.toSeconds()));
+        } catch (BoundedHttp.BodyTooLargeException tooLarge) {
+            return Result.failureKey("ai.error.invalidResponse");
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             return Result.failureKey("ai.error.interrupted");
-        } catch (IOException | SecurityException unreachable) {
+        } catch (IOException | SecurityException | IllegalArgumentException unreachable) {
+            // IllegalArgumentException: the endpoint and model form no usable HTTP(S) URI, so nothing was sent (as in
+            // the other adapters of this package). The exception text is never shown: it may contain the URI.
             return Result.failureKey("ai.error.network");
         }
-        return decode(response.statusCode(), Objects.toString(response.body(), ""), apiKey);
+        return decode(response.statusCode(), new String(response.body(), StandardCharsets.UTF_8), apiKey);
     }
 
     /** Localization key explaining an unusable local key configuration; never includes the value. */

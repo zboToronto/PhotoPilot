@@ -25,6 +25,8 @@ import com.photopilot.model.PlaceCandidate;
 public class GeocodingAdapter implements PlaceLookupProvider {
     public static final URI DEFAULT_ENDPOINT = URI.create("https://geocoding-api.open-meteo.com/v1/search");
     public static final int MAX_RESULTS = 5;
+    /** Generous bound for a reply of {@link #MAX_RESULTS} matches (a few kilobytes); larger replies are unreadable. */
+    private static final int MAX_BODY = 1024 * 1024;
     private final URI endpoint;
     private final HttpClient http;
     private final Duration timeout;
@@ -41,12 +43,14 @@ public class GeocodingAdapter implements PlaceLookupProvider {
         String host = Objects.toString(endpoint.getHost(), "geocoding");
         URI uri = URI.create(endpoint.toString().replaceAll("\\?.*$", "") + "?name=" + URLEncoder.encode(name.strip(), StandardCharsets.UTF_8)
             + "&count=" + MAX_RESULTS + "&language=en&format=json");
-        HttpResponse<String> response;
+        HttpResponse<byte[]> response;
         try {
-            response = http.send(HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET().build(),
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            // Hard deadline and bounded body (BoundedHttp): a stalled or endless reply cannot block the caller.
+            response = BoundedHttp.send(http, HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET().build(), MAX_BODY);
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("env.error.timeout", host, String.valueOf(timeout.toSeconds()));
+        } catch (BoundedHttp.BodyTooLargeException tooLarge) {
+            return Result.failureKey("env.error.format", host);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             return Result.failureKey("env.error.interrupted", host);
@@ -57,7 +61,7 @@ public class GeocodingAdapter implements PlaceLookupProvider {
         if (response.statusCode() >= 500) return Result.failureKey("env.error.unavailable", host, String.valueOf(response.statusCode()));
         if (response.statusCode() != 200) return Result.failureKey("env.error.provider", host, String.valueOf(response.statusCode()), "");
         try {
-            JsonObject root = JsonParser.parseString(Objects.toString(response.body(), "")).getAsJsonObject();
+            JsonObject root = JsonParser.parseString(new String(response.body(), StandardCharsets.UTF_8)).getAsJsonObject();
             var found = new ArrayList<PlaceCandidate>();
             if (root.has("results") && root.get("results").isJsonArray()) {
                 for (JsonElement element : root.getAsJsonArray("results")) {

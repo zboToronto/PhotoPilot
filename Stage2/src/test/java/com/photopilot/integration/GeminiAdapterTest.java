@@ -156,6 +156,19 @@ class GeminiAdapterTest {
         assertFailure(unreachable, "ai.error.network");
     }
 
+    @Test void unusableModelNameOrEndpointIsAFailureResultNotAnException() {
+        var context = new AgentContext(UUID.randomUUID(), List.of("ping"), "{}", List.of(), Optional.empty());
+        URI endpoint = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/v1beta/");
+        // GEMINI_MODEL with a space, and GEMINI_ENDPOINT without or with a non-HTTP scheme.
+        var model = assertDoesNotThrow(() -> new GeminiAdapter(endpoint, "gemini flash", http, Duration.ofSeconds(5), configured()).complete(context));
+        assertFailure(model, "ai.error.network");
+        for (String unusable : List.of("generativelanguage.googleapis.com/v1beta", "localhost:8080/v1beta")) {
+            var noScheme = assertDoesNotThrow(() -> new GeminiAdapter(URI.create(unusable), "test-model", http, Duration.ofSeconds(5), configured()).complete(context));
+            assertFailure(noScheme, "ai.error.network");
+        }
+        assertEquals(0, requests.get(), "nothing is sent");
+    }
+
     @Test void outputTokenCapIsSentOnlyForRequestsThatAskForIt() {
         respond(200, "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Four.\"}]}}]}");
         assertTrue(send().isSuccess());
