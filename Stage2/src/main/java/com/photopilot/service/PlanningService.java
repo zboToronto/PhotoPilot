@@ -650,7 +650,8 @@ public class PlanningService {
             if (!transitioned.isSuccess()) return Result.failure(transitioned);
             next = transitioned.value().orElseThrow();
         }
-        var saved = sessions.save(next);
+        // The only path that grows the plan history; a plain save refuses any plan change.
+        var saved = sessions.append(next);
         if (!saved.isSuccess()) return Result.failure(saved);
         reject(id, plan);
         return saved.value().orElseThrow().plans().stream().filter(p -> p.id().equals(reviewed.id()) && p.revision() == reviewed.revision()).findFirst()

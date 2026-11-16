@@ -45,6 +45,9 @@ public final class ProfileAccess implements AutoCloseable {
         public Result<PhotographySession> save(PhotographySession session) {
             return run(() -> map(delegate.save(session.withRevision(unstamp(session.revision()))), ProfileAccess.this::stamp));
         }
+        public Result<PhotographySession> append(PhotographySession session) {
+            return run(() -> map(delegate.append(session.withRevision(unstamp(session.revision()))), ProfileAccess.this::stamp));
+        }
         public Result<PhotographySession> insert(PhotographySession session) {
             return run(() -> {
                 if (!session.revision().isEmpty()) return Result.failureKey("error.profile.foreign");

@@ -183,7 +183,8 @@ public class ReviewService {
         if (!appended.isSuccess()) return Result.failure(appended);
         var transitioned = appended.value().orElseThrow().apply(SessionEvent.REVIEW_SAVED);
         if (!transitioned.isSuccess()) return Result.failure(transitioned);
-        var saved = sessions.save(transitioned.value().orElseThrow());
+        // The only path that grows the review history; a plain save refuses any review change.
+        var saved = sessions.append(transitioned.value().orElseThrow());
         if (!saved.isSuccess()) return Result.failure(saved);
         discard(id, review);
         return saved.value().orElseThrow().reviews().stream().filter(r -> r.id().equals(review.id())).findFirst()

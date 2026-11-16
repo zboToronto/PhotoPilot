@@ -30,7 +30,8 @@ public class GearSnapshot {
         this.selectedQuantity = selectedQuantity;
         this.capturedAt = Objects.requireNonNull(capturedAt, "capturedAt");
         this.specs = Map.copyOf(specs);
-        this.verifiedFields = Set.copyOf(verifiedFields);
+        // Sorted, so the persisted array has one order in every JVM run (Set.copyOf iteration order is per-run random).
+        this.verifiedFields = java.util.Collections.unmodifiableSortedSet(new java.util.TreeSet<>(verifiedFields));
         this.sources = Map.copyOf(sources);
         if (selectedQuantity < 1 || brand.isBlank() || model.isBlank())
             throw new IllegalArgumentException("Invalid historical gear identity or quantity.");

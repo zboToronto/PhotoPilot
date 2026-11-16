@@ -85,8 +85,10 @@ final class SessionJson {
         if (!valid.isSuccess()) throw new IllegalArgumentException(String.join("; ", valid.errors()));
         return JSON.toJsonTree(session).getAsJsonObject();
     }
+    /** The record as decode validates it: documented v1 additions filled in, set arrays sorted (also digested for revisions). */
+    static JsonObject normalized(JsonObject object) { return withSortedSets(withRequirementAdditions(object)); }
     static PhotographySession decode(JsonObject object) {
-        JsonObject source = withRequirementAdditions(object);
+        JsonObject source = normalized(object);
         PhotographySession session = JSON.fromJson(source, PhotographySession.class);
         // Reject unknown/missing fields and coercions instead of silently dropping future data.
         if (!source.equals(encode(session))) throw new IllegalArgumentException("Unsupported or incomplete session fields.");
@@ -110,6 +112,39 @@ final class SessionJson {
         if (!target.has("timeWindow")) target.addProperty("timeWindow", "");
         if (!target.has("portability")) target.addProperty("portability", "");
         return copy;
+    }
+    /**
+     * Gear snapshot {@code verifiedFields} is a set. Records written before 2026-11-15 stored it in the writing JVM's
+     * iteration order, which differs between runs, so the strict comparison above failed at random on later launches.
+     * The order carries no meaning: such arrays are compared (and digested) sorted, as GearSnapshot now writes them.
+     */
+    static JsonObject withSortedSets(JsonObject object) {
+        if (!hasUnsortedSet(object)) return object;
+        JsonObject copy = object.deepCopy(); sortSets(copy); return copy;
+    }
+    private static boolean hasUnsortedSet(JsonElement value) {
+        if (value instanceof JsonObject o) {
+            for (var entry : o.entrySet())
+                if (entry.getKey().equals("verifiedFields") && entry.getValue() instanceof JsonArray a && !sorted(a) || hasUnsortedSet(entry.getValue())) return true;
+        } else if (value instanceof JsonArray a) for (JsonElement item : a) if (hasUnsortedSet(item)) return true;
+        return false;
+    }
+    private static void sortSets(JsonElement value) {
+        if (value instanceof JsonObject o) {
+            for (var entry : o.entrySet()) {
+                if (entry.getKey().equals("verifiedFields") && entry.getValue() instanceof JsonArray a && !sorted(a)) {
+                    var items = new ArrayList<JsonElement>(); a.forEach(items::add);
+                    items.sort(Comparator.comparing(JsonElement::getAsString));
+                    var array = new JsonArray(); items.forEach(array::add); entry.setValue(array);
+                } else sortSets(entry.getValue());
+            }
+        } else if (value instanceof JsonArray a) a.forEach(SessionJson::sortSets);
+    }
+    /** Only arrays of strings are sets here; anything else is left for the strict comparison to reject. */
+    private static boolean sorted(JsonArray array) {
+        for (JsonElement item : array) if (!(item instanceof JsonPrimitive p) || !p.isString()) return true;
+        for (int i = 1; i < array.size(); i++) if (array.get(i - 1).getAsString().compareTo(array.get(i).getAsString()) > 0) return false;
+        return true;
     }
     /** F06 added provenance and trade-off notes to v1 profiles; earlier profiles were entered manually and have none. */
     private static JsonObject withProfileAdditions(JsonObject object) {

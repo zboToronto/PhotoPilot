@@ -40,7 +40,9 @@ public class JsonSessionRepository implements SessionRepository {
             for (JsonElement entry : root.getAsJsonArray("sessions")) {
                 var session = SessionJson.decode(entry.getAsJsonObject());
                 if (!ids.add(session.id())) throw new IOException("Duplicate session ID.");
-                sessions.add(session.withRevision(digest(entry)));
+                // Digest the record as decode validated it (equal to its re-encoding), so rewriting an older record with its
+                // additions filled in and sets sorted, e.g. while another session is saved, keeps its revision.
+                sessions.add(session.withRevision(digest(SessionJson.normalized(entry.getAsJsonObject()))));
             }
             return sessions;
         }
@@ -66,7 +68,9 @@ public class JsonSessionRepository implements SessionRepository {
             var stored = validatedCopy(session); items.add(stored); return Result.success(stored);
         });
     }
-    public Result<PhotographySession> save(PhotographySession session) {
+    public Result<PhotographySession> save(PhotographySession session) { return store(session, false); }
+    @Override public Result<PhotographySession> append(PhotographySession session) { return store(session, true); }
+    private Result<PhotographySession> store(PhotographySession session, boolean appending) {
         if (session == null) return Result.failureKey("error.session.details");
         return change(items -> {
             int index = index(items, session.id());
@@ -82,10 +86,42 @@ public class JsonSessionRepository implements SessionRepository {
                 });
                 if (!allowed) return Result.failureKey("error.session.transition", current.status(), session.status());
             }
-            if (!current.state().canEditPlan() && !SessionJson.encode(current).get("plans").equals(SessionJson.encode(session).get("plans")))
-                return Result.failureKey("error.session.historicalPlans");
+            var history = history(current, session, appending);
+            if (!history.isSuccess()) return Result.failure(history);
             var stored = validatedCopy(session); items.set(index, stored); return Result.success(stored);
         });
+    }
+    /**
+     * The model's state rules checked against what is actually stored (a caller can build any session object): plan and
+     * review history only grows, by one approved plan of an editable session or one saved review of a completed session
+     * per append; requirement, profile, selected loadout and saved ideas change only while plans are editable; statistics
+     * only while the session is completed.
+     */
+    private static Result<Boolean> history(PhotographySession current, PhotographySession session, boolean appending) {
+        JsonObject before = SessionJson.encode(current), after = SessionJson.encode(session);
+        boolean editable = current.state().canEditPlan(), completed = current.state() instanceof com.photopilot.state.CompletedState;
+        JsonArray plans = before.getAsJsonArray("plans"), newPlans = after.getAsJsonArray("plans");
+        JsonArray reviews = before.getAsJsonArray("reviews"), newReviews = after.getAsJsonArray("reviews");
+        if (!editable && !plans.equals(newPlans)) return Result.failureKey("error.session.historicalPlans");
+        int added = newPlans.size() - plans.size() + newReviews.size() - reviews.size();
+        if (!prefix(plans, newPlans) || !prefix(reviews, newReviews) || added != (appending ? 1 : 0)) return Result.failureKey("error.session.history");
+        if (newPlans.size() > plans.size() && !session.plans().getLast().approved()) return Result.failureKey("error.session.history");
+        if (newReviews.size() > reviews.size() && (!completed || !session.reviews().getLast().status().equals(com.photopilot.model.PostShootReview.SAVED)))
+            return Result.failureKey("error.session.history");
+        if (!editable) {
+            var historical = new LinkedHashMap<String, String>();
+            historical.put("requirements", "requirement.error.historical"); historical.put("profile", "needs.error.historical");
+            historical.put("selectedLoadout", "match.error.historical"); historical.put("savedIdeas", "discover.error.historical");
+            for (var field : historical.entrySet()) if (!before.get(field.getKey()).equals(after.get(field.getKey()))) return Result.failureKey(field.getValue());
+        }
+        if (!completed && !before.get("statistics").equals(after.get("statistics")))
+            return current.state() instanceof com.photopilot.state.ReviewedState ? Result.failureKey("review.error.reviewedStatistics") : Result.failureKey("review.error.notCompleted", current.status());
+        return Result.success(true);
+    }
+    private static boolean prefix(JsonArray stored, JsonArray next) {
+        if (next.size() < stored.size()) return false;
+        for (int i = 0; i < stored.size(); i++) if (!stored.get(i).equals(next.get(i))) return false;
+        return true;
     }
     public Result<Boolean> delete(UUID id, String revision) {
         if (id == null) return Result.failureKey("error.session.id");

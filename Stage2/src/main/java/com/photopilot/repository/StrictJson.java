@@ -18,6 +18,9 @@ final class StrictJson {
         if (value.isJsonArray()) {
             var array = new JsonArray(); value.getAsJsonArray().forEach(item -> array.add(canonical(item))); return array;
         }
+        // A number read from disk is a BigDecimal, an encoded one a Double: 5.0E-4 prints as "0.00050" and "5.0E-4".
+        // Both come from the same text, so parsing that text gives one canonical form and one revision digest.
+        if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) return new JsonPrimitive(new java.math.BigDecimal(value.getAsString()));
         return value;
     }
     static JsonElement readElement(JsonReader reader, int depth) throws IOException {
