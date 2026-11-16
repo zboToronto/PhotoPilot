@@ -35,6 +35,8 @@ final class GearMatchPane extends VBox {
     private final CapabilityNeedEditor needs;
     private boolean draft;
     private PhotographySession draftSession, matchedSession;
+    /** The profile Confirm was rejected because the session changed after the edit was opened; the next refresh rebases it. */
+    private boolean stale;
     private GearMatchReport report;
     private GearMatchReport.SelectionStatus savedStatus;
     private boolean busy, disposed;
@@ -89,7 +91,12 @@ final class GearMatchPane extends VBox {
         UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
-            if (draftSession != null) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> draftSession = fresh);
+            // An open profile edit keeps the session version it was opened for (also when the page is shown again), so a
+            // profile saved meanwhile elsewhere is rejected on Confirm instead of overwritten. Only after that rejection is
+            // it rebased onto the stored session, whose profile the box above the editor then shows.
+            if (draftSession != null && stale) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> {
+                draftSession = fresh; stale = false;
+            });
             session.getItems().setAll(editable);
             editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
                 () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
@@ -128,7 +135,7 @@ final class GearMatchPane extends VBox {
         if (selected == null || draft) return;
         var requirement = selected.requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) { message(() -> localization.text("needs.error.requirement")); return; }
-        draftSession = selected; draft = true;
+        draftSession = selected; draft = true; stale = false;
         needs.open(selected.profile().filter(EquipmentRequirementProfile::reviewed).orElse(new EquipmentRequirementProfile(List.of(), false)), requirement);
         session.setDisable(true); hide(matchBox); clearResults(); show(editor);
         message(() -> localization.text("needs.editing")); SessionPane.reveal(this, editor);
@@ -146,7 +153,10 @@ final class GearMatchPane extends VBox {
         run(() -> app.planning().confirmProfile(expected, edited, replace), stored -> {
             draft = false; draftSession = null; needs.close(); session.setDisable(false); hide(editor); show(matchBox);
             message(() -> localization.text("needs.saved", expected.title())); refresh();
-        }, failure -> { needs.render(); message(() -> String.join(" ", failure.errors(localization))); });
+        }, failure -> {
+            needs.render(); message(() -> String.join(" ", failure.errors(localization)));
+            if (failure.hasError("error.session.changed")) { stale = true; refresh(); }
+        });
     }
 
     private void match() {

@@ -35,6 +35,8 @@ final class RequirementPane extends VBox {
     private final Map<String, Control> inputs = new LinkedHashMap<>();
     private ShootRequirement draft;
     private PhotographySession draftSession;
+    /** Confirm was rejected because the session changed after the draft was opened; the next refresh rebases it. */
+    private boolean stale;
     private boolean busy, disposed;
     private Runnable pendingSubmit;
 
@@ -89,10 +91,12 @@ final class RequirementPane extends VBox {
         UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
-            // An open draft is rebased onto the latest stored session so a stale-save rejection can be resolved
-            // explicitly; the replace notice is re-evaluated against what is stored now.
-            if (draftSession != null) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> {
-                draftSession = fresh; if (fresh.requirements().isPresent()) show(replaceNotice); else hide(replaceNotice);
+            // An open draft keeps the session version it was opened for (also when the page is shown again), so a change
+            // saved meanwhile by another pane, window or the CLI is rejected on Confirm instead of overwritten. Only after
+            // that rejection is it rebased onto the stored session, with the replace notice re-evaluated against what is
+            // stored now, so the next Confirm is a knowing one.
+            if (draftSession != null && stale) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> {
+                draftSession = fresh; stale = false; if (fresh.requirements().isPresent()) show(replaceNotice); else hide(replaceNotice);
             });
             session.getItems().setAll(editable);
             editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
@@ -168,7 +172,10 @@ final class RequirementPane extends VBox {
         run(() -> app.planning().confirm(expected, current), stored -> {
             close(); request.clear();
             message(() -> localization.text("requirement.saved", expected.title())); refresh();
-        }, null);
+        }, failure -> {
+            message(() -> String.join("; ", failure.errors(localization)));
+            if (failure.hasError("error.session.changed")) { stale = true; refresh(); }
+        });
     }
     private void cancel() {
         if (draft == null) return;
@@ -187,7 +194,7 @@ final class RequirementPane extends VBox {
     }
 
     private void open(PhotographySession target, ShootRequirement requirement, String key) {
-        draft = requirement; draftSession = target; session.setDisable(true);
+        draft = requirement; draftSession = target; stale = false; session.setDisable(true);
         fields.getChildren().clear(); inputs.clear();
         var values = RequirementForm.format(requirement);
         for (String field : ShootRequirement.FIELDS) field(field, values.get(field), requirement.reviewFields().contains(field));

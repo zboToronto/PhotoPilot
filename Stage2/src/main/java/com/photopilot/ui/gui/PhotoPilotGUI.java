@@ -24,19 +24,28 @@ public class PhotoPilotGUI extends Application {
     private GuiProfileController controller;
     private Throwable smokeFailure;
     private IllegalArgumentException startupFailure;
+    // Invalid environment configuration (the F04 image limits): choosing another user cannot fix it, so it skips recovery.
+    private IllegalArgumentException configurationFailure;
 
     public static void main(String[] args) { launch(args); }
 
     private void initializeStorage() {
+        // Checked before any storage opens, as the CLI does (its configuration error): GuiProfileController builds every
+        // workspace's F04 boundary from these values, and failing there would leave the splash open.
+        try { privacy = ImagePrivacyBoundary.fromEnvironment(System.getenv()); }
+        catch (IllegalArgumentException error) { configurationFailure = error; return; }
         try {
             profiles = new ProfileManager(System.getenv());
             bootstrap = profiles.activeContext();
-            var selected = profiles.activeProfile();
-            if (!selected.isSuccess()) throw new IllegalArgumentException(String.join("; ", selected.errors(bootstrap.localization())));
-            initialProfile = selected.value().orElseThrow();
+            initialProfile = activeProfile(profiles);
             app = bootstrap.facade();
-            privacy = new ImagePrivacyBoundary();
         } catch (IllegalArgumentException error) { startupFailure = error; }
+    }
+    /** The active user; a failed read is reported as a startup failure, at startup and after recovery alike. */
+    static LocalProfile activeProfile(ProfileManager profiles) {
+        var selected = profiles.activeProfile();
+        if (!selected.isSuccess()) throw new IllegalArgumentException(String.join("; ", selected.errors(profiles.activeContext().localization())));
+        return selected.value().orElseThrow();
     }
 
     @Override
@@ -70,6 +79,16 @@ public class PhotoPilotGUI extends Application {
     }
 
     private void finishStartup(Stage stage) {
+        if (configurationFailure != null) {
+            if (getParameters().getRaw().contains("--smoke-test")) smokeFailure = configurationFailure;
+            else {
+                // Same dialog, but naming the configuration problem (as the CLI does) instead of a storage failure.
+                var alert = startupError(configurationFailure);
+                alert.setHeaderText(com.photopilot.i18n.EnglishMessages.text("cli.configuration", configurationFailure.getMessage()));
+                alert.setContentText(""); alert.showAndWait();
+            }
+            Platform.exit(); return;
+        }
         if (startupFailure != null) {
             if (getParameters().getRaw().contains("--smoke-test")) { smokeFailure = startupFailure; Platform.exit(); return; }
             if (profiles != null) profiles.close();
@@ -77,8 +96,8 @@ public class PhotoPilotGUI extends Application {
                 var recovered = new ProfileRecoveryDialog(System.getenv(), startupFailure).showAndWait();
                 if (recovered.isEmpty()) { Platform.exit(); return; }
                 profiles = recovered.orElseThrow(); bootstrap = profiles.activeContext();
-                initialProfile = profiles.activeProfile().value().orElseThrow();
-                app = bootstrap.facade(); privacy = new ImagePrivacyBoundary();
+                initialProfile = activeProfile(profiles);
+                app = bootstrap.facade();
             } catch (IllegalArgumentException error) {
                 startupError(error).showAndWait(); Platform.exit(); return;
             }

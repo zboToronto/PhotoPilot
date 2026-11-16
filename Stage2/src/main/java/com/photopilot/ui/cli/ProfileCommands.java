@@ -46,8 +46,11 @@ final class ProfileCommands {
                 output.println(language.text("profile.renamed")); show(result.value().orElseThrow(), result.value().orElseThrow().id().equals(profiles.activeContext().storageScope().profileId().orElseThrow())); return 0;
             }
             if (action.equals("select") && words.size() == 3) {
-                var result = profiles.selectProfile(id(words.get(2)), true); if (!report(result)) return 2;
-                contextChanged.run(); output.println(language.text("profile.switched")); show(result.value().orElseThrow(), true); return 0;
+                UUID target = id(words.get(2)), previous = profiles.activeContext().storageScope().profileId().orElseThrow();
+                var result = profiles.selectProfile(target, true); if (!report(result)) return 2;
+                // As in the GUI, re-selecting the active user only revalidates it; its drafts and open import stay.
+                if (!target.equals(previous)) contextChanged.run();
+                output.println(language.text("profile.switched")); show(result.value().orElseThrow(), true); return 0;
             }
             if (action.equals("delete") && (words.size() == 3 || words.size() == 4)) {
                 UUID target = id(words.get(2));

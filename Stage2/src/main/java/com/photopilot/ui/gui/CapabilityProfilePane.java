@@ -39,6 +39,8 @@ final class CapabilityProfilePane extends VBox {
     private final CapabilityNeedEditor editor;
     private CapabilityProposal proposal;
     private PhotographySession draftSession;
+    /** Confirm was rejected because the session changed after the draft was opened; the next refresh rebases it. */
+    private boolean stale;
     private boolean editing, busy, disposed;
 
     CapabilityProfilePane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
@@ -96,8 +98,13 @@ final class CapabilityProfilePane extends VBox {
         UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
-            // An open draft is rebased onto the latest stored session so a stale-save rejection can be resolved explicitly.
-            if (draftSession != null) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> draftSession = fresh);
+            // An open draft keeps the session version it was opened for (also when the page is shown again), so a profile
+            // saved meanwhile by another pane, window or the CLI is rejected on Confirm instead of overwritten. Only after
+            // that rejection is it rebased onto the stored session; replacing is then explicit (notice and button), since
+            // the saved profile an edit started from may no longer be the stored one.
+            if (draftSession != null && stale) editable.stream().filter(s -> s.id().equals(draftSession.id())).findFirst().ifPresent(fresh -> {
+                draftSession = fresh; editing = false; stale = false;
+            });
             session.getItems().setAll(editable);
             editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
                 () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
@@ -156,7 +163,10 @@ final class CapabilityProfilePane extends VBox {
         message(() -> localization.text("needs.saving"));
         run(() -> app.planning().confirmProfile(expected, edited, replace), stored -> {
             close(); message(() -> localization.text("needs.saved", expected.title())); refresh();
-        }, failure -> { editor.render(); message(() -> String.join(" ", failure.errors(localization))); });
+        }, failure -> {
+            editor.render(); message(() -> String.join(" ", failure.errors(localization)));
+            if (failure.hasError("error.session.changed")) { stale = true; refresh(); }
+        });
     }
     private void cancel() {
         if (proposal == null) return;
@@ -167,7 +177,7 @@ final class CapabilityProfilePane extends VBox {
     }
 
     private void open(PhotographySession target, CapabilityProposal opened, boolean fromSaved, String key) {
-        proposal = opened; draftSession = target; editing = fromSaved; session.setDisable(true); hide(actions);
+        proposal = opened; draftSession = target; editing = fromSaved; stale = false; session.setDisable(true); hide(actions);
         editor.open(opened.profile(), target.requirements().filter(ShootRequirement::confirmed));
         hide(confirmation); show(review); render();
         message(() -> localization.text(key)); SessionPane.reveal(this, review);
