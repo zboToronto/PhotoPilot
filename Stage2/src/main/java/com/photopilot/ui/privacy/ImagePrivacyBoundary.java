@@ -134,7 +134,7 @@ public class ImagePrivacyBoundary {
     /**
      * Writes the sanitized copy for the user's final review: crop, solid black redactions (pixels replaced before any
      * scaling), downscale to {@link #OUTGOING_MAX_EDGE}, PNG re-encoding without metadata. A previous copy of the same
-     * review is deleted.
+     * review is deleted, and so is a copy whose write failed.
      */
     public Result<java.nio.file.Path> sanitize(ImageReview review) {
         if (review == null || review.released()) return Result.failureKey("import.error.noImage");
@@ -165,20 +165,26 @@ public class ImagePrivacyBoundary {
             Arrays.fill(encoded, (byte) 0);
             return Result.failureKey("import.error.sanitizedTooLarge", maxBytes / MIB);
         }
+        Path copy = null;
         try {
             review.copy().ifPresent(this::discard);
-            Path copy = Files.createTempFile(workDirectory(), "sanitized-", ".png");
-            Files.write(copy, encoded);
-            copy.toFile().deleteOnExit();
+            copy = Files.createTempFile(workDirectory(), "sanitized-", ".png");
+            copy.toFile().deleteOnExit(); // registered before writing: even a partly written copy holds photo pixels
+            write(copy, encoded);
             copies.put(copy.toAbsolutePath().normalize(), sha256(encoded));
             review.copy(copy);
             return Result.success(copy);
         } catch (IOException | SecurityException failed) {
+            // An untracked copy would never be discarded; delete what was written now (best effort, else at exit).
+            if (copy != null) try { Files.deleteIfExists(copy); } catch (IOException | SecurityException ignored) { /* deleteOnExit remains */ }
             return Result.failureKey("import.error.sanitize");
         } finally {
             Arrays.fill(encoded, (byte) 0);
         }
     }
+
+    /** Writes the encoded copy; package-private only so a test can make the write fail part-way (e.g. a full disk). */
+    void write(Path copy, byte[] encoded) throws IOException { Files.write(copy, encoded); }
 
     /**
      * The approved area with every redaction filled black, at the most detail the bounded decoder allows.

@@ -46,8 +46,14 @@ final class ImportCommands {
                 case "help" -> { help(); yield 0; }
                 case "load" -> load(words);
                 case "crop", "redact" -> region(action, words);
-                case "undo" -> { if (!image()) yield 2; output.println(localization.text(state.review.undo() ? "import.cli.undone" : "import.cli.noRegion")); regions(); yield 0; }
-                case "clear-regions" -> { if (!image()) yield 2; state.review.clearRegions(); regions(); yield 0; }
+                // Like region() and the GUI: once the regions change, the reviewed copy no longer shows them and is withdrawn.
+                case "undo" -> { if (!image()) yield 2; boolean undone = state.review.undo(); if (undone) discardCopy(); output.println(localization.text(undone ? "import.cli.undone" : "import.cli.noRegion")); regions(); yield 0; }
+                case "clear-regions" -> {
+                    if (!image()) yield 2;
+                    // Like undo: only a change of the regions withdraws the reviewed copy.
+                    boolean had = state.review.cropRegion().isPresent() || !state.review.redactions().isEmpty();
+                    state.review.clearRegions(); if (had) discardCopy(); regions(); yield 0;
+                }
                 case "regions" -> { if (!image()) yield 2; regions(); yield 0; }
                 case "preview" -> preview();
                 case "approve" -> approve(words);

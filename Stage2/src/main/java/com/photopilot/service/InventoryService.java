@@ -83,12 +83,14 @@ public class InventoryService {
     /**
      * F04 duplicate review: F05 duplicates (same type, brand and model) plus similar records whose names differ only
      * in punctuation, spacing or order. Distinct variants (e.g. "II" versions) are not reported; nothing is merged.
+     * The F05 rule itself is part of it, so every record the F05 add would refuse is offered for a decision, also when
+     * the brand has no ASCII letters or digits (e.g. Chinese), which the name comparison cannot tokenize.
      */
     public Result<List<Equipment>> importDuplicates(EquipmentType type, String brand, String model) {
         var loaded = repository.load();
         if (!loaded.isSuccess()) return Result.failure(loaded);
-        return Result.success(loaded.value().orElseThrow().items().stream().filter(item -> item.type() == type
-            && GearNames.sameBrand(item.brand(), brand) && (item.model().strip().equalsIgnoreCase(Objects.requireNonNullElse(model, "").strip())
+        return Result.success(loaded.value().orElseThrow().items().stream().filter(item -> sameIdentity(item, type, brand, model)
+            || item.type() == type && GearNames.sameBrand(item.brand(), brand) && (item.model().strip().equalsIgnoreCase(Objects.requireNonNullElse(model, "").strip())
                 || GearNames.sameModel(brand, item.model(), model))).toList());
     }
 
@@ -166,8 +168,11 @@ public class InventoryService {
     }
     private List<Equipment> duplicates(GearInventory inventory, Equipment item) {
         Objects.requireNonNull(item, "item");
-        return inventory.items().stream().filter(other -> !other.id().equals(item.id()) && other.type() == item.type()
-            && other.brand().strip().equalsIgnoreCase(item.brand().strip())
-            && other.model().strip().equalsIgnoreCase(item.model().strip())).toList();
+        return inventory.items().stream().filter(other -> !other.id().equals(item.id()) && sameIdentity(other, item.type(), item.brand(), item.model())).toList();
+    }
+    /** The F05 duplicate rule (same type; brand and model equal ignoring case and outer spaces), shared with F04 review. */
+    private static boolean sameIdentity(Equipment item, EquipmentType type, String brand, String model) {
+        return item.type() == type && item.brand().strip().equalsIgnoreCase(Objects.requireNonNullElse(brand, "").strip())
+            && item.model().strip().equalsIgnoreCase(Objects.requireNonNullElse(model, "").strip());
     }
 }
