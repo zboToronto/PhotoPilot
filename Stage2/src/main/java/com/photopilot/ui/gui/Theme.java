@@ -183,15 +183,16 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
         if (!dark) {
             // Warm families keep their companion light near their own hue (no pink cast over orange) and get tints up to
             // 30% softer, so their background is as calm as a cool family's. Cool families (warmth 0) are unchanged.
+            // The ambient pool is exempt: it is what translucent panels reveal (see below).
             double warm = warmth(h), k = 1 - .30 * warm;
             double hc = h + (((hb - h) % 360 + 540) % 360 - 180) * (1 - warm);
             return new Lighting(
                 hsb(h, .05 * k, .995), hsb(h2, .13 * k, .965),
                 new Light(Color.rgb(255, 255, 255, .55), .10, -.06, .50),
                 new Light(hsb(hc, .17 * k, 1.0, .55), .00, .42, .36),
-                // Same soft saturation for every family (not scaled by chroma, only softened when warm), so
-                // transparency reads alike in each theme.
-                new Light(Color.hsb(h, .17 * k, .95, .72), .60, .34, .60),
+                // Same soft saturation for every family (not scaled by chroma, not softened when warm), so
+                // transparency reads alike in each theme; softening it left Warm Peach 0% and 100% too alike.
+                new Light(Color.hsb(h, .17, .95, .72), .60, .34, .60),
                 new Light(hsb(hc, .26 * k, .99, .42), .95, .80, .40),
                 new Wave(hsb(h, .08 * k, .975, .40), hsb(h2, .14 * k, .955, .50), Color.rgb(255, 255, 255, .22), none),
                 new Wave(hsb(h2, .15 * k, .975, .78), tone(h, .30 * k, .655, .92), Color.rgb(255, 255, 255, .62), tone(h2, .22 * k, .72, .26)),
