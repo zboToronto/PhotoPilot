@@ -125,16 +125,40 @@ public final class ExifToolRuntime {
                 Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
             } catch (FileAlreadyExistsException | DirectoryNotEmptyException | AccessDeniedException raced) {
                 // Another PhotoPilot window extracted it at the same time; use theirs if it is complete.
-                if (!complete(target, id, entries)) throw raced;
+                if (!complete(target, id, entries)) {
+                    // Otherwise it is an earlier copy damaged later (a file deleted or truncated), which is never complete
+                    // again and would block every new copy: move it aside, then publish once more under the same rule.
+                    discard(target);
+                    try {
+                        Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (FileAlreadyExistsException | DirectoryNotEmptyException | AccessDeniedException again) {
+                        if (!complete(target, id, entries)) throw again;
+                    }
+                }
             }
             return target;
         } finally {
             if (Files.exists(staging)) deleteTree(staging);
         }
     }
+    /**
+     * Moves an incomplete copy to a unique sibling name, so the published name is free at once, and deletes it there
+     * (best effort). Nothing to do when it is gone already, e.g. another PhotoPilot window moved it first.
+     */
+    private static void discard(Path target) throws IOException {
+        Path aside = target.resolveSibling(".damaged-" + UUID.randomUUID());
+        try {
+            Files.move(target, aside, StandardCopyOption.ATOMIC_MOVE);
+        } catch (NoSuchFileException alreadyMoved) {
+            return;
+        }
+        deleteTree(aside);
+    }
     private static boolean complete(Path target, String id, List<Entry> entries) throws IOException {
         Path marker = target.resolve(".complete");
-        if (!Files.isRegularFile(marker) || !Files.readString(marker, StandardCharsets.UTF_8).equals(id)) return false;
+        try {
+            if (!Files.isRegularFile(marker) || !Files.readString(marker, StandardCharsets.UTF_8).equals(id)) return false;
+        } catch (IOException unreadable) { return false; } // a damaged marker is a damaged copy, repaired like any other
         for (Entry entry : entries) {
             Path file = target.resolve(entry.path());
             if (!Files.isRegularFile(file) || Files.size(file) != entry.size()) return false;

@@ -118,6 +118,32 @@ class ExifToolRuntimeTest {
         try (var listing = Files.list(cache)) { assertEquals(0, listing.count(), "no partial or unverified copy"); }
     }
 
+    @Test void aDamagedPublishedCacheIsReplacedByAFreshVerifiedCopy() throws Exception {
+        assumeTrue(ExifToolRuntime.isWindows(), "the bundled package is the Windows build");
+        Path cache = temp.resolve("cache");
+        var sizes = new HashMap<String, Long>();
+        ExifToolRuntime.entries(Files.readAllBytes(VENDORED.resolve(ExifToolRuntime.MANIFEST))).forEach(entry -> sizes.put(entry.path(), entry.size()));
+        String script = ExifToolRuntime.PACKAGE + "/exiftool_files/exiftool.pl", readme = ExifToolRuntime.PACKAGE + "/README.txt";
+        try (var loader = new URLClassLoader(new URL[] { jar("app.jar", false).toUri().toURL() }, null)) {
+            var command = new ExifToolRuntime(cache, loader, true).resolve();
+            Path folder = command.workingDirectory().getParent().getParent();
+            // A truncated file (interrupted sync, disk cleaner), then a deleted one: each next start repairs the cache.
+            Files.write(folder.resolve(script), new byte[0]);
+            assertEquals(command, assertDoesNotThrow(() -> new ExifToolRuntime(cache, loader, true).resolve()));
+            assertEquals(sizes.get(script), Files.size(folder.resolve(script)));
+            Files.delete(folder.resolve(readme));
+            assertEquals(command, assertDoesNotThrow(() -> new ExifToolRuntime(cache, loader, true).resolve()));
+            assertEquals(sizes.get(readme), Files.size(folder.resolve(readme)));
+            // An unreadable completion marker (not UTF-8) is a damaged copy too.
+            Files.write(folder.resolve(".complete"), new byte[] { (byte) 0xFF, (byte) 0xFE, (byte) 0xC3 });
+            assertEquals(command, assertDoesNotThrow(() -> new ExifToolRuntime(cache, loader, true).resolve()));
+            try (var listing = Files.list(cache)) { assertEquals(List.of(folder.getFileName()), listing.map(Path::getFileName).toList(), "no damaged or staging copy is left"); }
+            long extractedAt = Files.getLastModifiedTime(folder.resolve(".complete")).toMillis();
+            assertEquals(command, new ExifToolRuntime(cache, loader, true).resolve());
+            assertEquals(extractedAt, Files.getLastModifiedTime(folder.resolve(".complete")).toMillis(), "the repaired copy is reused, not extracted again");
+        }
+    }
+
     @Test void missingBundleAndOtherSystemsAreReportedAsUnavailable() throws Exception {
         try (var empty = new URLClassLoader(new URL[0], null)) {
             assertEquals(ExifToolException.Kind.UNAVAILABLE, assertThrows(ExifToolException.class, () -> new ExifToolRuntime(temp, empty, true).resolve()).kind());
