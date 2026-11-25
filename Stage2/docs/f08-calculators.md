@@ -29,12 +29,85 @@ One rule constrains the calculation layer: F10 recomputes the calculations store
 ### Conventions
 
 - **Units.** Formulas use mm and seconds. The calculation API takes explicit units per parameter (optical lengths mm/cm/m, distance m/mm/ft, shutter s/ms, speed m/s, km/h, mph or ft/s, image width px, blur limit mm/um or px) and reports distances in metres. In the GUI a distance is kept in metres and only shown and typed in the chosen unit (m or ft), so a distance set exactly (the hyperfocal distance) reaches the calculation unchanged.
-- **Nominal stop markings.** A marking is the number it shows: f/5.6 is N = 5.6, 1/125 is 0.008 s, ISO 125 is 125. The exact series behind the markings is not substituted, so neighbouring slider positions are about, not exactly, one third of a stop apart; EV readouts show the exact figure. Typed values are used as typed and may lie between markings.
+- **Nominal stop markings.** A marking is the number it shows: f/5.6 is N = 5.6, 1/125 is 0.008 s, ISO 125 is 125. The exact series behind the markings is not substituted, so neighbouring slider positions are about, not exactly, one third of a stop apart; EV readouts show the exact figure. Typed values are used as typed and may lie between markings, except on the exposure value page in a standard exposure step, where the nearest stop is applied ([exposure steps](#exposure-value-exposure-steps-and-standard-stops-2026-11-24)).
 - **Precision and display.** Results keep double precision. Display text is rounded separately (three significant digits for most readouts, two decimals for EV, fractions for exposure times below 0.3 s). Very small or large values use scientific notation rather than looking like ordinary measurements.
 - **Unbounded results** are explicit: +Infinity in the result, the string `Infinity` in tool JSON, the infinity sign plus the word "unbounded" in the GUI. A finite value is never turned into infinity.
 - **Circle of confusion.** CLI and agent take an explicit `coc`. The GUI derives it from the shared camera by a visible policy: sensor diagonal / 1500 by default (0.0288 mm for 36 x 24 mm), diagonal / 1730 as a stricter choice, or a custom value. The value in use is shown in the camera section, under the policy it comes from ("CoC in use: 0.0288 mm"; a custom value is its own field). That sharpness depends on the selected CoC is one line of the page's calculation details.
 - **Sensor formats.** Presets (full frame 36 x 24, APS-C 23.5 x 15.6, APS-C Canon 22.3 x 14.9, Micro Four Thirds 17.3 x 13.0, 1-inch type 13.2 x 8.8, medium format 43.8 x 32.9 mm) fill in typical dimensions; the stored numbers are editable and are what is calculated with. There is no camera database. Sensor dimensions can also be copied from an inventory camera on request.
 - **Pixel dimensions** are optional and entered by the user for the configured sensor area. They are never derived from megapixels; without them the motion blur calculator gives the physical blur and its share of the image width, and no pixel figure.
+
+### Exposure value: exposure steps and standard stops (2026-11-24)
+
+User request: the exposure page produced settings no camera offers (f/17.8885, 0.00630125 s, ISO 198.373, 1/992 s). It now applies standard photographic stops by default and keeps the precise mathematics available. Only the exposure value calculator changed. `PhotoFormulas`, `TechnicalCalculator`, `CalculatorPresentation` (its marking lists are still those of the other pages), the agent `calculation` tool, F10 and the existing `calc exposure` output are unchanged.
+
+- **Exposure step** (`ExposureStops.Step`). A segmented control at the top of the page's inputs: 1/3 EV (default), 1/2 EV, 1 EV, Exact. It belongs to the page, is kept across language changes, and counts as changed input when not 1/3 EV. Reset returns to 1/3 EV, as the depth of field page returns to Manual focus.
+- **Stops** (`application/ExposureStops`).
+  - One table per parameter and step, each value stored as marked and calculated with as marked (f/5.6 = 5.6, 1/125 s = 0.008 s, ISO 125 = 125).
+  - The tables cover the accepted ranges. Apertures run f/0.5 to f/128; third stops above f/64 are f/72, 80, 90, 101, 114, 128. Times run 1/64000 s to 24 h (third stops end at 81920 s, half stops at 86400 s, full stops at 61440 s). ISO runs 3 to 4,096,000 (full stops end at 3,276,800, within half a stop of the maximum). ISO 1 to 2 can be used in Exact only; a standard step applies ISO 3 there.
+  - Half-stop ISO is 1.4 × the lower full stop, rounded to two significant digits and a whole number (140, 280, 560, 1100, ...). Half-stop times follow camera markings (1/750, 1/350, 1/180, 1/90, 1/45, 0.3, 0.7, 1.5 s, ...).
+  - Full stops are every third entry of the 1/3 EV table and every second entry of the 1/2 EV table.
+  - The stops are generic settings, not a statement that a particular camera or lens offers each one.
+- **Selection** (`ExposureStops.quantize`).
+  - The stop with the least exposure error wins: 2·|log2(c/e)| for an f-number, |log2(c/e)| for a time or ISO, not the numerical difference. For example ISO 3590 gives 4000, not 3200.
+  - Differences within 1e-9 stop are a tie, and a tie goes to less exposure: the larger f-number, the shorter time, the lower ISO.
+  - A value more than half a step beyond the first or last stop gets the end stop and is marked *limited*.
+  - Zero, negative, NaN and infinite values are refused. The error is a difference of logarithms, so it stays finite for every positive finite value, subnormal ones included.
+- **Solving** (`application/ExposureSolver`, used by both GUI and CLI).
+  1. The controlled settings are matched to stops.
+  2. The solved setting's precise value is calculated from the target EV100 (`CalculatorPresentation.held*`) and matched to a stop.
+  3. EV and EV100 of the applied values come from the facade (`TechnicalCalculator`).
+  4. Deviation = actual EV100 − target EV100 (positive: less exposure than the target).
+
+  The target is captured when a hold starts. Switching the solved setting or the step keeps it, and no result is fed back into it, so repeated changes cannot drift. Exact rounds nothing and refuses a solution outside the accepted range, as before. In a standard step a solution beyond the stops gets the end stop. "Parameter limit reached", the remaining deviation and its direction ("Parameter limit reached: f/128. Deviation −12.87 EV (More exposure than target).") then appear as a caution under the results.
+- **GUI** (`ExposureMode`, `ExposureDiagram`, `CalculatorField`).
+  - *Sliders.* One position per stop; an arrow key moves one stop. In Exact the slider is continuous on the 1/3 EV positions, with values in three significant digits.
+  - *Typed values.* The nearest stop is applied at once. The text stays as typed, with "Applied standard value: f/18" under the field, until Enter or leaving the field writes the stop into it. Validation and its messages are unchanged.
+  - *Solved setting.* Always a stop, with the note "Nearest standard stop" (or "Parameter limit reached").
+  - *Target and deviation.* The hold note reads "Target EV100 12.97" (was "Holding EV100 12.97"). While solving, a new "Exposure deviation" tile shows the signed deviation, with "Less exposure than target", "More exposure than target" or "On target"; at a limit, "Parameter limit reached · More exposure than target" (the direction is kept). A deviation that rounds to 0.00 is shown with two significant digits in plain notation (−0.0042 EV, +0.00000028 EV).
+  - *Scales.* Long ticks and labels at full stops, short ticks at the step's stops (1/3 EV ticks for orientation in Exact). The centre value is always the applied setting. A drag moves stop by stop (Exact: continuously).
+  - *Equivalent pairs.* In a standard step they are titled "Equivalent exposures (approx.)": full-stop apertures from f/0.5 to f/128, each with the time matched to a stop. A chip's tooltip gives the exact time, the applied time, the pair's EV100 and its deviation. Pairs beyond the stops are not offered. While solving, the pairs keep the target. Exact keeps the previous pairs exactly: full stops f/1 to f/64, precise times, those outside the time range disabled.
+  - *Calculation details.* The formula; the step's rule, or "Values are used as entered" in Exact; while solving, the exact solution, the applied value and the deviation to four decimals. At most four lines.
+  - *Shared code.* `CalculatorField` gained an optional snap rule, a slider scale swap, a note line, and a commit on Enter or focus loss. Without a snap rule, as on every other page, it behaves as before. No CSS was changed: the note uses `.calc-note` and the step control `.calc-segments`.
+- **CLI** (`calc exposure`).
+  - Without new arguments the exact output is unchanged byte for byte (the documented scripted form).
+  - `step=third|half|full|exact` prints a structured, plain-text report: applied parameters, results, automatic solution, settings matched to stops, equivalent pairs, and the note that the stops are generic.
+  - `solve=aperture|shutter|iso target=<EV100>` solves that setting; leave its own value out. Given without `step`, it uses 1/3 EV, the page's default. In Exact the report gives the precise solution only (no "applied standard value" line).
+  - Errors exit with status 2. A solution Exact cannot reach is refused in the command line's own words ("... needed for target EV100 12.965784 is outside the supported range. Change target= or another setting."). `calc help` lists the new arguments.
+- **Localization.** 44 new keys per bundle and one changed existing key (`calc.exposure.holdOn`), in English and Simplified Chinese, with the task's terms (曝光档位, 精确计算, 目标 EV100, 实际 EV100, 曝光偏差, 数学精确解, 实际应用档位, 最接近的标准档位, 近似等效曝光, 已达到参数边界); `messages.properties` = `messages_en.properties`.
+
+```text
+calc exposure aperture=17.8885 shutter=0.00630125 iso=198.373 step=third
+calc exposure aperture=10 shutter=1/160 solve=iso target=12.97
+calc exposure shutter=1/250 iso=200 solve=aperture target=13 step=half
+```
+
+- **Tests.** Expected values come from the stated rules and formulas, not from the code under test.
+  - `calculation/ExposureStopsTest` (new, 12): tables positive, ascending, distinct, within the range and reaching its ends; full stops every third and second entry; the task's markings present; whole-number ISO; the task's nine examples and a stop-wise case that numerical rounding gets wrong (ISO 3590 → 4000, f/11.98 → f/13); every stop maps to itself under ±1e-12 noise; optimality against all candidates for 36,000 log-uniform values; ties; limits; refused values; finite error for subnormal and huge values; sliders (one stop per position, Exact continuous and monotonic).
+  - `calculation/ExposureSolverTest` (new, 8): controlled settings matched and EV identical to `TechnicalCalculator`; each solved setting in each step; Exact meets the target and refuses out-of-range solutions; limits with the remaining deviation; refusals; no drift through 39 changes and 24 step switches; equivalent pairs (stops, own EV100 and deviation, no repeats, Exact identical to the previous table at f/0.5 to f/128 including sizes); pairs beyond the range.
+  - `calculation/ExposureCliTest` (new, 5): the old command's output byte for byte; the report in each step, equal to the shared report of the shared solution; solving, limits with direction, plain-notation small deviations, the Exact refusal wording, a subnormal solution; refusals with exit status 2; help; Chinese.
+  - `ui/gui/ExposureStepGuiTest` (new, 5, real windows): the 1/3 EV default; every slider position of every parameter; arrow keys; typed values (not rewritten while typing, applied at once, rewritten on Enter); every solved setting; no drift through repeated slider moves, step switches and solved-setting switches with a non-zero deviation; Exact, 1/2 and 1 EV (sliders and scale markings); details; reset; equivalent pairs and their tooltips; the same `Solution`, pairs and report as the command line; Chinese, dark mode and the minimum window.
+  - Changed: `CalculatorGuiTest`. Slider indices now come from the new table. The typed off-stop value is checked in 1/3 EV (stop applied, text kept), across the switch to Exact (applied f/6.3 kept) and in Exact (between stops, the original assertion). The hold note text changed. The out-of-range hold keeps its original assertions in Exact, and the limit is checked in 1/3 EV. An empty note proves 0.008 s is read as exactly 1/125 s. `LocalizationGuiTest` switches to Exact before typing 1/128 s, so its exact EV 13 / EV100 11 assertions are unchanged, and it checks that the step survives a language switch. `CalculatorIndependenceTest` also audits the three new classes. No assertion was removed.
+- **Independent review.** Six read-only reviewers (stops, solver, GUI state, CLI, tests/i18n/docs, completeness), each finding checked by two verifiers trying to refute it: 29 findings, 24 after merging, 15 confirmed, 3 split, 6 refuted.
+  - Fixed:
+    - a subnormal solution gave an infinite error, so the CLI printed a raw exception;
+    - the Exact slider was not monotonic beside many-digit stops;
+    - Exact pairs differed from the old table at the aperture ends;
+    - at a limit, no direction words were shown;
+    - tiny deviations were printed in scientific notation;
+    - the CLI's Exact report had an "applied standard value" line, and its refusal mentioned a hold;
+    - the help said `step=exact` applies stops;
+    - three wrong test comments;
+    - test gaps: the target when switching the solved setting, the switch to Exact with pending text, and the 0.008 s check.
+  - Refuted and left as designed: quantizing the user's settings when the step changes, as the task asks; Exact slider step sizes; no limit warning for typed values beyond the stops (the note names the applied stop); Exact field showing decimal seconds; the details' wording; CLI pairs without the exact time.
+- **Verification (2026-11-24).** Environment: Windows 11, bundled JDK 21.0.13, an isolated offline copy without `.env`, `LLM_API_KEY` unset, `PHOTOPILOT_LIVE_GEMINI=0`, scratch data and configuration, a copy of the Maven cache.
+  - Baseline before this change (Stage2OptRe1 record): 812 run, 0 failures, 6 skipped.
+  - First full `mvnw.cmd -B -o test` with the change: 841 run, 0 failures, 0 errors, 6 skipped.
+  - After the review fixes, `mvnw.cmd -B -o clean verify`: **842 run, 0 failures, 0 errors, 6 skipped** (the same six opt-in live or real-sample tests), JAR built.
+  - Clean `-DskipTests package javafx:run -Djavafx.args=--smoke-test` in a second copy: `GUI_SMOKE_OK`.
+  - Separate CLI JVM: `calc exposure aperture=8 shutter=1/128 iso=400` prints EV 13 / EV100 11 as before; the report for a limited aperture and for 1/3 EV matching; the Exact refusal and an unknown step exit with status 2.
+  - Screenshots written by the GUI tests were inspected: 1/3 EV with ISO solved, details open, Exact, Chinese, dark mode, the minimum window.
+  - Not done: hands-on pointer use of the running application (desktop control cannot operate the Java window here; the real-window tests fire events at the real controls); macOS/Linux; screen readers.
+- **Limits.** The stops are generic, not a camera's own list. ISO below 3 is only available in Exact. A typed value beyond the stops shows the applied end stop in its note but gets no limit caution. Calculator inputs, including the step, last for the session only.
 
 ### The six calculations
 
@@ -234,7 +307,7 @@ Exposure terminology checked against [Scantips EV derivation](https://www.scanti
 
 ## GUI / CLI usage and F05 compatibility
 
-GUI (current, 2026-11-14): select Photography Tools > Technical Calculator and choose a calculator in the selector; results follow the inputs (see "Calculator workspace" above). The original form with a Calculate button was replaced.
+GUI (current, 2026-11-14): select Photography tools > Technical Calculator and choose a calculator in the selector; results follow the inputs (see "Calculator workspace" above). The original form with a Calculate button was replaced.
 
 Optional Load inventory > choose item > Use known values copies known camera sensor dimensions (to the shared camera), fixed-lens focal length or filter ND stops via existing F05 abstractions. Unknown values remain missing; zoom focal length, taking aperture, CoC and pixel dimensions require manual input. Inventory is loaded only on request; empty/failed reads leave manual calculation available. Reopening invalidates cached gear; stale asynchronous callbacks are discarded. No inventory mutation occurs.
 

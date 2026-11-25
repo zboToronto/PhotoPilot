@@ -1,6 +1,8 @@
 package com.photopilot.ui.gui;
 
 import com.photopilot.application.CalculatorPresentation;
+import com.photopilot.application.ExposureStops;
+import com.photopilot.application.ExposureStops.Step;
 import com.photopilot.i18n.LocalizationService;
 import java.util.List;
 import java.util.OptionalDouble;
@@ -16,12 +18,17 @@ import javafx.scene.text.TextAlignment;
  * same distance, and trading a stop on one scale for a stop on another is visible directly. Dragging a scale changes
  * that setting. Below, the exposure is compared in stops with a reference the user captured; without one, nothing is
  * called brighter, darker or correct.
+ * <p>
+ * The scales follow the exposure step: long ticks and labels at full stops, short ticks at the 1/3 or 1/2 EV stops, and
+ * a drag moves to the nearest stop of that step. In Exact the 1/3 EV stops are drawn for orientation and a drag is
+ * continuous. The value on the centre line is always the applied setting.
  */
 final class ExposureDiagram extends CalculatorDiagram {
     private static final double ROW = 50, TOP = 24, RELATIVE_RANGE = 4;
     private double aperture = 8, shutter = 1 / 125.0, iso = 100;
     private OptionalDouble relativeStops = OptionalDouble.empty();
     private ExposureMode.Setting solved;
+    private Step step = Step.THIRD;
     private BiConsumer<ExposureMode.Setting, Double> adjust = (setting, value) -> { };
     // Geometry of the last drawing, for dragging.
     private double rulerLeft, rulerRight, perStop;
@@ -39,30 +46,32 @@ final class ExposureDiagram extends CalculatorDiagram {
             if (dragging == null || perStop <= 0) return;
             // The scale follows the pointer: pulling it right brings its lower-exposure markings to the centre line.
             double stops = -(event.getX() - dragX) / perStop;
-            var markings = markings(dragging);
+            var parameter = dragging.parameter();
             double raw = dragging == ExposureMode.Setting.APERTURE ? CalculatorPresentation.shiftedAperture(dragValue, stops) : CalculatorPresentation.shifted(dragValue, stops);
-            double snapped = markings.get(CalculatorPresentation.nearest(markings, raw));
-            if (snapped != value(dragging)) adjust.accept(dragging, snapped);
+            // A standard step moves to the nearest stop; Exact is continuous, read in three significant digits.
+            double next = step.standard() ? ExposureStops.quantize(parameter, step, raw).applied()
+                : Math.max(parameter.min, Math.min(parameter.max, CalculatorPresentation.significant(raw, 3)));
+            if (next != value(dragging)) adjust.accept(dragging, next);
         });
         setOnMouseReleased(event -> dragging = null);
     }
 
     void onAdjust(BiConsumer<ExposureMode.Setting, Double> listener) { adjust = listener; }
-    /** @param relativeStops stops more (+) or less (-) exposure than the captured reference, empty without one */
-    void show(double aperture, double shutter, double iso, OptionalDouble relativeStops, ExposureMode.Setting solved) {
-        this.aperture = aperture; this.shutter = shutter; this.iso = iso; this.relativeStops = relativeStops; this.solved = solved;
+    /**
+     * @param relativeStops stops more (+) or less (-) exposure than the captured reference, empty without one
+     * @param step the exposure step, which decides the stops drawn and how a drag moves
+     */
+    void show(double aperture, double shutter, double iso, OptionalDouble relativeStops, ExposureMode.Setting solved, Step step) {
+        this.aperture = aperture; this.shutter = shutter; this.iso = iso; this.relativeStops = relativeStops; this.solved = solved; this.step = step;
         setAccessibleText(localization.text("calc.exposure.diagramAccessible", CalculatorPresentation.aperture(aperture),
             CalculatorPresentation.exposureTime(shutter, localization), CalculatorPresentation.number(iso, 6)));
         redraw();
     }
+    Step step() { return step; }
 
     private double value(ExposureMode.Setting setting) { return switch (setting) { case APERTURE -> aperture; case SHUTTER -> shutter; case ISO -> iso; }; }
-    private static List<Double> markings(ExposureMode.Setting setting) {
-        return switch (setting) { case APERTURE -> CalculatorPresentation.APERTURES; case SHUTTER -> CalculatorPresentation.SHUTTERS; case ISO -> CalculatorPresentation.ISOS; };
-    }
-    private static List<Double> fullStops(ExposureMode.Setting setting) {
-        return switch (setting) { case APERTURE -> CalculatorPresentation.FULL_STOP_APERTURES; case SHUTTER -> CalculatorPresentation.FULL_STOP_SHUTTERS; case ISO -> CalculatorPresentation.FULL_STOP_ISOS; };
-    }
+    /** The stops drawn on a scale: those of the step, or the 1/3 EV stops for orientation in Exact. */
+    List<Double> markings(ExposureMode.Setting setting) { return ExposureStops.sequence(setting.parameter(), step.standard() ? step : Step.THIRD); }
     /** Stops of exposure from the current value to a marking; positive is more exposure and is drawn to the right. */
     private double offset(ExposureMode.Setting setting, double marking) {
         return setting == ExposureMode.Setting.APERTURE ? CalculatorPresentation.apertureStops(aperture, marking) : CalculatorPresentation.stopsBetween(value(setting), marking);
@@ -112,12 +121,11 @@ final class ExposureDiagram extends CalculatorDiagram {
             if (setting == solved) text(g, localization.text("calc.exposure.solvedTag"), 12, top + 36, TextAlignment.LEFT, p.accentText(), font(), captionWidth);
             g.setStroke(p.track()); line(g, rulerLeft, lineY, rulerRight, lineY);
             g.save(); g.beginPath(); g.rect(rulerLeft, top, span, ROW); g.clip();
-            var full = fullStops(setting);
             var labelled = new java.util.ArrayList<double[]>();
             for (double marking : markings(setting)) {
                 double x = centre + offset(setting, marking) * perStop;
                 if (x < rulerLeft - 30 || x > rulerRight + 30) continue;
-                boolean whole = full.contains(marking);
+                boolean whole = ExposureStops.fullStop(setting.parameter(), marking);
                 g.setStroke(whole ? p.muted() : p.subtle()); line(g, x, lineY, x, lineY + (whole ? 7 : 4));
                 if (!whole) continue;
                 // A full-stop label is skipped only where it would run into one already drawn (very long markings).

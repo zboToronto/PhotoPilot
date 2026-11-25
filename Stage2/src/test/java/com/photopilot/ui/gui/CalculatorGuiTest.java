@@ -5,6 +5,7 @@ import com.photopilot.application.CalculatorPresentation;
 import com.photopilot.application.CalculatorPresentation.DistanceAxis;
 import com.photopilot.application.CalculatorPresentation.LengthUnit;
 import com.photopilot.application.CalculatorPresentation.SpeedUnit;
+import com.photopilot.application.ExposureStops;
 import com.photopilot.config.ApplicationBootstrap;
 import com.photopilot.model.CameraSetup;
 import com.photopilot.requirement.FakeGemini;
@@ -146,16 +147,26 @@ class CalculatorGuiTest {
             assertNull(pane.lookup("#calc-camera-format")); assertFalse(pane.lookup("#calc-units").getParent().isVisible()); assertFalse(pane.lookup("#calc-gear-row").isVisible());
             // A slider reports while it is being dragged, not only on release, and keeps the field in step.
             Slider aperture = slider("aperture");
+            // The exposure page starts in 1/3 EV steps: one slider position per standard stop.
+            var stops = ExposureStops.sequence(ExposureStops.Parameter.APERTURE, ExposureStops.Step.THIRD);
             aperture.setValueChanging(true);
-            aperture.setValue(CalculatorPresentation.APERTURES.indexOf(5.6) + 0.3);
+            aperture.setValue(stops.indexOf(5.6) + 0.3);
             assertTrue(aperture.isValueChanging()); assertEquals("5.6", input("aperture").getText(), "nominal marking while dragging");
             assertEquals("11.94", result("settingsEv")); assertEquals("10.94", result("ev100"));
-            aperture.setValue(CalculatorPresentation.APERTURES.indexOf(8.0)); aperture.setValueChanging(false);
+            aperture.setValue(stops.indexOf(8.0)); aperture.setValueChanging(false);
             assertEquals("8", input("aperture").getText()); assertEquals("12.97", result("settingsEv"));
-            // Typing moves the slider; a value between two markings sits between them.
+            // Typing moves the slider. In 1/3 EV the nearest stop is applied (the text is left as typed until committed);
+            // in Exact a value between two markings sits between them.
             type("aperture", "6");
-            assertTrue(aperture.getValue() > CalculatorPresentation.APERTURES.indexOf(5.6) && aperture.getValue() < CalculatorPresentation.APERTURES.indexOf(6.3));
+            assertEquals(stops.indexOf(6.3), aperture.getValue(), 1e-9); assertEquals("6", input("aperture").getText()); assertEquals("f/6.3 at 1/125 s", detail("settingsEv"));
+            // Switching to Exact keeps the applied f/6.3 (not the typed 6) and shows it.
+            click("calc-step-EXACT");
+            assertEquals("6.3", input("aperture").getText()); assertEquals("f/6.3 at 1/125 s", detail("settingsEv")); assertEquals("", ((Label) pane.lookup("#calc-aperture-hint")).getText());
+            type("aperture", "6");
+            assertTrue(aperture.getValue() > stops.indexOf(5.6) && aperture.getValue() < stops.indexOf(6.3));
+            click("calc-step-THIRD"); assertEquals("6.3", input("aperture").getText(), "back in 1/3 EV the setting moves to its nearest stop");
             type("aperture", "8"); type("shutter", "0.008");
+            assertEquals("", ((Label) pane.lookup("#calc-shutter-hint")).getText(), "0.008 s is read as exactly the 1/125 s stop, not a time beside it");
             assertEquals("12.97", result("settingsEv"), "decimal seconds and the fraction are the same exposure time");
             type("shutter", "1/125");
             picture("f08-exposure");
@@ -281,7 +292,7 @@ class CalculatorGuiTest {
             // Hold by solving the exposure time: only the time changes when the aperture does.
             click("calc-hold-SHUTTER");
             assertEquals(ExposureMode.Setting.SHUTTER, mode.held());
-            assertEquals("Holding EV100 12.97", ((Label) pane.lookup("#calc-hold-note")).getText()); assertEquals("Exposure time (solved)", caption("shutter"));
+            assertEquals("Target EV100 12.97", ((Label) pane.lookup("#calc-hold-note")).getText()); assertEquals("Exposure time (solved)", caption("shutter"));
             assertFalse(input("shutter").isEditable()); assertTrue(slider("shutter").isDisabled()); assertTrue(input("aperture").isEditable());
             String ev100 = result("ev100");
             type("aperture", "4");
@@ -295,11 +306,18 @@ class CalculatorGuiTest {
             type("aperture", "8");
             assertEquals("1/500", input("shutter").getText()); assertEquals("400", input("iso").getText()); assertEquals(ev100, result("ev100"));
             // A value that cannot hold the exposure is reported, not silently clamped: an hour would need about f/10000.
-            click("calc-hold-APERTURE");
+            // In Exact the hold has no result then, as before.
+            click("calc-hold-APERTURE"); click("calc-step-EXACT");
             type("shutter", "3600");
             assertTrue(status().contains("outside the supported range"), status()); assertEquals(CalculatorPresentation.NONE, result("ev100"));
             assertEquals("8", input("aperture").getText(), "the solved setting keeps its last valid value"); assertEquals("400", input("iso").getText());
             type("shutter", "1/500"); assertEquals("", status()); assertEquals(ev100, result("ev100"));
+            // In standard stops the aperture stops at its last stop and the page says how far the target is missed.
+            click("calc-step-THIRD"); type("shutter", "3600");
+            assertEquals("", status()); assertEquals("128", input("aperture").getText()); assertEquals("Parameter limit reached · More exposure than target", detail("deviation"));
+            assertTrue(pane.mode().cautionTexts().getFirst().matches("Parameter limit reached: f/128\\. Deviation −12\\.\\d\\d EV \\(More exposure than target\\)\\."), pane.mode().cautionTexts().toString());
+            assertNotEquals(ev100, result("ev100"), "never shown as the held exposure");
+            type("shutter", "1/500"); assertEquals("8", input("aperture").getText()); assertEquals(ev100, result("ev100")); assertTrue(pane.mode().cautionTexts().isEmpty());
             click("calc-hold-OFF");
             assertNull(mode.held()); assertTrue(input("aperture").isEditable()); assertTrue(input("iso").isEditable());
             // Equivalent exposures: seven pairs at the same settings EV; applying one changes aperture and time together.

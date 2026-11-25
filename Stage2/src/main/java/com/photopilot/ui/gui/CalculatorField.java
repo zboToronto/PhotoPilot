@@ -10,6 +10,8 @@ import com.photopilot.i18n.LocalizedMessage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.function.DoubleFunction;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Supplier;
 import javafx.css.PseudoClass;
 import javafx.geometry.Pos;
@@ -30,6 +32,11 @@ import javafx.scene.layout.VBox;
  * <p>
  * The value is kept in the calculator's unit (seconds, metres, ...). {@link #display} only changes what is shown and
  * typed, so switching between metres and feet converts the text and leaves the value where it was.
+ * <p>
+ * A field can be given a {@link #snap} rule (the exposure calculator's standard stops): then every value it takes, typed,
+ * slid or set, is the value the rule applies. Text being typed is not rewritten; while it differs from the applied value
+ * a note under the field names the value in use, and pressing Enter or leaving the field writes the applied value into it.
+ * Without a rule (every other calculator) values are used as typed, as before.
  */
 final class CalculatorField extends VBox {
     /** How the text is read and written. */
@@ -39,11 +46,12 @@ final class CalculatorField extends VBox {
     private final FxLocalizer texts;
     private final LocalizationService localization;
     private final String captionKey;
-    private final Scale scale;
+    private Scale scale;
     private final double min, max, initial;
     private final Format format;
     private final boolean optional;
     private final Label caption = FeaturePane.label("", "section-title"), unitLabel = FeaturePane.label("", "calc-field-unit"), error = FeaturePane.label("", "calc-field-error");
+    private final Label hint = FeaturePane.label("", "calc-note");
     private final TextField input = new TextField();
     private final Slider slider;
     private final HBox heading = new HBox(6);
@@ -54,6 +62,12 @@ final class CalculatorField extends VBox {
     private double value;
     private boolean present, valid = true, updating, automatic;
     private LocalizedMessage problem;
+    /** Maps a value to the value applied (null: used as typed), and names an applied value for the note. */
+    private DoubleUnaryOperator snap;
+    private DoubleFunction<String> snapText = applied -> "";
+    /** True while typed text holds a value other than the applied one (until Enter or leaving the field). */
+    private boolean pending;
+    private String note = "";
 
     /**
      * @param scale slider scale in the calculator's unit, or null for a field without a slider
@@ -83,8 +97,12 @@ final class CalculatorField extends VBox {
             row.getChildren().add(input);
         }
         error.setId(id + "-error"); error.managedProperty().bind(error.textProperty().isNotEmpty()); error.visibleProperty().bind(error.managedProperty());
-        getChildren().addAll(heading, row, error);
+        hint.setId(id + "-hint"); hint.managedProperty().bind(hint.textProperty().isNotEmpty()); hint.visibleProperty().bind(hint.managedProperty());
+        getChildren().addAll(heading, row, error, hint);
         input.textProperty().addListener((property, old, text) -> fromText(text));
+        // Enter or leaving the field commits typed text: with a snap rule, the applied value replaces it.
+        input.setOnAction(event -> commit());
+        input.focusedProperty().addListener((property, was, focused) -> { if (!focused) commit(); });
         // The caption, unit, accessible names and any validation message follow the language.
         texts.onRefresh(this::describe);
         present = initial.isPresent(); value = this.initial;
@@ -106,9 +124,43 @@ final class CalculatorField extends VBox {
     boolean changed() { return !valid || present != !Double.isNaN(initial) || present && Math.abs(value - initial) > 1e-12 * Math.max(1, Math.abs(initial)); }
     void onChange(Runnable listener) { listeners.add(listener); }
 
-    /** Sets the value from outside (a diagram drag, a solved parameter, a reset). Listeners are not notified. */
-    void set(double next) { value = next; present = true; valid = true; problem = null; show(); }
-    void clear() { present = false; valid = true; problem = null; show(); }
+    /**
+     * Sets the value from outside (a diagram drag, a solved parameter, a reset), through the snap rule if there is one.
+     * Listeners are not notified.
+     */
+    void set(double next) { value = applied(next); present = true; valid = true; problem = null; pending = false; show(); }
+    void clear() { present = false; valid = true; problem = null; pending = false; show(); }
+    /**
+     * Applies values through a rule from now on (null: values are used as typed) and names an applied value for the
+     * note shown while typed text differs from it. The current value is not changed; the caller sets it again if needed.
+     */
+    void snap(DoubleUnaryOperator rule, DoubleFunction<String> appliedText) { snap = rule; snapText = appliedText; pending = false; mark(); }
+    /** Gives the slider another scale (positions, snapping and arrow-key step) and moves it to the current value. */
+    void rescale(Scale next) {
+        if (slider == null) return;
+        scale = next;
+        updating = true;
+        try {
+            slider.setSnapToTicks(false);
+            slider.setMax(next.positions());
+            slider.setBlockIncrement(next.snaps() ? 1 : next.positions() / 100);
+            if (next.snaps()) { slider.setMajorTickUnit(1); slider.setMinorTickCount(0); slider.setSnapToTicks(true); }
+            if (present) slider.setValue(next.position(value));
+        } finally { updating = false; }
+    }
+    /** A short line under the field (why a solved value is what it is); empty for none. Typed text and errors come first. */
+    void note(String text) { note = text == null ? "" : text; mark(); }
+    private double applied(double next) { return snap == null ? next : snap.applyAsDouble(next); }
+    /** Enter or leaving the field: with a snap rule, typed text is replaced by the applied value it stands for. */
+    void commit() {
+        if (snap == null || !valid || !present) return;
+        String applied = text(value);
+        if (!applied.equals(input.getText())) {
+            updating = true;
+            try { input.setText(applied); } finally { updating = false; }
+        }
+        pending = false; mark();
+    }
     /**
      * Puts text back as if it had been typed: read, validated, explained if unusable and reported to listeners, even
      * when the field already shows exactly that text.
@@ -145,15 +197,16 @@ final class CalculatorField extends VBox {
         double next = scale.value(scale.snaps() ? Math.rint(position) : position);
         // A continuous scale gives round numbers in the unit the user reads (3.2 ft, not 3.21869 ft).
         if (!scale.snaps() && factor != 1) next = CalculatorPresentation.significant(next / factor, 3) * factor;
-        next = Math.max(min, Math.min(max, next));
-        if (present && valid && next == value) return;
-        value = next; present = true; valid = true; problem = null;
+        next = applied(Math.max(min, Math.min(max, next)));
+        if (present && valid && next == value && !pending) return;
+        value = next; present = true; valid = true; problem = null; pending = false;
         updating = true;
         try { input.setText(text(value)); } finally { updating = false; }
         mark(); notifyListeners();
     }
     private void fromText(String text) {
         if (updating) return;
+        pending = false;
         try {
             if (text == null || text.isBlank()) {
                 if (!optional) throw new LocalizedException("calc.error.required");
@@ -163,7 +216,10 @@ final class CalculatorField extends VBox {
                 if (!Double.isFinite(next)) throw new LocalizedException("error.calc.number");
                 if (format == Format.WHOLE && shown != Math.rint(shown)) throw new LocalizedException("calc.error.whole");
                 if (next < min * (1 - 1e-12) || next > max * (1 + 1e-12)) throw new LocalizedException("calc.error.range", text(min), text(max));
-                value = next; present = true; valid = true; problem = null;
+                // With a snap rule the applied value is the rule's; the text stays as typed until it is committed.
+                double applied = applied(next);
+                value = applied; present = true; valid = true; problem = null;
+                pending = snap != null && Math.abs(applied - next) > 1e-12 * Math.max(applied, next);
             }
         } catch (IllegalArgumentException invalid) {
             valid = false; problem = Result.failure(invalid).messages().getFirst();
@@ -193,6 +249,7 @@ final class CalculatorField extends VBox {
     private void mark() {
         input.pseudoClassStateChanged(INVALID, !valid);
         error.setText(valid || problem == null ? "" : problem.render(localization));
+        hint.setText(!valid ? "" : pending ? localization.text("calc.field.applied", snapText.apply(value)) : note);
     }
     private void describe() {
         String symbol = unit.get(), name = localization.text(captionKey);

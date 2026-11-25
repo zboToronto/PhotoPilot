@@ -28,7 +28,8 @@ class CalculatorIndependenceTest {
         List<Path> sources = new ArrayList<>(List.of(MAIN.resolve("service/PhotoFormulas.java"), MAIN.resolve("service/TechnicalCalculator.java"),
             MAIN.resolve("service/CalculationValidation.java"), MAIN.resolve("application/CalculationForm.java"), MAIN.resolve("application/CalculatorPresentation.java"),
             MAIN.resolve("application/MotionBlurPreview.java"), MAIN.resolve("model/CameraSetup.java"), MAIN.resolve("model/CalculationInput.java"),
-            MAIN.resolve("model/CalculationResult.java"), MAIN.resolve("ui/cli/CalculationCommands.java")));
+            MAIN.resolve("model/CalculationResult.java"), MAIN.resolve("ui/cli/CalculationCommands.java"),
+            MAIN.resolve("application/ExposureStops.java"), MAIN.resolve("application/ExposureSolver.java"), MAIN.resolve("application/ExposurePresentation.java")));
         try (var gui = Files.list(MAIN.resolve("ui/gui"))) {
             gui.filter(path -> path.getFileName().toString().matches("(Calculator.*|.*Mode|.*Diagram|CameraSetupEditor)\\.java")).forEach(sources::add);
         }
@@ -55,7 +56,8 @@ class CalculatorIndependenceTest {
         }
         // The formula core and the display conventions do not depend on JavaFX either: they are plain Java.
         for (String pure : List.of("service/PhotoFormulas.java", "service/TechnicalCalculator.java", "service/CalculationValidation.java",
-            "application/CalculatorPresentation.java", "application/MotionBlurPreview.java", "application/CalculationForm.java", "model/CameraSetup.java"))
+            "application/CalculatorPresentation.java", "application/MotionBlurPreview.java", "application/CalculationForm.java", "model/CameraSetup.java",
+            "application/ExposureStops.java", "application/ExposureSolver.java", "application/ExposurePresentation.java"))
             assertFalse(Files.readString(MAIN.resolve(pure)).contains("javafx"), pure + " must not need a display");
     }
 
