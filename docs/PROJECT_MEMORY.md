@@ -1,5 +1,7 @@
 # PhotoPilot project memory
 
+The updated Stage 2 report includes the November 24 standalone CLI audit and execution screenshots. The 45-page PDF was exported from the submitted Word copy. All 18 UML links target the published diagrams, and the Word body and embedded figures match the supplied original. [Report and submission index](../Stage2/submission/README.md)
+
 ## November 24 Git delivery verification
 
 The first JDK 21 offline regression from a fresh source copy ran 1,008 tests. It recorded 999 passes, three Discovery failures, zero errors and six skips. Two CLI assertions expected raw provider field names after the labels were localized. The guided GUI also displayed raw names in its Context used disclosure. The delivery updates those assertions and routes the disclosure through the existing guided context formatter.

@@ -4,10 +4,10 @@ The implementation remains in [Stage2](../README.md) in the same repository as [
 
 ## Implementation report
 
-- [stage2-report.pdf](report/stage2-report.pdf) — 28-page reading copy.
+- [stage2-report.pdf](report/stage2-report.pdf) — 45-page reading copy.
 - [stage2-report.docx](report/stage2-report.docx) — editable Word report.
 
-The course instructions allow PDF/Word in the report section and specify PDF in the submission checklist; both formats are provided. Sections 1–6 cover implementation status, feature/class/method mappings, implemented patterns and updated UML, design changes, AI collaboration, and development/verification evidence. The report identifies its source baseline as commit `93f9264`; this publication does not change application code.
+The course instructions allow PDF/Word in the report section and specify PDF in the submission checklist; both formats are provided. Sections 1–6 cover implementation status, feature/class/method mappings, implemented patterns and updated UML, design changes, AI collaboration, and development/verification evidence. Section 2 pairs feature descriptions with execution captures. Section 6.5 documents the November 24 standalone CLI audit and distinguishes working-tree evidence from checks at commit `1714b83`.
 
 The supplied report's wording, diagrams and formatting are preserved. Its 18 UML hyperlink targets now point to the files below on GitHub, and the PDF was exported from that Word copy. Source-code and historical commit links retain their original revision targets.
 
@@ -29,9 +29,9 @@ Each diagram has a PNG preview and an editable UMLet UXF source. All 18 files ar
 
 ## Demonstration index status
 
-The report ends with a [Google Drive demonstration folder](https://drive.google.com/drive/folders/1k5OguYP9zQdfcHkPynt7o1nLkzSzXYSJ?usp=drive_link). It does not yet provide the course-required feature-by-feature video links or timestamps. That index and anonymous access to the videos still need verification; publishing these report/UML files does not establish that the complete Stage 2 submission requirements have been met.
+The report links the [Google Drive demonstration folder](https://drive.google.com/drive/folders/1k5OguYP9zQdfcHkPynt7o1nLkzSzXYSJ?usp=drive_link). Its November 24 audit records that F01.mp4 through F11.mp4 were listed while signed out. Per-feature links or timestamps are still missing. Individual playback and demonstration of the same task first in the GUI and then in the CLI remain unverified.
 
-Local recordings (checked 2026-11-23, Stage2OptRe1 DOC-01): the author's workspace holds one recording per feature, named by feature id. They were recorded on 2026-11-16 before the Stage2OptRe1 patch, so PP-01/PP-02/PP-03 behaviour shown in them is the earlier one. Whether the Drive folder contains these exact files, their per-file share links, timestamps inside them and anonymous access were **not** verified; no link below is invented.
+The table lists the corresponding local recordings inventoried on November 23. They were recorded on November 16, before the Stage2OptRe1 changes.
 
 | Feature | Local recording | Size | Per-file link / timestamps |
 | --- | --- | --- | --- |
@@ -47,4 +47,4 @@ Local recordings (checked 2026-11-23, Stage2OptRe1 DOC-01): the author's workspa
 | F10 Plan generation and revision | `DemoVideos/F10.mp4` | 60 MB | not yet provided |
 | F11 Post-shoot analysis and review | `DemoVideos/F11.mp4` | 165 MB | not yet provided |
 
-To close DOC-01: upload or confirm each file in the Drive folder, add its share link (and timestamps where one file covers several flows) to this table and the report, and open each link once without signing in.
+To close DOC-01: add each recording’s share link (and timestamps where one file covers several flows) to this table and the report, and open each link once without signing in.

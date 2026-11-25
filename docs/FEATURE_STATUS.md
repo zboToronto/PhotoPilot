@@ -1,5 +1,7 @@
 # Stage 1 feature status
 
+The Stage 2 report now includes the November 24 CLI audit. The audit records signed-out visibility of F01–F11 video filenames. Per-feature links or timestamps and playback verification remain outstanding. [Report and submission index](../Stage2/submission/README.md)
+
 November 24 delivery verification covered 1,008 tests in the initial full run. The three Discovery failures were addressed and all 59 affected tests passed on rerun. Packaging and the GUI startup smoke test passed. [Results and scope](PROJECT_MEMORY.md#november-24-git-delivery-verification)
 
 Guided Discovery GUI and CLI wizard (2026-11-24, uncommitted working tree; F02 presentation and interaction, no feature status change):
