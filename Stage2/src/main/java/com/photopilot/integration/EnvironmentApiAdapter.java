@@ -99,12 +99,14 @@ public class EnvironmentApiAdapter implements EnvironmentProvider {
             notices.add(LocalizedMessage.of("env.notice.beyondHorizon", FORECAST_DAYS, lastForecastDay.toString()));
             unavailable.add(EnvironmentContext.DAILY); unavailable.add(EnvironmentContext.HOURLY);
             // Coordinates-only time-zone resolution from the same provider; no weather values are used.
+            com.photopilot.progress.Progress.waiting("env.zone");
             var zoneOnly = get(weatherUri(lat, lon, null, null));
             if (zoneOnly.isSuccess()) weather.zone = zone(zoneOnly.value().orElseThrow(), notices);
             else weatherFailure = zoneOnly;
         } else {
             LocalDate end = to.isAfter(lastForecastDay) ? lastForecastDay : to;
             if (end.isBefore(to)) { notices.add(LocalizedMessage.of("env.notice.nextDayBeyondHorizon", to.toString())); unavailable.add(EnvironmentContext.HOURLY + "@" + to); }
+            com.photopilot.progress.Progress.waiting("env.weather");
             var body = get(weatherUri(lat, lon, from, end));
             var parsed = body.isSuccess() ? parseWeather(body.value().orElseThrow(), lat, lon, from, end, weather, unavailable, notices) : Result.failure(body);
             if (!parsed.isSuccess()) {
@@ -119,6 +121,7 @@ public class EnvironmentApiAdapter implements EnvironmentProvider {
         var events = new ArrayList<SunEvent>();
         Result<?> sunFailure = null;
         for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            com.photopilot.progress.Progress.waiting("env.sun", day.toString());
             var body = get(sunUri(lat, lon, day, weather.zone));
             var parsed = body.isSuccess() ? parseSun(body.value().orElseThrow(), day, weather.zone, events, unavailable, notices) : Result.failure(body);
             if (!parsed.isSuccess()) {

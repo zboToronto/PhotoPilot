@@ -46,6 +46,7 @@ public class GeocodingAdapter implements PlaceLookupProvider {
         HttpResponse<byte[]> response;
         try {
             // Hard deadline and bounded body (BoundedHttp): a stalled or endless reply cannot block the caller.
+            com.photopilot.progress.Progress.waiting("env.geocode");
             response = BoundedHttp.send(http, HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json").GET().build(), MAX_BODY);
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("env.error.timeout", host, String.valueOf(timeout.toSeconds()));
@@ -63,21 +64,37 @@ public class GeocodingAdapter implements PlaceLookupProvider {
         try {
             JsonObject root = JsonParser.parseString(new String(response.body(), StandardCharsets.UTF_8)).getAsJsonObject();
             var found = new ArrayList<PlaceCandidate>();
-            if (root.has("results") && root.get("results").isJsonArray()) {
+            if (root.has("results") && !root.get("results").isJsonArray()) return Result.failureKey("env.error.format", host);
+            boolean invalidRow = false;
+            if (root.has("results")) {
                 for (JsonElement element : root.getAsJsonArray("results")) {
+                    if (!element.isJsonObject()) { invalidRow = true; continue; }
                     JsonObject item = element.getAsJsonObject();
+                    if (text(item, "name").isBlank() || !number(item, "latitude") || !number(item, "longitude")) {
+                        invalidRow = true; continue;
+                    }
                     double lat = item.get("latitude").getAsDouble(), lon = item.get("longitude").getAsDouble();
                     if (!Double.isFinite(lat) || !Double.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
                     Optional<ZoneId> zone = Optional.empty();
                     try { if (item.has("timezone")) zone = Optional.of(ZoneId.of(item.get("timezone").getAsString())); } catch (DateTimeException ignored) { }
-                    found.add(new PlaceCandidate(text(item, "name"), text(item, "admin1"), text(item, "country"), lat, lon, zone));
+                    String code = text(item, "feature_code");
+                    var scope = code.startsWith("PPL") ? PlaceCandidate.Scope.CITY_LEVEL
+                        : code.startsWith("ADM") ? PlaceCandidate.Scope.REGION_LEVEL : PlaceCandidate.Scope.UNKNOWN;
+                    String municipality = text(item, "admin3");
+                    if (municipality.isBlank()) municipality = text(item, "admin2");
+                    found.add(new PlaceCandidate(text(item, "name"), text(item, "admin1"), text(item, "country"), lat, lon, zone,
+                        municipality, PlaceCandidate.Source.OPEN_METEO_GEOCODING, scope, name));
                     if (found.size() == MAX_RESULTS) break;
                 }
             }
+            if (found.isEmpty() && invalidRow) return Result.failureKey("env.error.format", host);
             return found.isEmpty() ? Result.failureKey("env.location.error.notFound", name.strip()) : Result.success(List.copyOf(found));
         } catch (RuntimeException malformed) {
             return Result.failureKey("env.error.format", host);
         }
+    }
+    private static boolean number(JsonObject item, String key) {
+        return item.has(key) && item.get(key).isJsonPrimitive() && item.getAsJsonPrimitive(key).isNumber();
     }
     private static String text(JsonObject item, String key) {
         return item.has(key) && item.get(key).isJsonPrimitive() ? item.get(key).getAsString() : "";

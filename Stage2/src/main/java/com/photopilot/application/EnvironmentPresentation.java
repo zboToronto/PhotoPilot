@@ -34,26 +34,43 @@ public final class EnvironmentPresentation {
     }
 
     public static String candidate(PlaceCandidate c, int number, LocalizationService l) {
-        return l.text("env.place.option", number, c.displayName(), EnvironmentForm.coordinate(c.latitude()), EnvironmentForm.coordinate(c.longitude()),
-            c.zone().map(ZoneId::getId).orElse(l.text("env.unknown")));
+        return l.text("env.place.option", number, c.displayName(), coordinate(c.latitude(), c.estimated()), coordinate(c.longitude(), c.estimated()),
+            c.zone().map(ZoneId::getId).orElse(l.text("env.unknown"))) + " — " + provenance(c, l);
+    }
+    private static String coordinate(double value, boolean estimated) {
+        return estimated ? String.format(Locale.ROOT, "%.2f", value) : EnvironmentForm.coordinate(value);
+    }
+    public static String provenance(PlaceCandidate c, LocalizationService l) {
+        String line = l.text("env.resolve.source." + c.source()) + " · " + l.text("env.resolve.scope." + c.scope());
+        return c.broaderArea() ? line + " · " + l.text("env.resolve.broader") : line;
     }
 
     public static List<String> summary(EnvironmentAssessment a, LocalizationService l) {
-        var lines = new ArrayList<String>();
+        var lines = shootingContext(a, l);
         var context = a.context();
-        var request = a.request().orElseThrow();
-        lines.add(l.text("env.summary.subject", a.subject()));
-        lines.add(l.text(request.place().approximate() ? "env.summary.placeApproximate" : "env.summary.place", request.place().label(),
-            request.place().latitude().map(EnvironmentForm::coordinate).orElse(""), request.place().longitude().map(EnvironmentForm::coordinate).orElse("")));
-        a.availability().ifPresent(av -> {
-            lines.add(l.text("env.summary.zone", av.start().getZone().getId(), av.start().getOffset().getId()));
-            lines.add(l.text("env.summary.availability", request.date().toString(), time(av.start(), request.date()), time(av.end(), request.date()), av.duration().toMinutes()));
-        });
         ZoneId zone = a.availability().map(av -> av.start().getZone()).orElse(ZoneOffset.UTC);
         lines.add(l.text("env.summary.retrieved", time(context.retrievedAt().atZone(zone), null)));
         lines.addAll(sources(context, l));
         lines.add(l.text(a.aiInterpreted() ? "env.summary.ai" : "env.summary.noAi"));
         lines.add(l.text("env.summary.counts", a.windows().size(), a.rejected().size()));
+        return lines;
+    }
+
+    /** Subject, location with its provenance (and the estimate limitation), local zone and availability. */
+    public static List<String> shootingContext(EnvironmentAssessment a, LocalizationService l) {
+        var lines = new ArrayList<String>();
+        var request = a.request().orElseThrow();
+        lines.add(l.text("env.summary.subject", a.subject()));
+        lines.add(l.text(request.aiLocation() ? "env.resolve.aiPoint" : request.place().fromDevice() ? "env.resolve.devicePoint"
+            : request.place().approximate() ? "env.summary.placeApproximate" : "env.summary.place", request.place().label(),
+            request.place().latitude().map(v -> coordinate(v, request.aiLocation())).orElse(""),
+            request.place().longitude().map(v -> coordinate(v, request.aiLocation())).orElse("")));
+        lines.add(request.accepted().map(c -> provenance(c, l)).orElseGet(() -> l.text("env.resolve.source." + request.locationSource())));
+        if (request.aiLocation()) lines.add(l.text("env.resolve.limitation"));
+        a.availability().ifPresent(av -> {
+            lines.add(l.text("env.summary.zone", av.start().getZone().getId(), av.start().getOffset().getId()));
+            lines.add(l.text("env.summary.availability", request.date().toString(), time(av.start(), request.date()), time(av.end(), request.date()), av.duration().toMinutes()));
+        });
         return lines;
     }
     public static List<String> sources(EnvironmentContext context, LocalizationService l) {
@@ -213,6 +230,202 @@ public final class EnvironmentPresentation {
     public static String time(ZonedDateTime time, LocalDate base) {
         String clock = time.format(CLOCK);
         return base == null || time.toLocalDate().equals(base) ? clock : time.toLocalDate() + " " + clock;
+    }
+
+    // ---- Dashboard text shared by the GUI dashboard and the CLI report -------------------------------------------------
+    // Values are rounded here, at the presentation boundary only; the analysis keeps full precision.
+
+    private static final DateTimeFormatter HOUR_MINUTE = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT);
+    private static final DateTimeFormatter ZONE_ABBREVIATION = DateTimeFormatter.ofPattern("z", Locale.ENGLISH);
+
+    /** "HH:mm" in the location zone, with the date in front when it is not {@code base}. */
+    public static String clock(ZonedDateTime time, LocalDate base) {
+        String clock = time.format(HOUR_MINUTE);
+        return base == null || time.toLocalDate().equals(base) ? clock : time.toLocalDate() + " " + clock;
+    }
+    public static String clock(Instant time, ZoneId zone, LocalDate base) { return clock(time.atZone(zone), base); }
+    /** "15:57–17:02" (dates added for times not on {@code base}). */
+    public static String span(ZonedDateTime from, ZonedDateTime to, LocalDate base) { return clock(from, base) + "–" + clock(to, base); }
+    public static String span(TimeInterval interval, ZoneId zone, LocalDate base) { return span(interval.start().atZone(zone), interval.end().atZone(zone), base); }
+    /** Zone abbreviation at that instant ("EST"), for headings next to bare clock times. */
+    public static String abbreviation(ZonedDateTime time) { return time.format(ZONE_ABBREVIATION); }
+    public static String minutes(Duration duration, LocalizationService l) { return l.text("env.minutes", duration.toMinutes()); }
+
+    /** Number of a metric value for display: temperature, precipitation, wind and visibility (in km) to one decimal, percentages whole. */
+    public static String number(String metric, double value) {
+        return switch (metric) {
+            case "cloudCoverPct", "precipitationProbabilityPct", "precipitationProbabilityMaxPct", "windDirectionDeg" -> whole(value);
+            case "visibilityM" -> one(value / 1000);
+            default -> one(value);
+        };
+    }
+    public static String unit(String metric, LocalizationService l) { return l.text("env.unit." + metric); }
+    /** Value with its unit ("6.8 °C", "21%", "14.8 km/h", "24.1 km"). */
+    public static String value(String metric, double value, LocalizationService l) {
+        String unit = unit(metric, l);
+        return unit.equals("%") ? number(metric, value) + unit : number(metric, value) + " " + unit;
+    }
+    /** "6.5–6.8 °C", or a single value when minimum and maximum agree after rounding. */
+    public static String range(EnvironmentAnalysis.Metric metric, LocalizationService l) {
+        String low = number(metric.key(), metric.min()), high = number(metric.key(), metric.max());
+        if (low.equals(high)) return value(metric.key(), metric.min(), l);
+        String unit = unit(metric.key(), l);
+        return low + "–" + high + (unit.equals("%") ? unit : " " + unit);
+    }
+    /** Metric over the shooting window, or the localized "unavailable" (never zero). */
+    public static String windowValue(EnvironmentAnalysis analysis, String metric, LocalizationService l) {
+        return analysis.window().metric(metric).map(m -> range(m, l)).orElse(l.text("env.value.unavailable"));
+    }
+    /**
+     * Value axis of a weather chart (GUI and CLI alike): percentages always 0-100, amounts, speeds and visibility from
+     * zero to the largest value, temperature between its rounded extremes with one degree of margin (so values below
+     * zero keep their place). Raw units (visibility in metres).
+     */
+    public static double[] axis(String metric, List<Double> values) {
+        if (values.isEmpty()) return new double[] {0, 1};
+        double low = Collections.min(values), high = Collections.max(values);
+        return switch (metric) {
+            case "cloudCoverPct", "precipitationProbabilityPct" -> new double[] {0, 100};
+            case "temperatureC" -> new double[] {Math.floor(low) - 1, Math.ceil(high) + 1};
+            default -> new double[] {0, high > 0 ? high : 1};
+        };
+    }
+    public static String metric(String key, LocalizationService l) { return l.text("env.metric." + key); }
+    public static String shortMetric(String key, LocalizationService l) { return l.text("env.short." + key); }
+    /** 16-point compass sector of a direction in degrees ("WNW"); the wind comes from this direction. */
+    public static String compass(double degrees) { return COMPASS[(int) Math.round(((degrees % 360) + 360) % 360 / 22.5) % 16]; }
+    /** Wind directions of the window samples as sectors in time order, repeated sectors once ("W → NW"). */
+    public static String directions(EnvironmentAnalysis analysis, LocalizationService l) {
+        var sectors = new ArrayList<String>();
+        for (var sample : analysis.window().samples())
+            sample.value("windDirectionDeg").map(EnvironmentPresentation::compass).filter(s -> sectors.isEmpty() || !sectors.getLast().equals(s)).ifPresent(sectors::add);
+        return sectors.isEmpty() ? l.text("env.value.unavailable") : String.join(" → ", sectors);
+    }
+    /** WMO weather code category ("partlyCloudy") for icons and the localized condition name. */
+    public static String category(int code) { return wmo(code); }
+    public static String condition(int code, LocalizationService l) { return l.text("env.wmo." + wmo(code)); }
+    public static String condition(EnvironmentAnalysis analysis, LocalizationService l) {
+        return analysis.window().primaryCondition().map(code -> condition(code, l)).orElse(l.text("env.value.unavailable"));
+    }
+    /** How the window statistics were selected (count, or the nearest hour standing in for the period). */
+    public static String scope(EnvironmentAnalysis analysis, LocalizationService l) {
+        var window = analysis.window();
+        return switch (window.scope()) {
+            case WINDOW -> l.text("env.scope.WINDOW", window.samples().size());
+            case NEAREST -> l.text("env.scope.NEAREST", clock(window.samples().getFirst().local(), analysis.date()));
+            case NONE -> l.text("env.scope.NONE");
+        };
+    }
+    /** Full-day provider value of a daily key, labelled as such, or empty when the provider gave none. */
+    public static Optional<String> daily(EnvironmentAnalysis analysis, String key, LocalizationService l) {
+        return Optional.ofNullable(analysis.daily().get(key)).map(v -> value(key, v, l));
+    }
+    /** The provider's daily summary line for the date, or "unavailable". */
+    public static String dailySummary(EnvironmentAnalysis analysis, LocalizationService l) {
+        return analysis.daily().isEmpty() ? l.text("env.value.unavailable") : daily(analysis.daily(), l);
+    }
+
+    public static String stage(EnvironmentAnalysis.StageKey key, LocalizationService l) { return l.text("env.stage." + key.name()); }
+    public static String status(EnvironmentAnalysis.StageStatus status, LocalizationService l) { return l.text("env.status." + status.name()); }
+    /** Plain ASCII tag for terminals: status is in words as well, never colour alone. */
+    public static String tag(EnvironmentAnalysis.StageStatus status) {
+        return switch (status) {
+            case SUCCESS -> "[OK]";
+            case PARTIAL -> "[WARN]";
+            case PENDING -> "[..]";
+            case FAILED, TIMED_OUT, UNAVAILABLE -> "[FAIL]";
+            case SKIPPED, NOT_PERFORMED -> "[--]";
+        };
+    }
+    /** "Location resolution: Completed (Open-Meteo geographic database)". */
+    public static String stageLine(EnvironmentAnalysis.Stage stage, LocalizationService l) {
+        String text = status(stage.status(), l);
+        return stage.detail().map(d -> l.text("env.stage.line", stage(stage.key(), l), text, d.render(l))).orElse(l.text("env.stage.lineShort", stage(stage.key(), l), text));
+    }
+    public static String overall(EnvironmentAnalysis analysis, LocalizationService l) { return l.text("env.overall." + analysis.overall().name()); }
+    public static String aiStatus(EnvironmentAnalysis.AiOutcome ai, LocalizationService l) { return l.text("env.ai.status." + ai.status().name()); }
+    /** Status line plus what remains usable when the interpretation is missing. */
+    public static List<String> aiOutcome(EnvironmentAnalysis analysis, LocalizationService l) {
+        var lines = new ArrayList<String>();
+        var ai = analysis.ai();
+        lines.add(aiStatus(ai, l));
+        ai.reason().filter(r -> ai.status() != EnvironmentAnalysis.AiStatus.SUCCESS).ifPresent(r -> lines.add(l.text("env.ai.reason", r.render(l))));
+        if (ai.status() != EnvironmentAnalysis.AiStatus.SUCCESS) {
+            lines.add(l.text("env.ai.factsKept"));
+            if (analysis.windows().isEmpty()) lines.add(l.text("env.ai.noValidated"));
+        }
+        return lines;
+    }
+    public static String light(EnvironmentAnalysis.LightKind kind, LocalizationService l) { return l.text("env.light." + kind.name()); }
+    public static String phase(String kind, LocalizationService l) { return l.text("env.phase." + kind); }
+    public static String sunEvent(String kind, LocalizationService l) { return l.text("env.sun." + kind); }
+    /** Light at a solar sample: band name plus golden/blue hour when the elevation lies in their range. */
+    public static String lightAt(double elevation, LocalizationService l) {
+        String band = light(com.photopilot.service.SolarCalculator.light(elevation), l);
+        if (elevation >= com.photopilot.service.SolarCalculator.GOLDEN_LOW && elevation <= com.photopilot.service.SolarCalculator.GOLDEN_HIGH)
+            return band + " · " + l.text("env.light.goldenHour");
+        if (elevation >= com.photopilot.service.SolarCalculator.BLUE_LOW && elevation < com.photopilot.service.SolarCalculator.GOLDEN_LOW)
+            return band + " · " + l.text("env.light.blueHour");
+        return band;
+    }
+    public static String degrees(double value) { return one(value); }
+    public static String finding(EnvironmentAnalysis.Finding finding, LocalizationService l) { return finding.message().render(l); }
+    /** Overlap of one light phase with the availability, in words ("15:57–16:00 · 3 min", "touches at 16:00", "none"). */
+    public static String overlap(EnvironmentAnalysis.PhaseOverlap overlap, EnvironmentAnalysis analysis, LocalizationService l) {
+        if (overlap.overlap().isEmpty()) return l.text("env.value.none");
+        var interval = overlap.overlap().get();
+        if (overlap.contact()) return l.text("env.windows.contact", clock(interval.start(), analysis.zone(), analysis.date()));
+        return span(interval, analysis.zone(), analysis.date()) + " · " + minutes(interval.duration(), l) + (overlap.complete() ? " · " + l.text("env.windows.full") : "");
+    }
+    /** "Shooting window: 15:00–16:00 EST (60 min)". */
+    public static String availabilityLine(EnvironmentAnalysis analysis, LocalizationService l) {
+        var av = analysis.availability();
+        return span(av.start(), av.end(), analysis.date()) + " " + abbreviation(av.start()) + " (" + minutes(av.duration(), l) + ")";
+    }
+    /** Location label as reviewed, with its provenance ("Open-Meteo geographic database · City-level location"). */
+    public static String placeLine(EnvironmentAnalysis analysis) { return analysis.request().place().label(); }
+    public static String provenance(EnvironmentAnalysis analysis, LocalizationService l) {
+        var request = analysis.request();
+        return request.accepted().map(c -> provenance(c, l)).orElseGet(() -> l.text("env.resolve.source." + request.locationSource()));
+    }
+    /** Coordinates as used for display: estimated points rounded to two decimals, others to five. */
+    public static String coordinates(EnvironmentAnalysis analysis) {
+        var request = analysis.request(); var place = request.place();
+        return coordinate(place.latitude().orElseThrow(), request.aiLocation()) + ", " + coordinate(place.longitude().orElseThrow(), request.aiLocation());
+    }
+    /** Source of the location time zone: weather provider, entered by the user, place lookup or the accepted AI estimate. */
+    public static String zoneSource(EnvironmentAssessment a, LocalizationService l) {
+        if (a.context().zone().isPresent()) return l.text("env.zoneSource.provider");
+        var request = a.request().orElseThrow();
+        return l.text(request.zoneEntered() ? "env.zoneSource.entered" : request.aiLocation() ? "env.zoneSource.estimate" : "env.zoneSource.lookup");
+    }
+    /** Where the forecast came from and when ("Open-Meteo forecast · retrieved 14:58 EST"). */
+    public static String freshness(EnvironmentAnalysis analysis, LocalizationService l) {
+        var context = analysis.assessment().context();
+        var stamp = Optional.ofNullable(context.sourceTimestamps().get(EnvironmentContext.HOURLY)).orElse(context.retrievedAt()).atZone(analysis.zone());
+        var coverage = analysis.coverage();
+        String hours = coverage.first().isPresent() ? l.text("env.weather.coverage", clock(coverage.first().get(), analysis.date()), clock(coverage.last().orElseThrow(), analysis.date()))
+            : l.text("env.weather.none");
+        return l.text("env.weather.source", EnvironmentApiAdapter.WEATHER_SOURCE, time(stamp, analysis.date()), hours);
+    }
+    /** The complete earlier text report, section by section (technical details, copy and the CLI "technical" view). */
+    public static List<String> report(EnvironmentAssessment a, LocalizationService l) {
+        var lines = new ArrayList<String>();
+        section(lines, l.text("env.card.summary"), summary(a, l));
+        var windows = windows(a, l);
+        if (windows.isEmpty()) section(lines, l.text("env.card.windows"), List.of(l.text("env.card.noWindows")));
+        for (var card : windows) { lines.add(""); lines.addAll(card); }
+        section(lines, l.text("env.card.ai"), interpretation(a, l));
+        section(lines, l.text("env.card.evidence"), evidence(a, l));
+        section(lines, l.text("env.card.phases"), phases(a, l));
+        section(lines, l.text("env.card.rejected"), rejected(a, l));
+        section(lines, l.text("env.card.limitations"), limitations(a, l));
+        return lines;
+    }
+    private static void section(List<String> lines, String title, List<String> body) {
+        if (!lines.isEmpty()) lines.add("");
+        lines.add("== " + title + " ==");
+        lines.addAll(body);
     }
     public static String availability(Availability availability) { return time(availability.start(), null) + " – " + time(availability.end(), null); }
     private static String one(double value) { return String.format(Locale.ROOT, "%.1f", value); }

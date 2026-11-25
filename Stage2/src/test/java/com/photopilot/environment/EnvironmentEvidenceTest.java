@@ -175,7 +175,10 @@ class EnvironmentEvidenceTest {
     // F + basis: a place looked up in Environment Planning stands for the unchanged label-only requirement location.
     @Test void applicableFreshEvidenceKeepsBeingUsedIncludingALookedUpPlaceForAnUnchangedLocation() {
         var id = session(requirement(day, "Lakeshore airfield", null, Duration.ofHours(3), GOALS));
-        var assessed = PlanFixtures.assess(app, gemini, id);
+        // A different manual label alone cannot establish an alias for downstream planning.
+        PlanFixtures.assess(app, gemini, id);
+        bothReject(id, "env.use.location");
+        var assessed = assessAirfieldAlias(id);
         bothUse(id);
         var environment = planEvidence(id, null).getAsJsonObject("environment");
         assertTrue(environment.has("hourly") && environment.has("daily") && environment.has("sun"), environment::toString);
@@ -185,6 +188,16 @@ class EnvironmentEvidenceTest {
         assertFalse(planEvidence(id, copy).has("environment"));
         assertEquals(Status.UNVERIFIED, EnvironmentEvidence.check(copy, requirement(day, "Lakeshore airfield", null, Duration.ofHours(3), GOALS), day,
             Optional.empty(), Set.of(), Instant.now()).status());
+    }
+
+    private EnvironmentAssessment assessAirfieldAlias(UUID id) {
+        var match = new PlaceCandidate(EnvironmentFixtures.PLACE, "Ontario", "Canada", EnvironmentFixtures.LAT,
+            EnvironmentFixtures.LON, Optional.of(TORONTO)).forQuery("Lakeshore airfield");
+        var fields = EnvironmentFixtures.form(day);
+        com.photopilot.application.EnvironmentForm.apply(fields, match);
+        var request = ok(com.photopilot.application.EnvironmentForm.parse(fields, planning().location(), match));
+        gemini.reply(EnvironmentFixtures.airshowInterpretation(day));
+        return ok(app.facade().assessEnvironment(id, request));
     }
 
     // E
@@ -261,7 +274,7 @@ class EnvironmentEvidenceTest {
     // I + M: the real F03 form/confirmation path, then F06 and F10 through the shared service, the CLI and the GUI presentations.
     @Test void requirementConfirmationThroughTheFormChangesWhatF06AndF10AcceptInGuiAndCli() throws Exception {
         var id = session(requirement(day, "Lakeshore airfield", null, Duration.ofHours(3), GOALS));
-        PlanFixtures.assess(app, gemini, id);
+        assessAirfieldAlias(id);
         bothUse(id);
         var current = ok(app.facade().sessions().open(id)).requirements().orElseThrow();
         var edited = ok(RequirementForm.apply(current.asDraft(), Map.of("location", "Toronto Island Park"), TORONTO));
@@ -321,7 +334,7 @@ class EnvironmentEvidenceTest {
     // L
     @Test void anUnrelatedRequirementChangeKeepsApplicableEvidence() {
         var id = session(requirement(day, "Lakeshore airfield", null, Duration.ofHours(3), GOALS));
-        PlanFixtures.assess(app, gemini, id);
+        assessAirfieldAlias(id);
         confirm(id, requirement(day, "Lakeshore airfield", null, Duration.ofHours(3), List.of("Sharp aircraft in flight", "Formation passes")));
         bothUse(id);
     }

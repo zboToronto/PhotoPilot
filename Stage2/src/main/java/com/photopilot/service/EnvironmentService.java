@@ -91,10 +91,10 @@ public class EnvironmentService {
         if (place == null || place.latitude().isEmpty() || place.longitude().isEmpty()) return Result.failureKey("env.location.error.coordinates");
         if (!place.validate().isSuccess()) return Result.failureKey("env.location.error.invalid");
         if (from == null || to == null) return Result.failureKey("env.error.date");
-        String key = String.format(Locale.ROOT, "%.4f,%.4f,%s,%s", place.latitude().get(), place.longitude().get(), from, to);
+        String key = place.latitude().get() + "," + place.longitude().get() + "," + from + "," + to + "," + place.label();
         synchronized (cache) {
             var cached = cache.get(key);
-            if (cached != null && staleFields(cached).isEmpty()) return Result.success(cached);
+            if (cached != null && staleFields(cached).isEmpty()) { com.photopilot.progress.Progress.stage("env.cached"); return Result.success(cached); }
             cache.remove(key);
         }
         var fetched = provider.fetch(place, from, to);
@@ -154,6 +154,16 @@ public class EnvironmentService {
      * changed. Fails only when no defensible factual basis exists (no data, unverified zone, invalid time).
      */
     public Result<EnvironmentAssessment> assess(ShootRequirement req, EnvironmentRequest request) {
+        return assess(req, request, null);
+    }
+
+    /**
+     * {@link #assess(ShootRequirement, EnvironmentRequest)} that hands the factual snapshot (provider data, resolved
+     * availability, computed phases and notices; no interpretation yet) to {@code onFacts} on the calling thread just
+     * before Gemini is asked, so an interface can show it while the interpretation is pending. The snapshot is not the
+     * result: only the returned assessment is validated and remembered.
+     */
+    public Result<EnvironmentAssessment> assess(ShootRequirement req, EnvironmentRequest request, java.util.function.Consumer<EnvironmentAssessment> onFacts) {
         if (request == null) return Result.failureKey("env.error.time");
         var valid = request.validate();
         if (!valid.isSuccess()) return Result.failure(valid);
@@ -164,15 +174,28 @@ public class EnvironmentService {
         var retrieved = retrieve(request.place(), request.date(), request.endDate());
         if (!retrieved.isSuccess()) return Result.failure(retrieved);
         EnvironmentContext context = retrieved.value().orElseThrow();
+        com.photopilot.progress.Progress.validating("env.zoneCheck");
         var notices = new ArrayList<>(context.notices());
+        if (request.accepted().filter(PlaceCandidate::broaderArea).isPresent()) notices.add(LocalizedMessage.of("env.resolve.broader"));
+        if (request.aiLocation()) notices.add(LocalizedMessage.of("env.resolve.limitation"));
         ZoneId zone;
         if (context.zone().isPresent()) {
             zone = context.zone().get();
-            request.zoneHint().filter(hint -> !hint.getRules().equals(zone.getRules()))
-                .ifPresent(hint -> notices.add(LocalizedMessage.of("env.notice.zoneMismatch", hint.getId(), zone.getId())));
+            if (request.zoneEntered() || !request.aiLocation()) {
+                request.zoneHint().filter(hint -> !hint.getRules().equals(zone.getRules())).ifPresent(hint -> notices.add(
+                    LocalizedMessage.of(request.zoneEntered() ? "env.notice.zoneMismatchEntered" : "env.notice.zoneMismatch", hint.getId(), zone.getId())));
+            }
+            request.accepted().filter(PlaceCandidate::estimated).flatMap(PlaceCandidate::zone)
+                .filter(hint -> !hint.getRules().equals(zone.getRules()))
+                .ifPresent(hint -> notices.add(LocalizedMessage.of("env.resolve.zoneMismatch", hint.getId(), zone.getId())));
         } else if (request.zoneHint().isPresent()) {
             zone = request.zoneHint().get();
-            notices.add(LocalizedMessage.of("env.notice.zoneFromLookup", zone.getId()));
+            // C16: a zone the user entered is used only if it is plausible for the coordinates; its source is stated.
+            if (request.zoneEntered() || request.aiLocation()) {
+                var implausible = implausibleZone(zone, request.place().longitude().orElseThrow(), request.date());
+                if (implausible.isPresent()) return Result.failureKey("env.error.zoneImplausible", zone.getId(), implausible.get());
+            }
+            notices.add(LocalizedMessage.of(request.zoneEntered() ? "env.notice.zoneFromUser" : request.aiLocation() ? "env.resolve.zoneAi" : "env.notice.zoneFromLookup", zone.getId()));
         } else return Result.failureKey("env.error.zone");
 
         Instant now = clock.instant();
@@ -191,6 +214,7 @@ public class EnvironmentService {
         Set<String> stale = staleFields(context);
         if (!stale.isEmpty()) notices.add(LocalizedMessage.of("env.notice.stale", String.join(", ", stale)));
         double lat = request.place().latitude().get(), lon = request.place().longitude().get();
+        com.photopilot.progress.Progress.stage("env.solar");
         List<LightPhase> phases = SolarCalculator.phases(lat, lon, zone, request.date(), request.endDate());
         modelCheck(context, lat, lon, zone, notices);
         var hours = context.hours(availability.start().toInstant(), availability.end().toInstant());
@@ -198,18 +222,67 @@ public class EnvironmentService {
 
         var base = new EnvironmentAssessment(context, request, subject, Optional.of(availability), phases, List.of(), List.of(),
             Optional.empty(), notices, stale, now);
-        boolean sunKnown = context.sunEvent(request.date(), "sunrise").isPresent() || context.sunEvent(request.date(), "sunset").isPresent();
-        if (hours.isEmpty() && !sunKnown) {
+        if (!sufficient(base)) {
             return validator.checkTiming(base.withNotices(List.of(LocalizedMessage.of("env.notice.insufficient"))));
         }
+        if (onFacts != null) onFacts.accept(base);
+        return interpret(requirement, base);
+    }
+
+    /** Hourly weather for the availability or sun times for the date: without either, nothing is interpreted. */
+    private static boolean sufficient(EnvironmentAssessment base) {
+        var context = base.context(); var request = base.request().orElseThrow(); var availability = base.availability().orElseThrow();
+        boolean sunKnown = context.sunEvent(request.date(), "sunrise").isPresent() || context.sunEvent(request.date(), "sunset").isPresent();
+        return sunKnown || !context.hours(availability.start().toInstant(), availability.end().toInstant()).isEmpty();
+    }
+
+    /**
+     * The Gemini interpretation of a factual snapshot and the deterministic validation of every proposal. It is the
+     * only step that contacts Gemini; when Gemini fails the snapshot is returned with the reason as a notice.
+     */
+    private Result<EnvironmentAssessment> interpret(ShootRequirement requirement, EnvironmentAssessment base) {
+        ZoneId zone = base.availability().orElseThrow().start().getZone();
         var prompt = new AgentContext(UUID.randomUUID(), List.of("Assess shooting windows for this photography session."),
-            evidence(base, requirement, phases, stale), List.of(), Optional.empty()).withResponseSchema(EnvironmentInterpretation.SCHEMA);
+            evidence(base, requirement, base.lightPhases(), staleFields(base.context())), List.of(), Optional.empty()).withResponseSchema(EnvironmentInterpretation.SCHEMA);
         var reply = agent.run(TASK, prompt, EnvironmentInterpretation.class);
         if (!reply.isSuccess()) {
             var reason = reply.messages().isEmpty() ? LocalizedMessage.of("env.ai.invalid") : reply.messages().getFirst();
+            // The retrieved facts and local estimates are still the result; only the AI interpretation is missing.
+            com.photopilot.progress.Progress.stage("env.factsOnly");
             return validator.checkTiming(base.withNotices(List.of(LocalizedMessage.of("env.notice.aiUnavailable", reason))));
         }
+        com.photopilot.progress.Progress.validating("env.validate");
         return validator.checkTiming(convert(reply.value().orElseThrow(), base, zone));
+    }
+
+    /**
+     * AI-only retry: interprets the factual snapshot of {@code previous} again (same provider data, retrieval times,
+     * resolved availability and computed phases) without contacting any location, weather or sun provider. Refused,
+     * with the reason, when the evidence is no longer fresh, the availability has ended, the snapshot never had enough
+     * evidence to interpret, or it is not an F09 assessment. The interpretation, proposals and AI notices are replaced;
+     * every other notice and {@code assessedAt} (the time the facts were assessed) are kept, and a notice records the
+     * retry. {@code req} must be the confirmed requirement the snapshot was made under (the caller checks this).
+     */
+    public Result<EnvironmentAssessment> reinterpret(ShootRequirement req, EnvironmentAssessment previous) {
+        var refusal = reinterpretRefusal(previous);
+        if (refusal.isPresent()) return Result.failure(refusal.get());
+        var notices = previous.notices().stream().filter(n -> !EnvironmentAnalyzer.AI_NOTICES.contains(n.key())).toList();
+        var base = new EnvironmentAssessment(previous.context(), previous.request().get(), previous.subject(), previous.availability(), previous.lightPhases(),
+            List.of(), List.of(), Optional.empty(), notices, previous.staleFields(), previous.assessedAt());
+        if (!sufficient(base)) return Result.failureKey("env.retry.skipped");
+        ZoneId zone = previous.availability().get().start().getZone();
+        var retried = base.withNotices(List.of(LocalizedMessage.of("env.notice.aiRetried", clock.instant().atZone(zone).toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES).toString(),
+            previous.context().retrievedAt().atZone(zone).toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES).toString())));
+        return interpret(req != null && req.confirmed() ? req : null, retried);
+    }
+
+    /** Why the facts of {@code previous} cannot be interpreted again now (with this service's clock), or empty. */
+    public Optional<LocalizedMessage> reinterpretRefusal(EnvironmentAssessment previous) {
+        if (previous == null || previous.request().isEmpty() || previous.availability().isEmpty()) return Optional.of(LocalizedMessage.of("env.retry.none"));
+        var stale = staleFields(previous.context());
+        if (!stale.isEmpty()) return Optional.of(LocalizedMessage.of("env.retry.stale", String.join(", ", stale)));
+        if (!previous.availability().get().end().toInstant().isAfter(clock.instant())) return Optional.of(LocalizedMessage.of("env.error.availabilityOver"));
+        return Optional.empty();
     }
 
     /** Untrusted reply -> candidate windows (parse failures rejected immediately) and a filtered interpretation. */
@@ -274,21 +347,31 @@ public class EnvironmentService {
         return dropped;
     }
 
-    /** Confirmed F03 values that disagree with the reviewed F09 inputs are reported; F03 itself is never changed. */
+    /**
+     * Confirmed F03 values that disagree with the reviewed F09 inputs are reported; F03 itself is never changed. The
+     * date and the wall-clock start time are compared separately ({@link FeasibilityValidator#requirementConflicts}),
+     * so a different date is never reported as a start time outside the availability.
+     */
     private static void consistency(ShootRequirement requirement, EnvironmentRequest request, Availability availability, List<LocalizedMessage> notices) {
-        requirement.date().filter(date -> !date.equals(request.date()))
-            .ifPresent(date -> notices.add(LocalizedMessage.of("env.notice.dateDiffers", date.toString(), request.date().toString())));
-        requirement.time().ifPresent(time -> {
-            LocalDateTime wanted = time.toLocalDateTime();
-            LocalDateTime from = availability.start().toLocalDateTime(), to = availability.end().toLocalDateTime();
-            if (wanted.isBefore(from) || wanted.isAfter(to))
-                notices.add(LocalizedMessage.of("env.notice.timeOutside", wanted.toLocalTime().toString()));
-        });
-        requirement.duration().filter(d -> d.compareTo(availability.duration()) > 0)
-            .ifPresent(d -> notices.add(LocalizedMessage.of("env.notice.durationLonger", d.toMinutes(), availability.duration().toMinutes())));
+        notices.addAll(FeasibilityValidator.requirementConflicts(requirement, request.date(), availability.start().toLocalTime(),
+            availability.end().toLocalTime(), availability.duration()));
     }
 
     /** Independent check of provider sunrise/sunset against the solar model; a large difference is reported. */
+    /**
+     * Largest accepted distance between a zone's UTC offset on the date and the coordinates' mean solar time
+     * (longitude / 15 h). Real zones stay within about 3 h of it (western China, Spain, Argentina); a wrong zone for
+     * the place, such as Asia/Tokyo for Toronto, is many hours off.
+     */
+    public static final double MAX_SOLAR_DIFFERENCE_HOURS = 3.5;
+    /** The rounded difference in hours when an entered zone cannot be the coordinates' local time, else empty. */
+    public static Optional<String> implausibleZone(ZoneId zone, double longitude, LocalDate date) {
+        double offset = zone.getRules().getOffset(date.atTime(12, 0).atZone(zone).toInstant()).getTotalSeconds() / 3600.0;
+        double difference = Math.abs(offset - longitude / 15.0) % 24;
+        difference = Math.min(difference, 24 - difference);   // across the date line (Pacific/Kiritimati is UTC+14 at 157° W)
+        return difference > MAX_SOLAR_DIFFERENCE_HOURS ? Optional.of(String.format(java.util.Locale.ROOT, "%.0f", difference)) : Optional.empty();
+    }
+
     private static void modelCheck(EnvironmentContext context, double lat, double lon, ZoneId zone, List<LocalizedMessage> notices) {
         LocalDate day = context.date().orElse(null);
         if (day == null) return;
@@ -337,7 +420,9 @@ public class EnvironmentService {
         }
         root.add("shoot", shoot);
         var where = new JsonObject();
-        where.addProperty("label", request.place().label());
+        if (!DestinationQuery.privateInput(request.place().label())) where.addProperty("label", request.place().label());
+        where.addProperty("source", request.locationSource().name());
+        request.accepted().ifPresent(c -> where.addProperty("geographicScope", c.scope().name()));
         where.addProperty("timeZone", zone.getId());
         root.add("location", where);
         root.addProperty("date", request.date().toString());

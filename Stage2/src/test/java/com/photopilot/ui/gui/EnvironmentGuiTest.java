@@ -58,18 +58,20 @@ class EnvironmentGuiTest {
 
             text("env-location", "Toronto"); text("env-from", "13:00"); text("env-until", "19:00");
             click("env-assess");
-            assertTrue(fx(() -> pane.feedbackText().contains("Latitude and longitude are required")), () -> pane.feedbackText());
-            assertEquals("Toronto", field("env-location"), "input kept after a validation failure");
-            click("env-find");
             assertTrue(fx(() -> pane.feedbackText().contains("3 matching places found")));
+            assertTrue(gemini.requests.isEmpty(), "database matches skip Gemini location resolution");
+            assertEquals("Toronto", field("env-location"));
+            click("env-find");
             @SuppressWarnings("unchecked") var places = fx(() -> (ComboBox<PlaceCandidate>) pane.lookup("#env-places"));
             assertEquals(3, fx(() -> places.getItems().size()));
             assertEquals("", field("env-latitude"), "an ambiguous name is not resolved until the user chooses");
             action(() -> places.setValue(places.getItems().getFirst()));
+            assertEquals("", field("env-latitude"), "preview awaits confirmation");
+            click("env-confirm");
             assertEquals("43.70643", field("env-latitude"));
-            assertTrue(fx(() -> pane.feedbackText().contains("approximate")));
-            click("env-device");
-            assertTrue(fx(() -> pane.feedbackText().contains("not supported on this computer")), "no consent prompt for an unsupported device");
+            assertTrue(label("env-location-status").contains("Open-Meteo"));
+            assertNull(fx(() -> pane.lookup("#env-device")), "an unsupported device never prompts for location");
+            assertFalse(fx(() -> ((TitledPane) pane.lookup("#env-advanced")).isExpanded()));
 
             var values = EnvironmentFixtures.form(day);
             for (var entry : values.entrySet()) text("env-" + entry.getKey(), entry.getValue());
@@ -109,5 +111,71 @@ class EnvironmentGuiTest {
             snapshot("f09-results-narrow-zh");
             action(() -> app.localization().useLanguage("en"));
         } finally { action(() -> { if (stage != null) stage.close(); }); executor.shutdownNow(); executor.awaitTermination(10, TimeUnit.SECONDS); }
+    }
+
+    @Test void fallbackReviewRecoveryAndLateLookupUseOnlyTheCurrentSessionAndDestination() throws Exception {
+        var executor = Executors.newSingleThreadExecutor();
+        var day = EnvironmentFixtures.day();
+        try (var gemini = new FakeGemini(); var providers = new FakeEnvironmentProviders();
+             var app = new ApplicationBootstrap(providers.environment(gemini.environment(root)))) {
+            var first = app.facade().sessions().create("First", day).value().orElseThrow();
+            var second = app.facade().sessions().create("Second", day).value().orElseThrow();
+            try { Platform.startup(() -> Platform.setImplicitExit(false)); } catch (IllegalStateException started) { }
+            action(() -> {
+                workspace = new PhotoPilotWorkspace(app.localization());
+                pane = new EnvironmentPane(app.facade(), executor, app.localization()); workspace.connectEnvironment(pane);
+                stage = new Stage(); var scene = new Scene(workspace, 1060, 760);
+                scene.getStylesheets().add(PhotoPilotGUI.class.getResource("photopilot.css").toExternalForm());
+                ThemeManager.get().style(scene.getStylesheets()); stage.setScene(scene); stage.show();
+                workspace.selectEnvironment(); workspace.applyCss(); workspace.layout();
+            }); ready();
+            @SuppressWarnings("unchecked") var sessions = fx(() -> (ComboBox<com.photopilot.model.PhotographySession>)pane.lookup("#env-session"));
+            action(() -> sessions.setValue(first));
+            text("env-location", "Harbour Park in Westport"); text("env-from","13:00"); text("env-until","16:00"); text("env-activity","Landscape");
+            String park = com.photopilot.environment.HybridLocationTest.resolved(com.photopilot.environment.HybridLocationTest.PARK);
+            gemini.reply(park);
+            click("env-assess");
+            assertTrue(label("env-location-status").contains("geographically unverified"));
+            assertTrue(label("env-location-status").contains("43.63"));
+            assertEquals("",field("env-latitude")); assertEquals(0,providers.count("/v1/forecast"));
+            assertNull(fx(() -> pane.assessment()));
+            click("env-change");
+            assertEquals(0,providers.count("/v1/forecast"),"rejecting an estimate cannot start an assessment");
+            gemini.reply(park); gemini.status(503,"");
+            click("env-assess"); click("env-confirm");
+            assertTrue(label("env-summary").contains("AI-estimated shooting location"));
+            assertTrue(label("env-limitations").contains("exact site"));
+            assertEquals(43.62753871, fx(() -> pane.assessment().request().orElseThrow().place().latitude().orElseThrow()));
+            assertTrue(app.facade().planning().environmentFor(first.id()).isPresent());
+            text("env-location","Unknown destination");
+            assertEquals("",field("env-longitude")); assertNull(fx(() -> pane.assessment()));
+            assertTrue(app.facade().planning().environmentFor(first.id()).isEmpty());
+            gemini.reply("{\"status\":\"UNRESOLVED\",\"candidates\":[]}");
+            click("env-find"); assertTrue(label("env-location-status").contains("manually"));
+            action(() -> ((TitledPane)pane.lookup("#env-advanced")).setExpanded(true));
+            text("env-latitude","95"); text("env-longitude","-79.4"); click("env-manual");
+            assertTrue(fx(() -> pane.feedbackText().contains("Latitude must be between")));
+            text("env-latitude","43.6"); click("env-manual"); gemini.status(503,""); click("env-assess");
+            assertTrue(label("env-summary").contains("User-provided coordinates"));
+            var previousMode = ThemeManager.get().mode();
+            try {
+                action(() -> { ThemeManager.get().select(Theme.Mode.DARK); app.localization().useLanguage("zh-CN"); });
+                assertTrue(label("env-summary").contains("用户提供的坐标")); snapshot("f09-manual-dark-zh");
+            } finally { action(() -> { ThemeManager.get().select(previousMode); app.localization().useLanguage("en"); }); }
+            var started = new CountDownLatch(1); var release = new CountDownLatch(1);
+            providers.geocode = q -> {
+                started.countDown();
+                try { release.await(5,TimeUnit.SECONDS); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+                return FakeEnvironmentProviders.defaultGeocode(q);
+            };
+            text("env-location", "Toronto");
+            action(() -> ((Button)pane.lookup("#env-find")).fire());
+            assertTrue(started.await(4,TimeUnit.SECONDS));
+            action(() -> { sessions.setValue(second); ((TextField)pane.lookup("#env-location")).setText("New destination"); });
+            release.countDown(); ready();
+            assertEquals("New destination",field("env-location")); assertEquals("",field("env-latitude"));
+            assertTrue(fx(() -> ((ComboBox<?>)pane.lookup("#env-places")).getItems().isEmpty()));
+            assertTrue(app.facade().planning().environmentFor(second.id()).isEmpty());
+        } finally { action(() -> { if (pane != null) pane.dispose(); if (stage != null) stage.close(); }); executor.shutdownNow(); }
     }
 }

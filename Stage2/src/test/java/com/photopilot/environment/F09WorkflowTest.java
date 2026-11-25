@@ -56,6 +56,9 @@ class F09WorkflowTest {
         assertEquals(day.toString(), values.get("date"), "prefilled from the confirmed requirement");
         assertEquals("", values.get("latitude"), "no coordinates are invented for a session without them");
         values.putAll(EnvironmentFixtures.form(day));
+        assertTrue(EnvironmentForm.parse(values, app.facade().planning().location(), places.getFirst()).hasError("env.resolve.changed"),
+            "the fixture's edited longitude cannot inherit database provenance");
+        EnvironmentForm.apply(values, places.getFirst());
         var request = ok(EnvironmentForm.parse(values, app.facade().planning().location(), places.getFirst()));
         assertTrue(request.place().approximate(), "a chosen gazetteer point stays labelled approximate");
         assertEquals(places.getFirst().zone(), request.zoneHint());
@@ -125,6 +128,13 @@ class F09WorkflowTest {
         gemini.reply(EnvironmentFixtures.airshowInterpretation(day));
         bytes.reset();
         assertEquals(0, cli.execute("env assess " + id + args));
+        String overview = text(bytes);
+        // The default output is the structured overview; the complete earlier report is the technical section.
+        assertTrue(overview.contains("PHOTOPILOT — ENVIRONMENTAL ASSESSMENT") && overview.contains("WEATHER OVERVIEW") && overview.contains("NATURAL LIGHT")
+            && overview.contains("SHOOTING WINDOW ANALYSIS") && overview.contains("SERVICE STATUS") && overview.contains("Sunset:"), overview);
+        assertFalse(overview.contains("Hourly forecast for your availability"), "the hourly evidence dump is no longer the default output");
+        bytes.reset();
+        assertEquals(0, cli.execute("env report technical"));
         String output = text(bytes);
         // Same inputs through the shared Facade (cached, identical evidence) and the same Gemini reply.
         gemini.reply(EnvironmentFixtures.airshowInterpretation(day));
@@ -132,6 +142,7 @@ class F09WorkflowTest {
         values.put("activity", ""); values.put("goals", "");
         var shared = ok(app.facade().assessEnvironment(id, ok(EnvironmentForm.parse(values, app.facade().planning().location(), Optional.empty()))));
         assertEquals(2, shared.windows().size());
+        for (var line : EnvironmentPresentation.shootingContext(shared, localization)) assertTrue(overview.contains(line), line);
         for (var line : EnvironmentPresentation.summary(shared, localization)) assertTrue(output.contains(line), line);
         for (var card : EnvironmentPresentation.windows(shared, localization)) for (var line : card) assertTrue(output.contains(line), line);
         for (var line : EnvironmentPresentation.evidence(shared, localization)) assertTrue(output.contains(line), line);
@@ -153,7 +164,10 @@ class F09WorkflowTest {
         LocalizationService chinese = app.localization(); chinese.useLanguage("zh-CN");
         bytes.reset();
         gemini.status(503, "");
-        assertEquals(0, cli.execute("env again"));
+        assertEquals(2, cli.execute("env again"), "an invalid selection cannot replay the previous location");
+        assertEquals(0, cli.execute("env assess " + id + " place=1 from=" + from + " until=" + until));
+        assertTrue(text(bytes).contains("拍摄背景") && text(bytes).contains("服务状态"), text(bytes));
+        assertEquals(0, cli.execute("env report technical"));
         assertTrue(text(bytes).contains("已核实的数据提供方数据"), text(bytes));
         chinese.useLanguage("en");
     }

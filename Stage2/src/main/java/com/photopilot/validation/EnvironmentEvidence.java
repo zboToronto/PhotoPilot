@@ -56,9 +56,8 @@ public record EnvironmentEvidence(Status status, Optional<EnvironmentAssessment>
      * Checks {@code assessment} against {@code requirement} (shot on {@code shootingDate}, a local date) with {@code stale}
      * evidence groups evaluated at {@code now}. Order: recorded context, the assessment's own zone, the requirement's
      * start-time zone, date, location, shooting time. Location rules: a requirement without location does not constrain
-     * the reviewed F09 place; coordinates match only at the same 4-decimal point the F09 retrieval cache uses; labels match
-     * only when equal ignoring case and spacing, or when the requirement location is unchanged since this process made the
-     * assessment; anything else is a mismatch (location changed since) or unverified (no record of how it was made).
+     * the reviewed F09 place; coordinates match at four decimal places. A label can match directly or through a confirmed lookup
+     * linked to the requirement that was active at assessment time; anything else is a mismatch (location changed since) or unverified (no record of how it was made).
      */
     public static EnvironmentEvidence check(EnvironmentAssessment assessment, ShootRequirement requirement, LocalDate shootingDate,
             Optional<Basis> basis, Set<String> stale, Instant now) {
@@ -74,15 +73,53 @@ public record EnvironmentEvidence(Status status, Optional<EnvironmentAssessment>
         var availability = assessment.availability();
         if (request.isEmpty() || place.isEmpty() || date.isEmpty() || zone.isEmpty() || availability.isEmpty())
             return rejected(Status.UNVERIFIED, LocalizedMessage.of("env.use.unverified"));
-        var available = availability.get();
-        if (!available.start().getZone().getRules().equals(zone.get().getRules()))
-            return rejected(Status.ZONE, LocalizedMessage.of("env.use.zone", zone.get().getId(), available.start().getZone().getId()));
+        var then = basis.map(b -> new Then(b.requirement().flatMap(ShootRequirement::location), b.requirement().map(ShootRequirement::timeWindow)));
+        // An unchanged requirement cannot make an explicitly different shooting site its alias.
+        var wanted = requirement.location().filter(p -> p.latitude().isEmpty()).map(GeoLocation::label);
+        if (wanted.isPresent() && !sameLabel(wanted.get(), place.get().label())) {
+            boolean linked = request.get().accepted().filter(c -> sameLabel(wanted.get(), c.query()) || sameLabel(wanted.get(), c.name())).isPresent();
+            if (!linked) return basis.isEmpty()
+                ? rejected(Status.UNVERIFIED, LocalizedMessage.of("env.use.locationUnverified", place.get().label(), wanted.get()))
+                : rejected(Status.LOCATION, LocalizedMessage.of("env.use.location", place.get().label(), wanted.get()));
+        }
+        var verdict = rules(place.get(), date.get(), zone.get(), availability.get(), requirement, shootingDate, then);
+        if (verdict.status() != Status.APPLICABLE && verdict.status() != Status.PARTIAL) return rejected(verdict.status(), verdict.notes().getFirst());
+        return new EnvironmentEvidence(verdict.status(), Optional.of(fresh(assessment, place.get(), date.get(), stale, now)), stale, verdict.notes());
+    }
+
+    /**
+     * Whether a recorded check ({@link EnvironmentCheck}, workflow milestone 04) still applies to the session's current
+     * confirmed requirement shot on {@code shootingDate}, by the same rules as {@link #check} (zone, date, location,
+     * shooting time, unchanged label-only location and free-text timing against what was confirmed when it was
+     * recorded). Without a confirmed requirement only the date is compared. Freshness of provider data is not judged
+     * here: it ages by the hour, and F06/F10 re-check it at each use.
+     */
+    public static EnvironmentEvidence applies(EnvironmentCheck recorded, ShootRequirement requirement, LocalDate shootingDate) {
+        Objects.requireNonNull(recorded, "recorded"); Objects.requireNonNull(shootingDate, "shootingDate");
+        if (requirement == null) return recorded.date().equals(shootingDate) ? new EnvironmentEvidence(Status.APPLICABLE, Optional.empty(), Set.of(), List.of())
+            : rejected(Status.DATE, LocalizedMessage.of("env.use.date", recorded.date().toString(), shootingDate.toString()));
+        var available = new EnvironmentAssessment.Availability(recorded.availableFrom(), recorded.availableUntil());
+        var then = recorded.madeUnderRequirement() ? new Then(recorded.basisLocation(), recorded.basisTimeWindow()) : new Then(Optional.empty(), Optional.empty());
+        var verdict = rules(recorded.place(), recorded.date(), recorded.availableFrom().getZone(), available, requirement, shootingDate, Optional.of(then));
+        if (verdict.status() != Status.APPLICABLE && verdict.status() != Status.PARTIAL) return rejected(verdict.status(), verdict.notes().getFirst());
+        return new EnvironmentEvidence(verdict.status(), Optional.empty(), Set.of(), verdict.notes());
+    }
+
+    /** The confirmed location and time-window text in force when an assessment was made (empty: none was confirmed). */
+    private record Then(Optional<GeoLocation> location, Optional<String> timeWindow) { }
+    private record Verdict(Status status, List<LocalizedMessage> notes) { }
+
+    /** The shared rules once the recorded context is complete; a rejection carries its one reason. */
+    private static Verdict rules(GeoLocation place, LocalDate date, java.time.ZoneId zone, EnvironmentAssessment.Availability available,
+            ShootRequirement requirement, LocalDate shootingDate, Optional<Then> basis) {
+        if (!available.start().getZone().getRules().equals(zone.getRules()))
+            return verdict(Status.ZONE, LocalizedMessage.of("env.use.zone", zone.getId(), available.start().getZone().getId()));
         var start = requirement.time();
-        if (start.isPresent() && !zone.get().getRules().getOffset(start.get().toInstant()).equals(start.get().getOffset()))
-            return rejected(Status.ZONE, LocalizedMessage.of("env.use.zone", zone.get().getId(), start.get().getZone().getId()));
-        if (!date.get().equals(shootingDate))
-            return rejected(Status.DATE, LocalizedMessage.of("env.use.date", date.get().toString(), shootingDate.toString()));
-        var location = location(place.get(), requirement, basis);
+        if (start.isPresent() && !zone.getRules().getOffset(start.get().toInstant()).equals(start.get().getOffset()))
+            return verdict(Status.ZONE, LocalizedMessage.of("env.use.zone", zone.getId(), start.get().getZone().getId()));
+        if (!date.equals(shootingDate))
+            return verdict(Status.DATE, LocalizedMessage.of("env.use.date", date.toString(), shootingDate.toString()));
+        var location = location(place, requirement, basis);
         if (location.isPresent()) return location.get();
 
         var notes = new ArrayList<LocalizedMessage>();
@@ -90,39 +127,39 @@ public record EnvironmentEvidence(Status status, Optional<EnvironmentAssessment>
         if (start.isPresent()) {
             Instant from = start.get().toInstant(), to = requirement.duration().map(from::plus).orElse(from);
             Instant open = available.start().toInstant(), close = available.end().toInstant();
-            String wanted = span(start.get().withZoneSameInstant(zone.get()), to.atZone(zone.get())), assessed = span(available.start(), available.end());
+            String wanted = span(start.get().withZoneSameInstant(zone), to.atZone(zone)), assessed = span(available.start(), available.end());
             boolean covered = !from.isBefore(open) && !to.isAfter(close) && from.isBefore(close);
             boolean overlaps = from.isBefore(close) && (to.isAfter(open) || !from.isBefore(open));
-            if (!overlaps) return rejected(Status.WINDOW, LocalizedMessage.of("env.use.window", wanted, assessed));
+            if (!overlaps) return verdict(Status.WINDOW, LocalizedMessage.of("env.use.window", wanted, assessed));
             if (!covered) { status = Status.PARTIAL; notes.add(LocalizedMessage.of("env.use.partial", wanted, assessed)); }
-        } else if (basis.flatMap(Basis::requirement).filter(then -> !sameLabel(then.timeWindow(), requirement.timeWindow())).isPresent()) {
+        } else if (basis.flatMap(Then::timeWindow).filter(then -> !sameLabel(then, requirement.timeWindow())).isPresent()) {
             // A free-text timing preference cannot be checked against the availability; a changed one needs a new review.
-            String then = basis.get().requirement().orElseThrow().timeWindow();
-            return rejected(Status.WINDOW, LocalizedMessage.of("env.use.timingChanged", then, requirement.timeWindow()));
+            String then = basis.flatMap(Then::timeWindow).orElseThrow();
+            return verdict(Status.WINDOW, LocalizedMessage.of("env.use.timingChanged", then, requirement.timeWindow()));
         }
-        return new EnvironmentEvidence(status, Optional.of(fresh(assessment, place.get(), date.get(), stale, now)), stale, notes);
+        return new Verdict(status, notes);
     }
+    private static Verdict verdict(Status status, LocalizedMessage reason) { return new Verdict(status, List.of(reason)); }
 
     /** Same label ignoring case and spacing; never a similarity guess. */
     public static boolean sameLabel(String first, String second) { return normalized(first).equals(normalized(second)); }
 
-    private static Optional<EnvironmentEvidence> location(GeoLocation assessed, ShootRequirement requirement, Optional<Basis> basis) {
+    private static Optional<Verdict> location(GeoLocation assessed, ShootRequirement requirement, Optional<Then> basis) {
         var wanted = requirement.location();
         if (wanted.isEmpty()) return Optional.empty();
         var confirmed = wanted.get();
-        var mismatch = Optional.of(rejected(Status.LOCATION, LocalizedMessage.of("env.use.location", assessed.label(), confirmed.label())));
+        var mismatch = Optional.of(verdict(Status.LOCATION, LocalizedMessage.of("env.use.location", assessed.label(), confirmed.label())));
         if (confirmed.latitude().isPresent() && confirmed.longitude().isPresent()) return samePoint(confirmed, assessed) ? Optional.empty() : mismatch;
         if (sameLabel(confirmed.label(), assessed.label())) return Optional.empty();
-        if (basis.isEmpty()) return Optional.of(rejected(Status.UNVERIFIED, LocalizedMessage.of("env.use.locationUnverified", assessed.label(), confirmed.label())));
-        var then = basis.get().requirement().flatMap(ShootRequirement::location);
+        if (basis.isEmpty()) return Optional.of(verdict(Status.UNVERIFIED, LocalizedMessage.of("env.use.locationUnverified", assessed.label(), confirmed.label())));
+        var then = basis.get().location();
         return then.isPresent() && sameLocation(then.get(), confirmed) ? Optional.empty() : mismatch;
     }
     private static boolean sameLocation(GeoLocation first, GeoLocation second) {
         if (!sameLabel(first.label(), second.label()) || first.latitude().isPresent() != second.latitude().isPresent()) return false;
         return first.latitude().isEmpty() || samePoint(first, second);
     }
-    /** Same point at the 4-decimal precision (about 11 m) that identifies a place in the F09 retrieval cache. */
-    /** One point at the 4-decimal precision F09 also uses to identify a place (shared with the F02 place check). */
+    /** Four-decimal point comparison for requirement evidence and the existing F02 place check. */
     static boolean samePoint(GeoLocation first, GeoLocation second) {
         return String.format(Locale.ROOT, "%.4f,%.4f", first.latitude().orElseThrow(), first.longitude().orElseThrow())
             .equals(String.format(Locale.ROOT, "%.4f,%.4f", second.latitude().orElseThrow(), second.longitude().orElseThrow()));
