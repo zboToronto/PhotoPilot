@@ -65,10 +65,12 @@ final class GearImportPane extends VBox {
     private Point2D dragStart;
     private Rectangle dragShape;
     private boolean busy, disposed;
+    private final OperationRunner tracked;
 
     GearImportPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization, ImagePrivacyBoundary privacy, Runnable openInventory) {
         super(20); this.app = app; this.operations = operations; this.localization = localization; this.privacy = privacy; this.openInventory = openInventory;
         texts = new FxLocalizer(this, localization); getStyleClass().addAll("inventory-content", "import-content");
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
         kind.getItems().setAll(ImageReview.Kind.values()); kind.setValue(ImageReview.Kind.PHOTO); kind.setId("import-kind");
         texts.choices(kind, value -> localization.text("import.kind." + value.name())); texts.text(kind.accessibleTextProperty(), "import.kind");
         path.setId("import-path"); texts.inputMenu(path); texts.text(path.promptTextProperty(), "import.pathPrompt"); texts.text(path.accessibleTextProperty(), "import.path");
@@ -123,7 +125,7 @@ final class GearImportPane extends VBox {
         Button cancel = button("import.cancel", "import-cancel", this::cancel, false);
         Button manual = button("import.manual", "import-manual", () -> { reset(); openInventory.run(); }, false);
         for (var box : List.of(selectBox, privacyBox, approveBox, reviewBox, resultBox, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("import.feedback", "section-title"), feedback, new FlowPane(12, 10, manual));
+        feedbackBox.getChildren().addAll(texts.label("import.feedback", "section-title"), feedback, tracked.view(), new FlowPane(12, 10, manual));
         var cancelRow = new FlowPane(12, 10, cancel);
         controls.getChildren().addAll(selectBox, privacyBox, approveBox, reviewBox, cancelRow);
         cancelRow.visibleProperty().bind(Bindings.createBooleanBinding(() -> privacyBox.isVisible() || reviewBox.isVisible(), privacyBox.visibleProperty(), reviewBox.visibleProperty()));
@@ -135,7 +137,8 @@ final class GearImportPane extends VBox {
     }
 
     void activate(boolean active) { }
-    void dispose() { disposed = true; release(); texts.close(); }
+    void dispose() { disposed = true; release(); texts.close(); tracked.view().dispose(); }
+    OperationRunner tracked() { return tracked; }
     boolean dirty() { return review != null || draft != null; }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
@@ -226,7 +229,9 @@ final class GearImportPane extends VBox {
         if (copy == null || !approve.isSelected()) { message(() -> localization.text("import.error.approvalRequired")); return; }
         var reviewed = copy;
         message(() -> localization.text("import.recognizing"));
-        run(() -> {
+        // The privacy approval happens inside the operation, before IMPORT_RECOGNIZE's first stage: nothing is sent unless
+        // the reviewed, unchanged copy is approved. A cancelled or failed request releases the approved copy (finally).
+        run(OperationKind.IMPORT_RECOGNIZE, () -> {
             var approved = privacy.approveRedacted(reviewed, true);
             if (!approved.isSuccess()) return Result.<GearImportDraft>failure(approved);
             SanitizedImage image = approved.value().orElseThrow();
@@ -255,7 +260,7 @@ final class GearImportPane extends VBox {
         if (!applyInputs()) return;
         var current = draft;
         message(() -> localization.text("import.verifying"));
-        run(() -> app.inventory().verify(current), verified -> { open(verified); message(() -> localization.text("import.verified")); }, null);
+        run(OperationKind.IMPORT_VERIFY, () -> app.inventory().verify(current), verified -> { open(verified); message(() -> localization.text("import.verified")); }, null);
     }
     /** Applies the visible inputs and category to the draft; false (with feedback) when an edit is rejected. */
     private boolean applyInputs() {
@@ -284,7 +289,7 @@ final class GearImportPane extends VBox {
         var decision = new GearImportDraft.Decision(acceptUnverified.isSelected(), separate, increase);
         var current = draft; boolean increasing = increase.isPresent();
         message(() -> localization.text("import.saving"));
-        run(() -> app.inventory().confirm(current, decision), saved -> {
+        run(OperationKind.IMPORT_CONFIRM, () -> app.inventory().confirm(current, decision), saved -> {
             texts.bind(result.textProperty(), () -> increasing ? localization.text("import.savedQuantity", saved.brand(), saved.model(), saved.quantity(), saved.id())
                 : localization.text("import.saved", saved.brand(), saved.model(), saved.quantity(), saved.id()));
             release(); draft = null; hide(reviewBox); selectBox.setDisable(false); path.clear();
@@ -298,7 +303,7 @@ final class GearImportPane extends VBox {
         });
     }
     private void cancel() {
-        release(); message(() -> localization.text("import.cancelled"));
+        release(); tracked.view().clear(); message(() -> localization.text("import.cancelled"));
     }
     private void reset() { release(); hide(resultBox); }
     /** Releases all temporary image data and returns to the first step; the original file is never touched. */
@@ -400,6 +405,20 @@ final class GearImportPane extends VBox {
     private Button button(String key, String id, Runnable action, boolean primary) {
         Button button = texts.button(key); button.setId(id); button.getStyleClass().add(primary ? "primary-button" : "secondary-button");
         button.setOnAction(e -> action.run()); return button;
+    }
+    /**
+     * A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. A
+     * cancellation goes through the failure path, which resets the approval state (an approved copy is single-use).
+     */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true);
+        Consumer<Result<T>> failed = outcome -> { if (failure != null) failure.accept(outcome); else message(() -> String.join(" ", outcome.errors(localization))); };
+        tracked.run(kind, operation, outcome -> {
+            if (disposed) return;
+            busy = false; controls.setDisable(false);
+            if (outcome.isSuccess()) success.accept(outcome.value().orElseThrow()); else failed.accept(outcome);
+        }, () -> { if (disposed) return; busy = false; controls.setDisable(false); failed.accept(Result.failureKey("progress.cancelled")); });
     }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;

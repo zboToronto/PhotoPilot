@@ -4,7 +4,7 @@ Verified on 2026-10-26, America/Toronto, Windows with JDK 21. F05 is implemented
 
 ## Usage and scope
 
-The existing **Equipment > Gear Inventory** page supports adding, browsing, searching, filtering by type, editing and removing Camera, Lens, Filter, Battery and StorageMedia records. Add/edit forms contain every planning specification in those existing domain classes. Quantities are positive integers; numeric details must be finite and within their valid ranges; lens minimum focal length cannot exceed its maximum. Blank optional fields remain unknown. Manual entry does not claim externally verified specifications.
+The existing **Equipment management > Gear Inventory** page supports adding, browsing, searching, filtering by type, editing and removing Camera, Lens, Filter, Battery and StorageMedia records. Add/edit forms contain every planning specification in those existing domain classes. Quantities are positive integers; numeric details must be finite and within their valid ranges; lens minimum focal length cannot exceed its maximum. Blank optional fields remain unknown. Manual entry does not claim externally verified specifications.
 
 Select a row and choose Edit selected or Remove selected. Save equipment confirms the reviewed form. Removal has an inline confirmation card. A possible duplicate (same type, brand and model, case-insensitive) is rejected until reviewed and explicitly accepted; a duplicate UUID is always rejected by add. Editing or deleting an item changed by another interface fails with refresh/review guidance. Cancel does not mutate storage. Changing a previously verified specification clears that field's verification/source; changing model identity clears prior model evidence.
 
@@ -23,7 +23,7 @@ gear remove <UUID returned by add>
 
 ### Shutter count checker (2026-11-09)
 
-A second card, **Gear tools > Shutter Count Check** (器材工具 > 快门次数检测), sits directly below the inventory card on the same page, and the CLI has `shutter models` / `shutter check`. Both use `ShutterCountService` through `PhotoPilotFacade.shutterCount()`. It reads a photo's camera counter with the bundled official ExifTool 13.62 (Perl included; no ExifTool or Perl installation needed). It is read-only and local: photos are never modified, copied, uploaded or stored, and no result is persisted.
+Open **Photography tools > Camera Shutter Count** (摄影工具 > 相机快门次数) in the GUI. In the CLI, use `shutter models` to search the catalog and `shutter check` to read a photo. Both use `ShutterCountService` through `PhotoPilotFacade.shutterCount()`. It reads a photo's camera counter with the bundled official ExifTool 13.62 (Perl included; no ExifTool or Perl installation needed). It is read-only and local: photos are never modified, copied, uploaded or stored, and no result is persisted.
 
 **No manual camera selection (2026-11-10).** The card has no brand, series, model or search controls; the camera always comes from the photo (`ShutterCountService` → `CameraModelCatalog.detect`). After the description, a blue **Supported models** (支持机型查询) link opens `SupportedModelsDialog`, a lookup-only modal in the application dialog style (`AppDialogs`).
 - It lists the existing catalog one brand at a time (Sony/Nikon segmented control), grouped by series, each model with its support level (evidence as a tooltip).
@@ -40,7 +40,7 @@ A second card, **Gear tools > Shutter Count Check** (器材工具 > 快门次数
 - **Requests.** Requests are serialized by a lock. Arguments containing line breaks or protocol options are refused. The timeout is 30 s (`PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS`, 5–300).
 - **Failures.** On a timeout or crash the process tree is stopped and reported; the next request starts a fresh process. A pipe found broken when sending is restarted and retried once.
 - **Shutdown.** `close()` (user switch or application exit, via `ProfileManager` → `ApplicationBootstrap.close`) sends `-stay_open False` and stops the process if it has not exited after 3 s.
-- **Locating the bundle.** With classes on disk (`javafx:run`, tests), the bundle is used in place after checking every manifest entry's size. From a JAR it is extracted once to `%LOCALAPPDATA%\PhotoPilot\exiftool\13.62-<manifest hash>`, every file is SHA-256-verified, and the folder is published with an atomic move. Other systems report the feature as unavailable (the bundle is the Windows build).
+- **Locating the bundle.** With classes on disk (`javafx:run`, tests), the bundle is used in place after checking every manifest entry's size. From a JAR it is extracted once to `%LOCALAPPDATA%\PhotoPilot\exiftool\13.62-<manifest hash>`, every file is SHA-256-verified, and the folder is published with an atomic move. Since 2026-11-24 (Stage2OptRe2) a published copy is reused only after every file's SHA-256 matches the manifest inside the application (once per runtime instance); a damaged copy, even one with unchanged sizes, is replaced, and is never run when the bundle cannot repair it. Other systems report the feature as unavailable (the bundle is the Windows build).
 
 **Counter rules** (from the bundled `Sony.pm`/`Nikon.pm` and the TagNames notes). Fields are never interchangeable:
 - **Sony.** The model selects the MakerNotes table:

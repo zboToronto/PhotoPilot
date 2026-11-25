@@ -136,7 +136,7 @@ final class ImportCommands {
         var image = approved.value().orElseThrow();
         output.println(localization.text("import.recognizing"));
         Result<GearImportDraft> recognized;
-        try { recognized = app.recognize(image); }
+        try { recognized = CliProgress.run(OperationKind.IMPORT_RECOGNIZE, () -> app.recognize(image)); }
         finally { privacy.discard(image); state.copy = null; }
         if (!recognized.isSuccess()) {
             output.println(localization.text("import.aiFailed", String.join(" ", recognized.errors(localization))));
@@ -175,7 +175,7 @@ final class ImportCommands {
     private int verify() {
         if (!draft()) return 2;
         output.println(localization.text("import.verifying"));
-        var verified = app.inventory().verify(state.draft);
+        var verified = CliProgress.run(OperationKind.IMPORT_VERIFY, () -> app.inventory().verify(state.draft));
         if (!report(verified)) return 2;
         state.draft = verified.value().orElseThrow();
         show(); return 0;
@@ -198,7 +198,8 @@ final class ImportCommands {
         var problems = state.draft.problems();
         if (!problems.isEmpty()) { output.println(GearImportPresentation.problems(state.draft, localization)); return 2; }
         output.println(localization.text("import.saving"));
-        var saved = app.inventory().confirm(state.draft, new GearImportDraft.Decision(accept, separate, increase));
+        var decision = new GearImportDraft.Decision(accept, separate, increase);
+        var saved = CliProgress.run(OperationKind.IMPORT_CONFIRM, () -> app.inventory().confirm(state.draft, decision));
         if (!report(saved)) {
             if (!duplicates.isEmpty() && increase.isEmpty() && !separate) {
                 output.println(localization.text("import.duplicatesTitle"));

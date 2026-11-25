@@ -24,7 +24,7 @@ import static com.photopilot.ui.gui.InventoryGuiTest.fx;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Requires a graphical desktop. The shutter count card below the inventory card, with the real service and bundled
+ * Requires a graphical desktop. The dedicated Camera Shutter Count page, with the real service and bundled
  * ExifTool: no manual camera selection, the supported-models dialog, the import area, loading, failure and success
  * states, and that an earlier result never stays on screen for a new file. The success state uses the private real
  * sample only when PHOTOPILOT_SHUTTER_SAMPLE/_REFERENCE are set.
@@ -110,15 +110,14 @@ class ShutterCountGuiTest {
             nav("F05"); ready();
             var scroll = fx(() -> (ScrollPane) workspace.lookup(".content-scroll"));
 
-            // Placement: a separate card, the next sibling of the inventory card, the same width and below it.
-            var inventoryCard = fx(() -> (Node) inventory.getParent());
-            assertSame(fx(inventoryCard::getParent), fx(card::getParent), "both cards share the feature content");
-            assertEquals(fx(() -> inventoryCard.getParent().getChildrenUnmodifiable().indexOf(inventoryCard)) + 1,
-                fx(() -> card.getParent().getChildrenUnmodifiable().indexOf(card)), "directly below the inventory card");
-            Bounds above = scene(inventoryCard), below = scene(card);
-            assertTrue(below.getMinY() >= above.getMaxY());
-            assertEquals(above.getWidth(), below.getWidth(), 0.5, "same card width");
+            // Only the inventory body takes space. No shutter controls or replacement card are attached.
+            var page = fx(() -> (FeaturePane) workspace.lookup(".feature-content"));
+            assertEquals(fx(() -> List.of(inventory.getParent())), fx(() -> page.getChildren().stream().filter(Node::isManaged).toList()));
+            assertNull(fx(() -> workspace.lookup("#shutter-count")));
             assertTrue(shown("gear-table") && shown("gear-search") && shown("gear-add"), "inventory controls stay in place");
+            nav("shutter");
+            assertEquals(List.of(card), fx(() -> page.getChildren().stream().filter(Node::isManaged).toList()));
+            assertNull(fx(() -> workspace.lookup("#gear-table")));
 
             // Initial state: no manual camera selection at all, an enabled import, empty placeholders.
             for (String removed : List.of("shutter-model", "shutter-series", "shutter-search", "shutter-brand-sony", "shutter-brand-nikon", "shutter-selection", "shutter-support", "shutter-catalog-source"))
@@ -300,9 +299,11 @@ class ShutterCountGuiTest {
                 check(Path.of(sample));
             } else System.out.println("ShutterCountGuiTest: real sample not configured; success state checked by the CLI/service tests only");
 
-            // Other pages do not show the card.
-            nav("F08"); assertFalse(shown("shutter-count"));
-            nav("F05"); ready(); assertTrue(shown("shutter-count"));
+            // A round trip through other pages preserves the last result on the dedicated tool.
+            var lastResult = screen();
+            nav("F08"); assertNull(fx(() -> workspace.lookup("#shutter-count")));
+            nav("F05"); ready(); assertNull(fx(() -> workspace.lookup("#shutter-count")));
+            nav("shutter"); assertEquals(lastResult, screen());
 
             // Narrow window: the results stack and nothing is wider than the content area.
             size(880, 600, false);

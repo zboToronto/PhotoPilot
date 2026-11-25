@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** Shutter count checker wording shared by the Gear Inventory card and the {@code shutter} CLI command. */
+/** Shutter count checker wording shared by the Camera Shutter Count page and the {@code shutter} CLI command. */
 public final class ShutterCountPresentation {
     private ShutterCountPresentation() { }
 

@@ -68,7 +68,10 @@ public final class ShutterCountService {
 
         CameraMetadata metadata;
         try {
+            // Local only: the bundled ExifTool reads the file (it starts on the first check of a context).
+            com.photopilot.progress.Progress.stage("shutter.read");
             metadata = reader.read(path);
+            com.photopilot.progress.Progress.validating("shutter.interpret");
         } catch (ExifToolException failure) {
             return Result.failureKey(switch (failure.kind()) {
                 case UNAVAILABLE -> "shutter.error.exiftoolMissing";

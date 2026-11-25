@@ -125,6 +125,20 @@ final class InventoryPane extends VBox {
         var item = table.getSelectionModel().getSelectedItem();
         if (item != null) openEditor(item);
     }
+    /**
+     * Opens this page's own editor for {@code id} (the capability report's "Edit equipment details"), after a fresh
+     * unfiltered read so the item is listed and selected. An editor that is already open keeps its unsaved values,
+     * and a pending operation is never interrupted; the page is then simply shown as it is.
+     */
+    void edit(UUID id) {
+        if (busy || editor.isVisible()) return;
+        search.clear(); filter.getSelectionModel().selectFirst();
+        run(() -> app.inventory().list("", null), inventory -> {
+            table.getItems().setAll(inventory.items());
+            texts.text(count.textProperty(), "gear.count", inventory.items().size());
+            inventory.find(id).ifPresent(item -> { table.getSelectionModel().select(item); table.scrollTo(item); openEditor(item); });
+        });
+    }
     private void openEditor(Equipment item) {
         hide(confirmation); hide(feedbackBox); editing = item; newId = UUID.randomUUID();
         type.setValue(item == null ? EquipmentType.CAMERA : item.type()); type.setDisable(item != null);

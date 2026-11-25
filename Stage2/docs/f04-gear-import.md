@@ -5,7 +5,7 @@ Status (2026-11-03): **implemented and verified** through GUI and CLI with offli
 ## Workflow
 
 ```text
-GUI GearImportPane (Equipment > AI Gear Import, or "Import from image (AI)" in Gear Inventory)
+GUI GearImportPane (Equipment management > AI Gear Import, or "Import from image (AI)" in Gear Inventory)
 CLI ImportCommands  (import ..., F04)
   │  ImagePrivacyBoundary.open(path, kind)        validate by content, size, dimensions; decode locally
   │  ImageReview.redact/crop/undo                 user regions in original-image pixels

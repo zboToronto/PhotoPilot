@@ -82,7 +82,8 @@ public class InventoryService {
 
     /**
      * F04 duplicate review: F05 duplicates (same type, brand and model) plus similar records whose names differ only
-     * in punctuation, spacing or order. Distinct variants (e.g. "II" versions) are not reported; nothing is merged.
+     * in punctuation, spacing or order, and cameras the camera catalog lists as one model under another spelling
+     * (EquipmentIdentity). Distinct variants (e.g. "II" versions) are not reported; nothing is merged.
      * The F05 rule itself is part of it, so every record the F05 add would refuse is offered for a decision, also when
      * the brand has no ASCII letters or digits (e.g. Chinese), which the name comparison cannot tokenize.
      */
@@ -91,7 +92,11 @@ public class InventoryService {
         if (!loaded.isSuccess()) return Result.failure(loaded);
         return Result.success(loaded.value().orElseThrow().items().stream().filter(item -> sameIdentity(item, type, brand, model)
             || item.type() == type && GearNames.sameBrand(item.brand(), brand) && (item.model().strip().equalsIgnoreCase(Objects.requireNonNullElse(model, "").strip())
-                || GearNames.sameModel(brand, item.model(), model))).toList());
+                || GearNames.sameModel(brand, item.model(), model) || type == EquipmentType.CAMERA && catalogAlias(item, brand, model))).toList());
+    }
+    /** PP-03: a camera the catalog lists under another spelling of the same model ("ILCE-7M4" for an owned "α7 IV"). */
+    private static boolean catalogAlias(Equipment item, String brand, String model) {
+        return EquipmentIdentity.cameras(item.brand() + " " + item.model(), Objects.requireNonNullElse(brand, "") + " " + Objects.requireNonNullElse(model, "")).same();
     }
 
     /** Strict F04 confirmation: no unverified critical values, no duplicates accepted implicitly. */
@@ -107,13 +112,16 @@ public class InventoryService {
     public Result<Equipment> confirm(GearImportDraft draft, GearImportDraft.Decision decision) {
         if (draft == null || decision == null) return Result.failureKey("import.error.noDraft");
         if (draft.confirmed()) return Result.failureKey("import.error.alreadyImported");
+        com.photopilot.progress.Progress.validating("import.validate");
         var built = recognition.confirm(draft);
         if (!built.isSuccess()) return built;
         Equipment item = built.value().orElseThrow();
         var unverified = draft.unverifiedCritical();
         if (!unverified.isEmpty() && !decision.unverifiedAccepted()) return Result.failureKey("import.error.unverified", String.join(", ", unverified));
+        com.photopilot.progress.Progress.stage("import.duplicates");
         var similar = importDuplicates(item.type(), item.brand(), item.model());
         if (!similar.isSuccess()) return Result.failure(similar);
+        com.photopilot.progress.Progress.stage("import.save");
         Result<Equipment> saved;
         if (decision.increaseQuantityOf().isPresent()) {
             Equipment target = decision.increaseQuantityOf().orElseThrow();

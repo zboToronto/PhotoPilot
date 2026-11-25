@@ -101,12 +101,14 @@ public class EquipmentCatalogAdapter implements EquipmentSpecificationProvider {
         var records = new ArrayList<SpecificationEvidence>();
         var unavailable = new ArrayList<String>();
         Result<?> firstFailure = null;
+        com.photopilot.progress.Progress.waiting("import.source", WIKIPEDIA);
         var wiki = wikipedia(type, maker, name, code);
         if (wiki.isSuccess()) wiki.value().orElseThrow().ifPresent(records::add);
         else { unavailable.add(WIKIPEDIA); firstFailure = wiki; }
         int attempted = 1;
         if (!maker.isEmpty()) {
             attempted++;
+            com.photopilot.progress.Progress.waiting("import.source", LENSFUN);
             var catalogue = lensfun(type, maker, name, code);
             if (catalogue.isSuccess()) catalogue.value().orElseThrow().ifPresent(records::add);
             else { unavailable.add(LENSFUN); if (firstFailure == null) firstFailure = catalogue; }

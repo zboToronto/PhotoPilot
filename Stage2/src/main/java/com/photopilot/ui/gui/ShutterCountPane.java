@@ -28,7 +28,7 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 
 /**
- * Shutter count checker: the second card on the Gear Inventory page, below the inventory card. The user chooses or drops
+ * Standalone shutter count checker under Photography Tools. The user chooses or drops
  * a photo (a {@link FileDropZone}); the shared ShutterCountService identifies the camera from the photo's metadata and
  * reads its counter with the bundled ExifTool on the window's worker queue, never on the JavaFX thread. A new check
  * clears the previous result before it starts, so an earlier photo's count is never shown for another file. No photo is
@@ -226,7 +226,9 @@ final class ShutterCountPane extends VBox {
             if (request != generation) return;
             phase = Phase.FAILED; errors = List.of(LocalizedMessage.of("shutter.error.unexpected")); render();
         });
-        operations.execute(task);
+        // The first check starts (and from a JAR extracts) the bundled ExifTool, which can take seconds: it runs beside
+        // the window's local lane, so other pages stay responsive. ExifTool itself serves one request at a time.
+        UiOperations.background(operations, task);
     }
 
     private void render() {

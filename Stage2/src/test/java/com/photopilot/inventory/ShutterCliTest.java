@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The shutter CLI command runs the same service as the Gear Inventory card, with the bundled ExifTool. */
+/** The shutter CLI command runs the same service as the Camera Shutter Count page, with the bundled ExifTool. */
 class ShutterCliTest {
     @TempDir Path temp;
 

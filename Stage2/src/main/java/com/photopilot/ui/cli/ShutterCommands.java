@@ -1,5 +1,6 @@
 package com.photopilot.ui.cli;
 
+import com.photopilot.application.OperationKind;
 import com.photopilot.application.PhotoPilotFacade;
 import com.photopilot.application.ShutterCountPresentation;
 import com.photopilot.i18n.LocalizationService;
@@ -81,7 +82,7 @@ final class ShutterCommands {
         Path path;
         try { path = Path.of(file); } catch (InvalidPathException invalid) { throw new LocalizedException("shutter.error.badPath"); }
         output.println(localization.text("shutter.reading"));
-        var result = app.shutterCount().check(path);
+        var result = CliProgress.run(OperationKind.SHUTTER_CHECK, () -> app.shutterCount().check(path));
         if (!result.isSuccess()) { result.errors(localization).forEach(output::println); return 2; }
         var value = result.value().orElseThrow();
         Optional<CameraModel> selected = model;

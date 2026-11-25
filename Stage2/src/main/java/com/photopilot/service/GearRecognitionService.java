@@ -56,9 +56,12 @@ public class GearRecognitionService {
     /** Sends only an approved, uncleared sanitized image; anything else fails before any request. */
     public Result<GearImportDraft> recognize(SanitizedImage image) {
         if (image == null || !image.userApproved() || image.cleared()) return Result.failureKey("import.error.notApproved");
+        // Stage published only after the approval check above: nothing has been or will be sent before it.
+        com.photopilot.progress.Progress.stage("import.approved");
         var context = new AgentContext(UUID.randomUUID(), List.of(REQUEST), "{}", List.of(), Optional.of(image))
             .withResponseSchema(GearRecognition.SCHEMA);
         var reply = agent.run(TASK, context, GearRecognition.class);
+        if (reply.isSuccess()) com.photopilot.progress.Progress.validating("import.candidates");
         return reply.isSuccess() ? toDraft(reply.value().orElseThrow()) : Result.failure(reply);
     }
 
@@ -76,6 +79,7 @@ public class GearRecognitionService {
             return Result.success(draft.withEvidence(List.of(), GearImportDraft.Identity.NOT_FOUND,
                 List.of(LocalizedMessage.of("import.notice.typeNotCovered", type.name()))));
         var found = specifications.search(type, brand, model, draft.modelCode());
+        com.photopilot.progress.Progress.validating("import.evidence");
         if (!found.isSuccess()) {
             var notices = new ArrayList<LocalizedMessage>(); notices.add(LocalizedMessage.of("import.notice.catalogUnavailable"));
             notices.addAll(found.messages());
