@@ -119,6 +119,7 @@ public class DiscoveryService {
         if (request == null) return Result.failureKey("discover.error.context");
         var valid = request.validate();
         if (!valid.isSuccess()) return Result.failure(valid);
+        com.photopilot.progress.Progress.stage("discover.context");
         var notices = new ArrayList<LocalizedMessage>();
         Optional<EnvironmentContext> evidence = Optional.empty();
         if (request.hasCoordinates()) {
@@ -161,6 +162,7 @@ public class DiscoveryService {
             phases = SolarCalculator.phases(request.place().latitude().orElseThrow(), request.place().longitude().orElseThrow(), zone, request.date(), request.endDate());
         }
 
+        com.photopilot.progress.Progress.stage("discover.gear");
         GearInventory gear = new GearInventory(List.of());
         boolean readable = inventory.isPresent();
         List<Loadout> loadouts = List.of();
@@ -206,6 +208,7 @@ public class DiscoveryService {
         var reply = agent.run(TASK, prompt, DiscoveryProposal.class);
         // Gemini failure: no ideas at all, never replacement or hard-coded ones. The caller keeps the user's inputs.
         if (!reply.isSuccess()) return Result.failure(reply);
+        com.photopilot.progress.Progress.validating("discover.validate");
         var result = convert(reply.value().orElseThrow(), context, labels);
         synchronized (this) {
             latest = result; issued.clear();

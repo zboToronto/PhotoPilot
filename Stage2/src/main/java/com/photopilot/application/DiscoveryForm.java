@@ -59,7 +59,7 @@ public final class DiscoveryForm {
         }
         LocalDate date = null;
         try { date = LocalDate.parse(value(input, "date")); } catch (DateTimeParseException invalid) { found.add(LocalizedMessage.of("env.error.date")); }
-        LocalTime from = clock(value(input, "from")), until = clock(value(input, "until"));
+        LocalTime from = strictClock(value(input, "from")), until = strictClock(value(input, "until"));
         if (from == null || until == null) found.add(LocalizedMessage.of("env.error.time"));
         Optional<Duration> duration = Optional.empty();
         String durationText = value(input, "duration");
@@ -97,8 +97,12 @@ public final class DiscoveryForm {
         return values;
     }
 
+    /** The entries of a list field (interests, avoid) exactly as the request receives them. */
+    public static List<String> entries(String text) { return list(text); }
     private static List<String> list(String text) { return Arrays.stream(text.split("[;,；，]")).map(String::strip).filter(s -> !s.isEmpty()).toList(); }
-    private static LocalTime clock(String text) {
+    /** A typed HH:MM time by the same strict rule as {@link #parse}, or empty. */
+    public static Optional<LocalTime> clock(String text) { return Optional.ofNullable(strictClock(text)); }
+    private static LocalTime strictClock(String text) {
         if (!CLOCK.matcher(text).matches()) return null;
         try { return LocalTime.parse(text, HOURS); } catch (DateTimeParseException invalid) { return null; }
     }

@@ -4,8 +4,8 @@ F02 / UC02 / SD01. Question answered: *I want to take photographs but don't know
 
 ## Workflow (UC02 / SD01)
 
-1. The user opens **Workspace > Inspiration** ("Find Something to Shoot") or runs `discover` / `F02`. No session is needed.
-2. The page shows the input form and the read-only F05 inventory. Opening it reads local files only. It sends no provider, device or Gemini request.
+1. The user opens **General > Discover Inspiration** ("Find Something to Shoot") or runs `discover` / `F02`. No session is needed.
+2. The page opens on step 1 of the guided flow (Location & Time); the read-only F05 inventory is on step 2 (Photography Preferences). Opening it reads local files only. It sends no provider, device or Gemini request.
 3. The user reviews or enters the inputs:
    - place: a name, region or area; optionally coordinates (typed, found by name, or from the device after consent)
    - date and on-site period, as local times, plus an optional longest activity
@@ -187,13 +187,14 @@ F03 performs its own validation, clarification and confirmation. F10 is not run.
 
 ## GUI and CLI
 
-- **GUI:** Workspace > Inspiration. The page reuses the `EnvironmentPane` controls and conventions:
-  - inputs card with **Find place coordinates** / **Use device location**; read-only gear card with refresh
-  - **Find ideas** runs as a background Task with the inputs disabled; **Reset inputs**
-  - target-session card with saved ideas
-  - result cards: context used, results, limiting factors, then grouped idea cards with **Continue in Requirements** / **Save idea** / **Dismiss**, AI notes, rejected candidates
+- **GUI:** General > Discover Inspiration, a three-stage guided page since 2026-11-24 (see
+  [Guided Discovery GUI](#guided-discovery-gui-three-stages) below):
+  - **Discover Photography Ideas** runs as a background operation with the inputs disabled; **Reset inputs**
+  - target-session card and a **Saved ideas** tab
+  - grouped idea cards with **Continue in Requirements** / **Save idea** / **Dismiss**, AI notes, rejected candidates
   - inputs are kept on every failure; unsaved inputs count as dirty for user switching and closing
-  - only existing CSS classes are used; Home's existing F02 card now opens the page (description text updated)
+  - Home has no F02 card since 2026-11-08 ([Home dashboard](home-dashboard.md))
+  - the **Continue in Requirements** hand-off makes its session the window's current session ([session workflow](session-workflow.md))
 - **CLI:**
 
 ```text
@@ -211,6 +212,68 @@ discover again distance=10 history=no
 ```
 
 Other options: `latitude=.. longitude=..`, `device` (after `discover device consent`), `duration=<min>`, `portability=..`, `notes=..`. Numbers stay stable after a dismissal.
+
+- **CLI Guided Discovery wizard (since 2026-11-24, interactive terminals only):** `discover wizard` (alias `discover guided`, optional `width=<columns>`) asks for the same inputs in the GUI's three steps, *Location & Time*, *Photography Preferences* and *Discover & Review*: one prompt at a time on the first pass, then a review menu per step. It supplements the commands above; their arguments, output and exit codes are unchanged (`discover help` and `F02` gained one line naming the wizard, `help` one summary line).
+  - Prompts: label with (required)/(optional), an example, the current value in brackets. Enter keeps it, `-` clears an optional value, `"text"` is taken literally. Words: `back`, `next`, `reset` (asks first), `exit` (inputs kept for the next `discover wizard`), `help`; Chinese 上一步/返回, 下一步, 重置, 退出, 帮助. End of input leaves the wizard.
+  - Validation is `DiscoveryForm.parse` grouped by `DiscoveryGuide`: an input's problems (including window, range and list rules) are shown right after it and it is asked again; Next and Discover never advance with problems. Date checks that need the place's time zone (past date, more than 365 days ahead, period already over) are made by `DiscoveryService` at Discover, before any Gemini request, and shown by input; **E** asks that input again.
+  - Step 2: numbered categories (several at once) plus verbatim custom interests, avoid/portability/restrictions, a one-line equipment summary (records vs units) with the grouped list on request, and the history preference with its disclosure.
+  - Results: the conditions of the shown results (with a note when later edits differ), counts, PhotoPilot notes (including `[!]` lines for forecast fields the providers did not supply, `DiscoveryPresentation.gaps`) and limiting factors; per idea a status mark and word (`[OK]`, `[??]`, `[NO]`), a *Suggested by AI (Gemini)* block (facts, setting, reasons, AI limitations; a not-suitable idea shows its setting and reasons only in the details) and a *Checked by PhotoPilot* block (counts, computed straight-line distance, each check with every finding of a check that did not pass and, marked `[!]`, the cautions of a passing one: forecast warnings, straight-line only, travel time not included; then PhotoPilot's notes). Numbered actions use the same services as the commands: details, continue in Shooting Requirements (unconfirmed F03 draft), save (editable or new draft session), dismiss, saved ideas (no AI request; a saved idea can be continued), edit conditions, discover again. The results are the commands' results (`discover show/list/save/select/dismiss/again` use the same numbers); results replaced by a later `discover run`/`again` are never shown again.
+  - Terminal: wraps to `COLUMNS` (40–200, default 80) or `width=<n>` (Windows consoles do not export `COLUMNS`); East Asian characters count two columns. Colour is decoration only (`PHOTOPILOT_COLOR=always|never|auto`, `NO_COLOR`, `TERM=dumb`). With auto, colour is on in a console unless `NO_COLOR` is set or `TERM=dumb`; on Windows only in terminals that announce ANSI (`WT_SESSION`, `TERM`, `ConEmuANSI=ON`). Every state also has an ASCII mark and words.
+  - Scripts are never prompted: the wizard reads input only in the stdin command loop of an interactive console (on JDK 22+ also `Console.isTerminal()`). The CLI uses the same console check for `env menu` prompts and for stopping redirected input after a failed profile command. On JDK 21, the supported runtime, the check is unchanged (`System.console() != null`). On JDK 22+ it makes those two follow their documented behaviour for redirected input. Otherwise `discover wizard` says how to start it (PhotoPilot without command arguments in a terminal, then `discover wizard`), prints the equivalent commands (command templates wrap only at spaces) and returns 0.
+  - Wrapping never splits a command token such as `width=<列数>`, `<回答>` or `字段=值`, in any language.
+
+## Guided Discovery GUI (three stages)
+
+Presentation only (2026-11-24): the request, the checks, the services and the persistence are unchanged. Classes:
+`DiscoveryPane` (stages, navigation, request), `DiscoveryStepper`, `DiscoveryIdeaCard`, `DiscoveryGearSummary`,
+`DiscoveryFooter` (stage footer that wraps instead of clipping); shared with the CLI wizard: `DiscoveryGuide`,
+`DiscoveryInterests`, `DiscoveryPresentation.view/conditions/gear*`, `DiscoveryForm`.
+
+| Stage | Contents |
+|---|---|
+| 1 Location & Time | place name with **Find location** and **Use device location**, resolution status, privacy sentence; date picker, 24-hour times with a live window note; maximum straight-line distance (large value, 0-200 km slider, exact field up to 1000 km); collapsed Advanced (latitude/longitude, longest activity) |
+| 2 Photography Preferences | nine interest chips plus free-text interests (`DiscoveryInterests.compose`), avoid / portability / other restrictions, read-only equipment tiles (units and records) with a closed **View equipment** list, history check box, AI notice |
+| 3 Discover & Review | **Recommendations** (changed-conditions banner, request summary, loading / failed / cancelled / empty states, counts, About these results, target session, idea cards) and **Saved ideas** |
+
+Rules:
+
+- Leaving a stage forwards runs `DiscoveryForm.parse` and keeps `DiscoveryGuide.problems` for that stage; problems are
+  shown next to their inputs (Advanced opens for coordinates and duration) and focus moves to the first one; a list
+  problem is shown at the list to correct, interests or avoid (`DiscoveryGuide.listInputs`). Going back never validates.
+  The stepper marks a stage, and the line after it, done once it has been validated. Step 2 stays available once reached; step 3 needs a request, or opens Saved ideas without validation.
+- Every navigation keeps every value; only Reset clears them. Focus moves into the stage that opens.
+- The large distance shows a value only when the form and the request accept it (`DiscoveryGuide.distance`); the window
+  note is hidden when a time does not parse or the start equals the end (`DiscoveryGuide.window`); a window shorter
+  than the request's minimum keeps its note beside the error (the CLI hides it while the period has a problem).
+- Input problems that only the service finds (past date, window already over) stay next to the unchanged input until it
+  is edited.
+- A request runs once at a time; Reset abandons a running one (its late answer is ignored, and a new request waits until
+  it has ended, with a visible "finishing" status); a cancelled or failed request has its own state with **Try again**,
+  **Edit conditions** and the operation's next step (describe the shoot in Shooting Requirements, with its Open button).
+- Operation messages show on the stages they belong to; a failure message has a warning shape and a danger rim. The
+  success message of results whose conditions have since changed is replaced by the banner above the summary.
+- Idea cards: key facts marked as Gemini's proposal, **Checked by PhotoPilot** beside **Suggested by AI (Gemini)**. Every
+  finding of a check that did not pass, and the cautions of a passing one (forecast warnings, straight-line only, travel
+  time not included: `DiscoveryPresentation.caution`), are always visible under their check; only the remaining evidence
+  of passing checks, the setting and the ranking reasons are under **Details**. PhotoPilot's own notes about Gemini's
+  statements sit with the checks. The card's accessible text is the CLI's `DiscoveryPresentation.idea` text.
+- *About these results* always shows the result notices and the evidence gaps (`DiscoveryPresentation.gaps`: forecast
+  fields the providers did not supply, named by their labels; a daily statistic without a label keeps its provider
+  name). Notices about missing, unreadable, assumed, approximate or outdated evidence (`DiscoveryPresentation.warning`)
+  have the warning shape in the GUI and `[!]` in the CLI. The rest of the context is under **Context used**
+  (`DiscoveryPresentation.guidedContext`: the legacy context lines, with the inventory counted in records and gaps
+  labelled; the legacy `discover` output keeps `context`). Expanded sections stay
+  expanded when the results are redrawn (save, tab switch, return to the page).
+- The request summary shows preset interests by their category labels (`DiscoveryPresentation.interests`); the request
+  itself carries the fixed English terms the ranking matches. A preset term typed into *Other interests* is the same
+  request term, so the summary shows it as the category too, while step 2 keeps the typed text as written.
+- The date popup's month and weekday names follow the app language (the JVM format locale is switched only while the
+  popup is open and restored when it closes).
+- Tests: `DiscoveryGuiTest` (the original end-to-end flow; card text is checked through the accessible text and through
+  the visible facts and check rows) and `GuidedDiscoveryGuiTest` (validation, focus, navigation,
+  preservation, lookup, distance and window rules, equipment, history, loading and duplicates, cancel, failure and
+  retry, saved ideas, saving, stale and abandoned responses, both languages, common sizes, the real 880 x 600 window at
+  Font Size 125% with Bold Text, dark mode, the date popup); `DiscoveryPresentationViewTest` for the shared helpers.
 
 ## Design changes (Original design → Implemented change → Reason → Impact)
 
@@ -234,25 +297,20 @@ Use isolated storage, never a real user's data:
 
 For the live part, set `GEMINI_TIMEOUT_SECONDS=120`.
 
-1. **Feature identification.** Sidebar *Workspace > Inspiration* (Home's former Inspiration card was removed on 2026-11-08, see [Home dashboard](home-dashboard.md)); **Check status** shows the F02 description. CLI: `status`, `F02`.
-2. **Open Find Something to Shoot.** Note that the page shows inputs and your gear only; nothing is contacted.
-3. **Review inputs.** Enter *Toronto*, choose **Find place coordinates**, pick *Toronto, Ontario, Canada*, then enter:
-   - a date within the next week
-   - 13:00–17:00
-   - distance 40
-   - interests: landscape; aviation; architecture; documentary
-   - avoid: portraits
-4. **Trigger AI suggestions** with **Find ideas** (button disabled while Gemini runs).
-5. **Verified context and limitations.** Context card: provider-verified time zone, availability, forecast/sun sources and retrieval time, gear and history counts.
-6. **Feasibility validation.** Walk through one feasible card (each check with evidence, straight-line distance label, "travel time not included", AI rationale labelled), one unverified card (missing evidence named), and the *Not suitable* group (no Continue/Save buttons; reason per criterion).
+1. **Feature identification.** Sidebar *General > Discover Inspiration* (Home's former Inspiration card was removed on 2026-11-08, see [Home dashboard](home-dashboard.md)); the page opens with its own header (*PHOTO DISCOVERY*, "What will you photograph today?"). CLI: `status`, `F02`.
+2. **Open Find Something to Shoot.** The page opens on step 1 (*Location & Time*); nothing is contacted.
+3. **Review inputs.** Step 1: enter *Toronto*, choose **Find location**, pick *Toronto, Ontario, Canada*, then a date within the next week, 13:00–17:00 and distance 40; **Next**. Step 2 (*Photography Preferences*): select the *Landscape*, *Aviation* and *Architecture* chips, type *documentary* as another interest and *portraits* under avoid; note the read-only equipment summary (open **View equipment**) and the saved-plans check box.
+4. **Trigger AI suggestions** with **Discover Photography Ideas** (inputs and the button disabled while Gemini runs; one indeterminate indicator, no percentage).
+5. **Verified context and limitations.** Step 3 shows the conditions the results were made with (**Edit conditions** goes back without losing anything) and *About these results* (counts, notices, evidence gaps); open **Context used** for provider-verified time zone, availability, forecast/sun sources and retrieval time, gear and history counts.
+6. **Feasibility validation.** Walk through one feasible card (*Checked by PhotoPilot*: one row per check, forecast warnings and "travel time not included" visible under their row, straight-line distance label; *Suggested by AI (Gemini)* separate; the rest under **Details**), one unverified card (missing evidence named), and the *Not suitable* group (no Continue/Save buttons; reason per criterion).
 7. **Dismiss** one idea; **Save idea** another (new draft session created); show it under *Saved ideas*.
 8. **Continue in Requirements** — the F03 page opens an unconfirmed draft (place flagged for review, questions listed). Show that nothing is confirmed until **Confirm and save** there.
 9. **Error handling.**
    - Enter distance `far` (all problems listed, inputs kept).
    - Use **Use device location** (unsupported → manual entry).
    - Clear the coordinates and ask again: ideas away from the place become unverified, and the coordinates hint appears.
-   - Optionally disconnect the network or remove the key: no ideas, nothing invented, inputs kept.
-10. **CLI parity.** Run the CLI block above (same cards and wording), including `discover select` → `requirement confirm`.
+   - Optionally disconnect the network or remove the key: no ideas, nothing invented, inputs kept; the failed state offers **Try again**, **Edit conditions** and the next step to describe the shoot in Shooting Requirements.
+10. **CLI parity.** Run the CLI block above (same cards and wording), including `discover select` → `requirement confirm`. In an interactive terminal, `discover wizard` shows the same inputs and results step by step (try `far` as the distance, `13:00`–`13:00` as the period, `back`, `exit` and `discover wizard` again).
 
 ## Known limitations and unresolved dependencies
 
@@ -265,6 +323,8 @@ For the live part, set `GEMINI_TIMEOUT_SECONDS=120`.
 - **Live quality:** answer quality and latency depend on Gemini. The adapter timeout defaults to 30 s.
 - **F06 dependency:** F02 uses F07's deterministic need comparison and does not derive capability profiles itself (F06 AI analysis is a separate step for a planned shoot).
 - **Not run:** the UML structural audit and other OS/DPI checks were not run.
+- **Chinese wording of ideas:** the Guided Discovery texts call an idea 灵感, and 建议 is kept only for "AI 建议（Gemini）". Texts shared with the legacy `discover` commands and with `DiscoveryPresentation` (for example 可行的建议, the card status details, notices, limits, the saved-list text and service errors) still say 建议, because changing them would change existing CLI output; the GUI's success status uses the measure word 个 instead of the legacy 条.
+- **CLI wizard:** the width comes from `COLUMNS` or `width=<n>`, never from the live window size. Inside the wizard the F03 hand-off draft is wrapped to the width (command tokens kept whole); standalone `discover select` and `requirement draft` print it unwrapped, as before. On a list problem the wizard asks both lists again (the GUI marks only the offending list). At the minimum width of 40 columns, a line that holds a session id longer than the line splits the id (the next lines repeat it whole). Legacy Chinese consoles may draw `·`, `–` and `×` two columns wide, so a line can run one or two columns over there. Date checks that depend on the place's time zone appear only at Discover (no Gemini request is made).
 
 ## Verification (2026-11-03, Windows / JDK 21)
 
@@ -280,3 +340,15 @@ For the live part, set `GEMINI_TIMEOUT_SECONDS=120`.
   - Run 1 returned 2 feasible ideas. It exposed a rejected candidate (bounds sent for `autofocus`), raw `G#` labels in text and an unformatted timestamp. All three were fixed and covered by tests.
   - Run 2 returned 3 feasible ideas (Toronto Islands, 10.3 km straight-line) and 1 unverified idea ("Pearson Airport Viewpoint" not in the gazetteer). Save to a new session, select into another, then `requirement confirm` worked. A name-only request made every idea unverified, with the coordinates hint.
 - Not run: the structural UML audit (no Python), a live GUI run, a device-location provider (none on desktop), and other OS/DPI checks.
+
+## Verification (2026-11-24, Guided Discovery GUI and CLI wizard, Windows / JDK 21)
+
+- Offline, fresh isolated copy of the final working tree (no `.env`, `LLM_API_KEY`/`GEMINI_API_KEY` unset, `PHOTOPILOT_LIVE_GEMINI=0`, loopback Gemini and provider fakes):
+  - `mvnw.cmd -B -o clean verify` → **1007 run, 0 failures, 0 errors, 6 skipped** (opt-in live tests), JAR built, no CSS lookup warnings. The previous full run on 2026-11-24 (before this work) was 950/0/0/6.
+  - `mvnw.cmd -B -o package -DskipTests javafx:run -Djavafx.args=--smoke-test` → `GUI_SMOKE_OK` (splash, user selection, Home, all 11 features, minimum-size layout).
+  - F02 classes in that run: `GuidedDiscoveryGuiTest` 22, `DiscoveryGuiTest` 1, `DiscoveryPresentationViewTest` 9, `DiscoveryWizardCliTest` 26, `DiscoveryCliTest` 1, `F02WorkflowTest` 7, `DiscoveryHandoffTest` 4, `DiscoveryFeasibilityTest` 5, `LocationFeasibilityTest` 16, `TranslationResourcesTest` 3, `CliHelpTest` 5.
+- Independent review of the integrated work with adversarial verification: 18 of 23 findings confirmed and fixed in a GUI and a CLI lane. An independent verifier checked each lane by reverting its fixes (every new test failed on the reverted code at its own assertion), and the verifiers' remaining points were fixed in a follow-up round. The main fixes: forecast warnings and travel limits of a passing check stay visible (GUI warning rows, CLI `[!]`); the failed state keeps the Shooting Requirements next step; evidence gaps are always shown; preset interests appear by their labels; command tokens are never split by wrapping.
+- Legacy CLI compatibility: the same scripted `discover` commands (help, F02, gear, place, run, list, show, save, select, dismiss, again, saved, invalid input, a Gemini 503, English and Chinese, 126 command blocks) give byte-identical output and exit codes in the baseline and in the CLI lane's final build (session ids and retrieval times normalized); only the intended wizard help lines differ. The integrated build differs from that build only in GUI files and GUI-only `discover.guided.*` keys.
+- `GuidedDiscoveryGuiTest` (22) runs the real `DiscoveryPane` in a real window: stage validation and focus, stepper states, value preservation, lookup and Advanced coordinates, distance and window rules, list problems at the list, equipment summary from the real inventory, history disclosure, loading and duplicate requests, cancel, failure and retry, saved ideas, saving, stale results, abandoned and late responses, both languages at 1280×720, 1366×768, 1920×1080, 2560×1440 and the 880×600 minimum window (also at Font Size 125 % with Bold Text), dark mode, the date popup, and passing-check warnings and gaps visible. It writes the `target/f02-guided-*.png` screenshots.
+- `DiscoveryWizardCliTest` (26): the three steps end to end with the commands sharing its results; validation by input (distance, empty place, one coordinate, impossible, equal and too-short times, a longest activity beyond the window, a past date reported once with no Gemini request); back/next/reset/exit/help in English and Chinese, resume, a declined reset, a profile switch, results replaced by a later `discover run`, starting from the last request; AI block before PhotoPilot's checks and notes; zero ideas; dismissal summary; Gemini 503 then retry; saved ideas without a request and their F03 hand-off; Chinese labels and the ideographic space; 40/50/60/80 columns with no wider line; `width=`; optional colour; scripts, batch arguments and a piped real process never prompted; `F02` = `discover help`; passing-check cautions and provider gaps as `[!]` lines; interests kept with Enter reach the request unchanged; typed coordinates replace a lookup match even when a navigation word ends the prompt; the wrapped hand-off draft; command tokens never split at any width from 40 to 80; the scripted guidance. Transcripts (English at 80/50/40 columns, Chinese at 80) are written when `PHOTOPILOT_TRANSCRIPTS` is set.
+- Not run: a real interactive console (colour and JDK 22+ console detection are covered only by unit decisions), live Gemini and live providers, a hands-on pointer session, macOS/Linux.

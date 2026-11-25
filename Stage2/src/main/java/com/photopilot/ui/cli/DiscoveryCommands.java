@@ -11,7 +11,9 @@ import java.util.*;
 /**
  * F02 command adapter. Shares DiscoveryService (through the Facade), DiscoveryForm and DiscoveryPresentation with the
  * GUI, so both interfaces show the same ideas, checks and limitations for the same inputs. Idea numbers refer to the
- * last result and stay stable after a dismissal. Device location is requested only by "discover device consent".
+ * last result and stay stable after a dismissal. Device location is requested only by "discover device consent" (or
+ * the wizard's explicit consent question). "discover wizard" adds the interactive Guided Discovery flow
+ * ({@link DiscoveryWizard}) on top of these commands; it only reads input in an interactive terminal session.
  */
 final class DiscoveryCommands {
     /** Process-local lookup results, last inputs and numbered ideas; never persisted and cleared on user switch. */
@@ -21,25 +23,59 @@ final class DiscoveryCommands {
         private Map<String, String> lastValues;
         private PlaceCandidate lastChosen;
         private List<ActivitySuggestion> numbered = List.of();
-        void clear() { places = List.of(); device = null; lastValues = null; lastChosen = null; numbered = List.of(); }
+        /** The Guided Discovery wizard's own inputs, stage and shown results ("discover wizard" resumes with them). */
+        private final DiscoveryWizard.Memory wizard = new DiscoveryWizard.Memory();
+        void clear() { places = List.of(); device = null; lastValues = null; lastChosen = null; numbered = List.of(); wizard.clear(); }
+
+        // What the wizard shares with the commands, so "discover again/show/select/save/dismiss" work on its results.
+        DiscoveryWizard.Memory wizard() { return wizard; }
+        Map<String, String> lastValues() { return lastValues == null ? null : Collections.unmodifiableMap(lastValues); }
+        PlaceCandidate lastChosen() { return lastChosen; }
+        List<ActivitySuggestion> numbered() { return numbered; }
+        void device(GeoLocation consented) { device = consented; }
+        /** A request that parsed: kept for "discover again" before the AI call, exactly as "discover run" keeps it. */
+        void requested(Map<String, String> values, PlaceCandidate chosen) { lastValues = new LinkedHashMap<>(values); lastChosen = chosen; }
+        /** The ideas of a successful result, numbered in rank order. */
+        void numbered(List<ActivitySuggestion> ideas) { numbered = List.copyOf(ideas); }
     }
     private static final Set<String> KEYS;
     static { var keys = new HashSet<>(DiscoveryForm.FIELDS); keys.add("place"); keys.add("device"); KEYS = Set.copyOf(keys); }
+    private static final java.util.regex.Pattern WIDTH = java.util.regex.Pattern.compile("(?i)width=(\\d{1,4})");
     private final PhotoPilotFacade app;
     private final PrintStream output;
     private final LocalizationService localization;
     private final State state;
     private final RequirementCommands.State requirement;
+    /** Interactive input for "discover wizard" only; null for scripts, pipes and batch arguments (never prompted). */
+    private final Scanner input;
+    private final TerminalStyle style;
+    private final int width;
+    private boolean echo;
     DiscoveryCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization, State state, RequirementCommands.State requirement) {
-        this.app = app; this.output = output; this.localization = localization; this.state = state; this.requirement = requirement;
+        this(app, output, localization, state, requirement, null, TerminalStyle.plain(), CapabilityTerminalReport.DEFAULT_WIDTH);
     }
+    DiscoveryCommands(PhotoPilotFacade app, PrintStream output, LocalizationService localization, State state, RequirementCommands.State requirement,
+            Scanner input, TerminalStyle style, int width) {
+        this.app = app; this.output = output; this.localization = localization; this.state = state; this.requirement = requirement;
+        this.input = input; this.style = style == null ? TerminalStyle.plain() : style; this.width = width;
+    }
+    /** Repeats each wizard answer after its prompt (recorded transcripts, where the terminal does not echo input). */
+    DiscoveryCommands echo(boolean on) { echo = on; return this; }
 
     int execute(String line) {
         try {
             var words = InventoryCommands.tokenize(line.strip());
             String action = words.size() < 2 ? "help" : words.get(1).toLowerCase(Locale.ROOT);
             return switch (action) {
-                case "help" -> { output.println(localization.text("discover.cli.help")); yield 0; }
+                case "help" -> { output.println(localization.text("discover.cli.help")); output.println(localization.text("discover.cli.wizardHelp")); yield 0; }
+                case "wizard", "guided" -> {
+                    // Only "width=<columns>" (Windows consoles do not export COLUMNS); the wizard clamps it like COLUMNS.
+                    var columns = words.size() == 3 ? WIDTH.matcher(words.get(2)) : null;
+                    if (words.size() > 3 || columns != null && !columns.matches())
+                        throw new LocalizedException("error.cli.option", String.join(" ", words.subList(2, words.size())));
+                    int wrap = columns == null ? width : Integer.parseInt(columns.group(1));
+                    yield new DiscoveryWizard(app, output, localization, state, requirement, input, style, wrap, echo).run();
+                }
                 case "gear" -> gear();
                 case "place" -> place(words);
                 case "device" -> device(words);
@@ -64,7 +100,7 @@ final class DiscoveryCommands {
     }
     private int place(List<String> words) {
         if (words.size() < 3) throw new LocalizedException("error.session.command");
-        var found = app.discovery().location().search(String.join(" ", words.subList(2, words.size())));
+        var found = CliProgress.run(OperationKind.ENV_LOOKUP, () -> app.discovery().location().search(String.join(" ", words.subList(2, words.size()))));
         if (!report(found)) { state.places = List.of(); return 2; }
         state.places = found.value().orElseThrow();
         output.println(localization.text(state.places.size() == 1 ? "env.place.one" : "env.place.many", state.places.size()));
@@ -118,7 +154,7 @@ final class DiscoveryCommands {
         if (!report(parsed)) return 2;
         state.lastValues = new LinkedHashMap<>(values); state.lastChosen = chosen;
         output.println(localization.text("discover.running"));
-        var result = app.discover(parsed.value().orElseThrow());
+        var result = CliProgress.run(OperationKind.DISCOVER, () -> app.discover(parsed.value().orElseThrow()));
         if (!result.isSuccess()) {
             output.println(localization.text("discover.failedInputsKept", String.join(" ", result.errors(localization))));
             return 2;

@@ -323,6 +323,37 @@ public class FeasibilityValidator {
     }
 
     /**
+     * Where a confirmed F03 requirement disagrees with reviewed F09 inputs (reported only; nothing is changed): another
+     * date, a start time outside the availability, or a desired duration longer than the availability. The start time
+     * is compared as a wall-clock time against [from, until] (a period whose end is not after its start continues past
+     * midnight), independently of the date: requirement times are F03 timestamps in the computer's zone, and a
+     * different date is its own finding, never a reason to call an identical clock time outside the availability.
+     * {@code available} is the availability's real length (the resolved period, or the wall-clock length before
+     * resolution).
+     */
+    public static List<LocalizedMessage> requirementConflicts(com.photopilot.model.ShootRequirement requirement, LocalDate date, LocalTime from,
+            LocalTime until, Duration available) {
+        var found = new ArrayList<LocalizedMessage>();
+        if (requirement == null || date == null) return found;
+        requirement.date().filter(day -> !day.equals(date))
+            .ifPresent(day -> found.add(LocalizedMessage.of("env.notice.dateDiffers", day.toString(), date.toString())));
+        if (from != null && until != null && !from.equals(until)) requirement.time().map(t -> t.toLocalTime().truncatedTo(ChronoUnit.MINUTES)).ifPresent(wanted -> {
+            boolean inside = until.isAfter(from) ? !wanted.isBefore(from) && !wanted.isAfter(until) : !wanted.isBefore(from) || !wanted.isAfter(until);
+            if (!inside) found.add(LocalizedMessage.of("env.notice.timeOutside", wanted.toString(), from.toString(), until.toString()));
+        });
+        if (available != null) requirement.duration().filter(d -> d.compareTo(available) > 0)
+            .ifPresent(d -> found.add(LocalizedMessage.of("env.notice.durationLonger", d.toMinutes(), available.toMinutes())));
+        return found;
+    }
+
+    /** Wall-clock length of a local availability (an end not after the start continues past midnight; equal times: none). */
+    public static Optional<Duration> wallClockLength(LocalTime from, LocalTime until) {
+        if (from == null || until == null || from.equals(until)) return Optional.empty();
+        Duration length = Duration.between(from, until);
+        return Optional.of(length.isNegative() ? length.plusDays(1) : length);
+    }
+
+    /**
      * A model-proposed local time. With an offset, it must be a valid offset for that local time in the zone;
      * without one, nonexistent and ambiguous local times are rejected rather than guessed.
      */
