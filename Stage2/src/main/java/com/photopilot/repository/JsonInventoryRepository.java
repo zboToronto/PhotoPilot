@@ -83,7 +83,11 @@ public class JsonInventoryRepository implements InventoryRepository {
         });
     }
     @FunctionalInterface private interface Operation<T> { Result<T> run() throws IOException; }
+    /** Every write path; announced to the running operation (if any), which records SAVED only on a confirmed write. */
     private <T> Result<T> locked(Operation<T> operation) {
+        return com.photopilot.progress.Progress.write(() -> exclusive(operation));
+    }
+    private <T> Result<T> exclusive(Operation<T> operation) {
         try {
             return AtomicFiles.locked(file.resolveSibling(file.getFileName() + ".lock"), operation::run);
         } catch (AtomicFiles.Busy error) { return Result.failureKey("error.inventory.busy"); }

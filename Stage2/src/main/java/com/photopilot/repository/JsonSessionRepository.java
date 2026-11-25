@@ -94,7 +94,7 @@ public class JsonSessionRepository implements SessionRepository {
     /**
      * The model's state rules checked against what is actually stored (a caller can build any session object): plan and
      * review history only grows, by one approved plan of an editable session or one saved review of a completed session
-     * per append; requirement, profile, selected loadout and saved ideas change only while plans are editable; statistics
+     * per append; requirement, profile, selected loadout, environment check and saved ideas change only while plans are editable; statistics
      * only while the session is completed.
      */
     private static Result<Boolean> history(PhotographySession current, PhotographySession session, boolean appending) {
@@ -112,7 +112,8 @@ public class JsonSessionRepository implements SessionRepository {
             var historical = new LinkedHashMap<String, String>();
             historical.put("requirements", "requirement.error.historical"); historical.put("profile", "needs.error.historical");
             historical.put("selectedLoadout", "match.error.historical"); historical.put("savedIdeas", "discover.error.historical");
-            for (var field : historical.entrySet()) if (!before.get(field.getKey()).equals(after.get(field.getKey()))) return Result.failureKey(field.getValue());
+            historical.put("environmentCheck", "env.error.historical");
+            for (var field : historical.entrySet()) if (!Objects.equals(before.get(field.getKey()), after.get(field.getKey()))) return Result.failureKey(field.getValue());
         }
         if (!completed && !before.get("statistics").equals(after.get("statistics")))
             return current.state() instanceof com.photopilot.state.ReviewedState ? Result.failureKey("review.error.reviewedStatistics") : Result.failureKey("review.error.notCompleted", current.status());
@@ -148,7 +149,11 @@ public class JsonSessionRepository implements SessionRepository {
         var restored = SessionJson.decode(tree);
         return restored.withRevision(digest(SessionJson.encode(restored)));
     }
+    /** Every write path; announced to the running operation (if any), which records SAVED only on a confirmed write. */
     private <T> Result<T> change(Function<List<PhotographySession>, Result<T>> operation) {
+        return com.photopilot.progress.Progress.write(() -> locked(operation));
+    }
+    private <T> Result<T> locked(Function<List<PhotographySession>, Result<T>> operation) {
         try {
             return AtomicFiles.locked(directory.resolve("sessions.lock"), () -> {
                 List<PhotographySession> items = read();
