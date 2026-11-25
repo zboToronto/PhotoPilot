@@ -868,7 +868,7 @@ final class DiscoveryPane extends VBox {
         var ai = new VBox(8, DiscoveryIdeaCard.sectionHeading(AppIcons.SPARKLES, localization.text("discover.card.ai"), "discover-section-icon"), aiLines);
         ai.getStyleClass().addAll("discover-subcard", "discover-ai-card"); ai.setId("discover-ai-card");
         var rejected = DiscoveryIdeaCard.text(String.join("\n", DiscoveryPresentation.rejected(r, localization)), "discover-text"); rejected.setId("discover-rejected");
-        var context = DiscoveryIdeaCard.text(String.join("\n", DiscoveryPresentation.context(r.context(), localization)), "discover-text"); context.setId("discover-context");
+        var context = DiscoveryIdeaCard.text(String.join("\n", DiscoveryPresentation.guidedContext(r.context(), localization)), "discover-text"); context.setId("discover-context");
         resultsBody.getChildren().addAll(ai, disclosure("discover-rejected-details", localization.text("discover.guided.rejected", r.rejected().size()), rejected),
             disclosure("discover-context-details", localization.text("discover.card.context"), context));
         keepDisclosures();
