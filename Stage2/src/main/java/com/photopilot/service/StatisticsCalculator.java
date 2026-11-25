@@ -12,7 +12,6 @@ import com.photopilot.i18n.LocalizedMessage;
 import com.photopilot.model.ExifRecord;
 import com.photopilot.model.ExifStatistics;
 import com.photopilot.model.ExifValues;
-import com.photopilot.model.GearNames;
 import com.photopilot.model.GearSnapshot;
 import com.photopilot.model.ShootingWindow;
 import com.photopilot.validation.CompatibilityValidator;
@@ -22,8 +21,9 @@ import com.photopilot.validation.PlanValidator;
  * Stage 1 UML element 103 (zero-based): {F11; deterministic statistics and plan comparison}
  * Pure Java over extracted records and the saved plan; no AI, no I/O, no clock. Each statistic counts only the
  * photographs that recorded that field, unknown equipment is never counted as a known camera or lens, and plan
- * comparisons state numerical differences only. Equipment names match exactly over normalized tokens (GearNames), so
- * differently named variants are reported as unmatched instead of being merged.
+ * comparisons state numerical differences only. Equipment names match by model identity (EquipmentIdentity): equal
+ * normalized tokens or, for cameras, names the camera catalog lists for one model; other differently named variants are
+ * reported as unmatched, with their identity stated as different or undetermined, instead of being merged.
  */
 public class StatisticsCalculator {
     /** Plan setting name -> statistic field, in display order. */
@@ -125,27 +125,48 @@ public class StatisticsCalculator {
         return lines;
     }
 
+    /**
+     * Planned versus recorded equipment by model identity (EquipmentIdentity, PP-03): names of one catalogued camera
+     * model ("Sony Alpha 7 IV", "SONY ILCE-7M4") match and say so; a recorded name that matches no planned item is
+     * related to each planned one as a different model or as an undetermined identity. A model never identifies a body.
+     */
     private static void equipment(ExifStatistics stats, List<GearSnapshot> gear, boolean camera, List<LocalizedMessage> lines) {
         String field = camera ? "camera" : "lens";
+        var kind = camera ? EquipmentIdentity.Kind.CAMERA : EquipmentIdentity.Kind.LENS;
         var recorded = camera ? stats.cameraCounts() : stats.lensCounts();
         int withData = stats.count(field);
         if (withData == 0) { lines.add(LocalizedMessage.of(camera ? "review.compare.cameraNoData" : "review.compare.lensNoData", stats.importedCount())); return; }
         var matched = new HashSet<String>();
-        for (GearSnapshot item : gear.stream().filter(g -> g.type().equals(camera ? "CAMERA" : "LENS")).toList()) {
+        var items = gear.stream().filter(g -> g.type().equals(camera ? "CAMERA" : "LENS")).toList();
+        var plannedNames = items.stream().map(CompatibilityValidator::name).distinct().toList();
+        for (GearSnapshot item : items) {
             String planned = CompatibilityValidator.name(item);
-            var hits = recorded.keySet().stream().filter(name -> GearNames.sameModel(item.brand(), planned, name)).sorted().toList();
+            var hits = recorded.keySet().stream().filter(name -> EquipmentIdentity.compare(kind, planned, name).same()).sorted().toList();
             int photos = hits.stream().mapToInt(recorded::get).sum();
             matched.addAll(hits);
-            if (photos > 0) lines.add(LocalizedMessage.of(camera ? "review.compare.cameraUsed" : "review.compare.lensUsed",
-                planned, photos, withData, ExifValues.percent(photos, withData), String.join(", ", hits)));
+            if (photos > 0) {
+                lines.add(LocalizedMessage.of(camera ? "review.compare.cameraUsed" : "review.compare.lensUsed",
+                    planned, photos, withData, ExifValues.percent(photos, withData), String.join(", ", hits)));
+                for (String hit : hits) {
+                    var identity = EquipmentIdentity.cameras(planned, hit);
+                    if (camera && identity.alias()) lines.add(LocalizedMessage.of("review.compare.cameraAlias", planned, hit,
+                        identity.second().map(m -> m.brand().label() + " " + m.label()).orElse(hit)));
+                }
+            }
             else lines.add(LocalizedMessage.of(camera ? "review.compare.cameraUnmatched" : "review.compare.lensUnmatched", planned));
         }
         new TreeMap<>(recorded).forEach((name, photos) -> {
-            if (!matched.contains(name)) lines.add(LocalizedMessage.of(camera ? "review.compare.cameraExtra" : "review.compare.lensExtra",
+            if (matched.contains(name)) return;
+            lines.add(LocalizedMessage.of(camera ? "review.compare.cameraExtra" : "review.compare.lensExtra",
                 name, photos, withData, ExifValues.percent(photos, withData)));
+            for (String planned : plannedNames) {
+                var identity = EquipmentIdentity.compare(kind, name, planned);
+                lines.add(LocalizedMessage.of((camera ? "review.compare.camera" : "review.compare.lens") + (identity.different() ? "Different" : "IdentityUnknown"), name, planned));
+            }
         });
         if (stats.missing(field) > 0) lines.add(LocalizedMessage.of(camera ? "review.compare.cameraMissing" : "review.compare.lensMissing",
             stats.missing(field), stats.importedCount()));
+        if (camera) lines.add(LocalizedMessage.of("review.compare.cameraBody"));
     }
 
     /** Photographs whose recorded focal length lies outside every planned lens's specified range. */

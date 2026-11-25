@@ -127,7 +127,11 @@ class F11WorkflowTest {
         assertTrue(review.technicalObservations().getFirst().startsWith("Shutter speed: planned 1/1600-1/3200 s"), review.technicalObservations().toString());
         assertEquals(List.of("Median ISO was ISO 720."), review.exposureObservations());
         assertFalse(review.planDifferences().isEmpty(), "deterministic comparison is part of the review");
-        assertTrue(review.planDifferences().stream().anyMatch(d -> d.startsWith("Recorded camera SONY ILCE-7M4")), review.planDifferences().toString());
+        // PP-03: the planned A7 IV and the recorded SONY ILCE-7M4 are one catalogued model, so they match (no "extra" camera).
+        assertTrue(review.planDifferences().contains("Planned camera Sony A7 IV: 2 of 6 photos with camera data (33.3%), recorded as SONY ILCE-7M4."),
+            review.planDifferences().toString());
+        assertTrue(review.planDifferences().stream().anyMatch(d -> d.startsWith("Sony A7 IV and SONY ILCE-7M4 are names of the same camera model")), review.planDifferences().toString());
+        assertTrue(review.planDifferences().stream().noneMatch(d -> d.startsWith("Recorded camera SONY ILCE-7M4")), review.planDifferences().toString());
         assertTrue(review.evidence().stream().anyMatch(e -> e.startsWith("Photos imported: 7; with usable metadata: 6")), review.evidence().toString());
         assertTrue(review.limitations().stream().anyMatch(l -> l.contains("does not show image quality")));
         assertEquals(0, draft.historySessions(), "no related history exists, so none is claimed");

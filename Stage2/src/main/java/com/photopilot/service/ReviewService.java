@@ -78,6 +78,7 @@ public class ReviewService {
         var previous = session.statistics();
         if (scan.records().isEmpty()) return Result.success(new ExifAnalysis(id, scan, Optional.empty(), previous, ExifAnalysis.Status.NO_USABLE_DATA,
             List.of(LocalizedMessage.of("review.analysis.noRecords"))));
+        com.photopilot.progress.Progress.stage("review.statistics");
         var summary = statistics.summarize(scan.records());
         if (!summary.isSuccess()) return Result.success(new ExifAnalysis(id, scan, Optional.empty(), previous, ExifAnalysis.Status.NO_USABLE_DATA, summary.messages()));
         var stats = summary.value().orElseThrow().withSource((int) scan.failedFiles(), Instant.now(), scan.fingerprint());
@@ -87,6 +88,7 @@ public class ReviewService {
             return Result.success(new ExifAnalysis(id, scan, Optional.of(stats), previous, ExifAnalysis.Status.REPLACE_REQUIRED, List.of(LocalizedMessage.of("review.analysis.replaceRequired"))));
         var attached = session.attachStatistics(stats);
         if (!attached.isSuccess()) return Result.success(new ExifAnalysis(id, scan, Optional.of(stats), previous, ExifAnalysis.Status.SAVE_FAILED, attached.messages()));
+        com.photopilot.progress.Progress.stage("review.saveStatistics");
         var saved = sessions.save(attached.value().orElseThrow());
         if (!saved.isSuccess()) return Result.success(new ExifAnalysis(id, scan, Optional.of(stats), previous, ExifAnalysis.Status.SAVE_FAILED, saved.messages()));
         var stored = saved.value().orElseThrow().statistics().orElseThrow();
@@ -131,26 +133,34 @@ public class ReviewService {
      * keeps the deterministic comparison, references and limits, and nothing is saved.
      */
     public Result<ReviewDraft> draft(UUID id) {
+        com.photopilot.progress.Progress.stage("review.inputs");
         var loaded = inputs(id);
         if (!loaded.isSuccess()) return Result.failure(loaded);
         var in = loaded.value().orElseThrow();
         if (!in.canReview()) return Result.failures(in.reviewBlockers());
         var stats = in.statistics().orElseThrow(); var plan = in.plan().orElseThrow(); var requirement = in.requirement().orElseThrow();
+        com.photopilot.progress.Progress.stage("review.evidence");
         var prepared = ReviewEvidence.prepare(stats, plan, requirement, in.differences(), in.limitations());
         var context = new AgentContext(id, List.of("Review this completed photography session from the verified evidence."), prepared.json(), List.of(), Optional.empty())
             .withResponseSchema(ReviewInterpretation.SCHEMA);
         var run = agent.runWithTools(ReviewEvidence.TASK, context, ReviewInterpretation.class, Set.of());
         if (!run.isSuccess()) return run.hasError("ai.error.malformedOutput") ? Result.failureKey("review.error.malformed") : Result.failure(run);
         var output = run.value().orElseThrow();
+        com.photopilot.progress.Progress.validating("review.claims");
         // Figures are bound to the typed facts of exactly this evidence and the history the agent added (Stage2Review1).
         var checked = ReviewEvidence.check(output.output(), prepared.claims().withHistory(output.historyEvidence()));
         var notes = new ArrayList<>(in.notes());
         notes.add(LocalizedMessage.of("review.note.history", output.historySessions()));
-        if (checked.removed() > 0) notes.add(LocalizedMessage.of("review.note.removed", checked.removed()));
+        // Identity removals (PP-03) are reported on their own, so each note states the reason it counts.
+        int figures = checked.removed() - checked.identityRemoved();
+        var removals = new ArrayList<LocalizedMessage>();
+        if (figures > 0) removals.add(LocalizedMessage.of("review.note.removed", figures));
+        if (checked.identityRemoved() > 0) removals.add(LocalizedMessage.of("review.note.identityRemoved", checked.identityRemoved()));
+        notes.addAll(removals);
         var limitations = new ArrayList<String>();
         in.limitations().forEach(limit -> limitations.add(StatisticsCalculator.english(limit)));
         limitations.addAll(checked.limitations());
-        if (checked.removed() > 0) limitations.add(StatisticsCalculator.english(LocalizedMessage.of("review.note.removed", checked.removed())));
+        removals.forEach(removal -> limitations.add(StatisticsCalculator.english(removal)));
         var review = new PostShootReview(UUID.randomUUID(), Instant.now(), stats, plan.id(), plan.revision(), statistics.compare(stats, plan),
             checked.lessons(), limitations, Optional.of(id), checked.summary(), checked.technical(), checked.equipment(), checked.exposure(),
             checked.improvements(), references(stats, plan, requirement, output.historySessions()), PostShootReview.DRAFT);
@@ -184,6 +194,7 @@ public class ReviewService {
         var transitioned = appended.value().orElseThrow().apply(SessionEvent.REVIEW_SAVED);
         if (!transitioned.isSuccess()) return Result.failure(transitioned);
         // The only path that grows the review history; a plain save refuses any review change.
+        com.photopilot.progress.Progress.stage("review.save");
         var saved = sessions.append(transitioned.value().orElseThrow());
         if (!saved.isSuccess()) return Result.failure(saved);
         discard(id, review);

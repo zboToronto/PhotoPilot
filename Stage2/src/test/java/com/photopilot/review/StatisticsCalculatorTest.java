@@ -112,10 +112,15 @@ class StatisticsCalculatorTest {
             ShootPlan.settingKey("exposureCompensation", Optional.of(a1.sourceGearId())), "-0.3"), List.of(a1, a7, tele), List.of(window));
         String report = text(calculator.differences(stats(), plan));
         assertTrue(report.contains("Planned camera Sony A1: 3 of 5 photos with camera data (60.0%), recorded as Sony A1."), report);
-        assertTrue(report.contains("Planned camera Sony A7 IV: no recorded camera model matches this name."), "ILCE-7M4 is never merged into A7 IV: " + report);
-        assertTrue(report.contains("Recorded camera SONY ILCE-7M4 (2 of 5 photos, 40.0%) is not in the approved loadout"), report);
+        // Stage2OptRe1 PP-03 (design change): the camera catalog lists A7 IV and ILCE-7M4 as one model, so they match and
+        // the line says so; spellings the catalog does not list stay unmatched (EquipmentIdentityTest).
+        assertTrue(report.contains("Planned camera Sony A7 IV: 2 of 5 photos with camera data (40.0%), recorded as SONY ILCE-7M4."), report);
+        assertTrue(report.contains("Sony A7 IV and SONY ILCE-7M4 are names of the same camera model in PhotoPilot's camera catalog: Sony α7 IV (ILCE-7M4)."), report);
+        assertFalse(report.contains("Recorded camera SONY ILCE-7M4"), "an alias is not an extra camera: " + report);
+        assertTrue(report.contains("EXIF model names identify camera models, not individual bodies"), report);
         assertTrue(report.contains("Planned lens Sony FE 200-600mm G: 2 of 4 photos with lens data (50.0%)"), report);
         assertTrue(report.contains("Recorded lens Sony FE 100-400mm GM (2 of 4 photos, 50.0%)"), report);
+        assertTrue(report.contains("Recorded lens Sony FE 100-400mm GM is a different model from the planned Sony FE 200-600mm G"), report);
         assertTrue(report.contains("2 of 6 photos have no lens model"), report);
         assertTrue(report.contains("1 of 4 photos with focal-length data (25.0%) lie outside the focal ranges of the planned lenses (200-600 mm)"), report);
         assertTrue(report.contains("Focal length: planned 200-400 mm; 2 of 4 photos with focal-length data were within it (50.0%), 1 shorter and 1 longer"), report);

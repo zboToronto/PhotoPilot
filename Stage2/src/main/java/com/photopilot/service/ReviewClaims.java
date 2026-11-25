@@ -41,15 +41,19 @@ final class ReviewClaims {
     /** One typed component of an evidence record (components of one record share its id); the value is exact, never rounded. */
     record Fact(String id, Source source, String metric, String aggregation, double value, String subject) { }
 
-    /** The facts of one review request, the verbatim deterministic lines and the equipment names. */
-    record Evidence(List<Fact> facts, List<String> verbatim, List<String> names) {
-        Evidence { facts = List.copyOf(facts); verbatim = List.copyOf(verbatim); names = List.copyOf(names); }
+    /**
+     * Typed facts, verbatim application lines and equipment names of one request, plus the planned and recorded camera
+     * and lens names whose model identity {@link EquipmentClaims} checks (PP-03).
+     */
+    record Evidence(List<Fact> facts, List<String> verbatim, List<String> names, EquipmentClaims.Evidence identity) {
+        Evidence { facts = List.copyOf(facts); verbatim = List.copyOf(verbatim); names = List.copyOf(names); identity = Objects.requireNonNull(identity); }
+        Evidence(List<Fact> facts, List<String> verbatim, List<String> names) { this(facts, verbatim, names, EquipmentClaims.Evidence.NONE); }
         /** The same evidence plus the saved EXIF facts of earlier sessions (HistoryRetriever JSON); unreadable JSON adds nothing. */
         Evidence withHistory(String historyJson) {
             var history = history(historyJson);
             var all = new ArrayList<>(facts); all.addAll(history.facts());
             var allNames = new ArrayList<>(names); allNames.addAll(history.names());
-            return new Evidence(all, verbatim, allNames);
+            return new Evidence(all, verbatim, allNames, identity);
         }
         /** An id the application gave to a record of this request (earlier sessions have none the model can cite). */
         boolean citable(String id) { return !id.isEmpty() && facts.stream().anyMatch(f -> f.id().equalsIgnoreCase(id) && f.source() != Source.HISTORY); }
@@ -108,7 +112,9 @@ final class ReviewClaims {
                 default -> "comparison";
             };
         }
-        Evidence build() { return new Evidence(facts, verbatim, List.copyOf(names)); }
+        private EquipmentClaims.Evidence identity = EquipmentClaims.Evidence.NONE;
+        void identity(EquipmentClaims.Evidence names) { identity = Objects.requireNonNull(names); }
+        Evidence build() { return new Evidence(facts, verbatim, List.copyOf(names), identity); }
     }
     static String item(String name) { return "item:" + name.strip().toLowerCase(Locale.ROOT); }
     static String value(String metric, double value) { return "value:" + metric + ":" + value; }
@@ -208,7 +214,8 @@ final class ReviewClaims {
      * anything said about recorded, planned or earlier data are checked there too.
      */
     static boolean supported(String statement, Evidence evidence, boolean advice) {
-        String text = Normalizer.normalize(statement, Normalizer.Form.NFKC);
+        String text = numerals(Normalizer.normalize(statement, Normalizer.Form.NFKC));
+        if (text == null) return false; // a counted quantity in words that cannot be read exactly ("三四张") is unverified
         String shown = display(text);
         for (String line : evidence.verbatim()) if (same(shown, line)) return true;
         var masked = new StringBuilder(text);
@@ -274,10 +281,111 @@ final class ReviewClaims {
             if (!bound.isEmpty() && bound.stream().noneMatch(f -> cited.stream().anyMatch(fact -> f.sources.contains(fact.source())
                 && matches(f, fact, scan, figures, items, itemNames, evidence.facts())))) return false;
         }
-        return respectively(scan, figures, evidence);
+        return respectively(scan, figures, evidence) && oneEarlierSession(scan, figures, evidence, items, itemNames);
     }
 
-    private static final Pattern CITE = Pattern.compile("\\[\\s*[A-Za-z]{1,2}\\d{1,4}(?:\\s*,\\s*[A-Za-z]{1,2}\\d{1,4})*\\s*]");
+    // ---------------------------------------------------------------- quantities written in words (Stage2OptRe2 Review2 #05)
+
+    /** Chinese numerals directly before a counting word: photos (张 幅 帧), bodies (台 部), lenses (支 只 颗), models (款), sessions and times (场 次), kinds (种), items (个). */
+    private static final Pattern CJK_COUNT = Pattern.compile("(?<![第每几数零〇一二两三四五六七八九十百千万])([零〇一二两三四五六七八九十百千万]+)(?=\\s*(张|幅|帧|台|部|支|只|颗|款|场|次|种|个))");
+    /** "上一次", "前两场", "这一张", "同一台": one or two after a demonstrative names which one, not how many. */
+    private static final String DEMONSTRATIVE = "上下前这那同单唯本该此其另";
+    private static final Pattern WORD_COUNT;
+    private static final Map<String, Integer> WORDS = new HashMap<>();
+    static {
+        String[] small = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+            "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
+        for (int i = 0; i < small.length; i++) WORDS.put(small[i], i);
+        String[] tens = {"twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
+        for (int i = 0; i < tens.length; i++) WORDS.put(tens[i], 20 + 10 * i);
+        String word = "(?:" + String.join("|", WORDS.keySet().stream().sorted(Comparator.comparingInt(String::length).reversed()).toList()) + ")";
+        WORD_COUNT = Pattern.compile("(?iu)\\b(" + word + "(?:[-\\s]" + word + ")?)(?=\\s+(?:(?:earlier|previous|past|other|related|separate|different|distinct|unique|more)\\s+)?"
+            + "(?:photos?|photographs?|images?|frames?|files?|shots?|pictures?|exposures?|cameras?|camera bod(?:y|ies)|bod(?:y|ies)|lens(?:es)?|sessions?|shoots?|times)\\b)");
+    }
+
+    /**
+     * The statement with every counted quantity written in words as digits ("五张" as "5张", "两台" as "2台", "seven photos" as
+     * "7 photos"), so it is checked exactly like one written in digits; null when such a quantity cannot be read exactly
+     * ("三四张", "three-four"). Idioms are left alone: ordinals and demonstratives (第二, 上一次, 这一张), "both" (两次, 两场) and the
+     * article-like 一个, 一种, 一次. Only validation uses this text; the statement is shown and saved as written.
+     */
+    static String numerals(String text) {
+        var out = new StringBuilder(); Matcher m = CJK_COUNT.matcher(text); int last = 0;
+        while (m.find()) {
+            String digits = m.group(1), unit = m.group(2);
+            boolean named = m.start() > 0 && DEMONSTRATIVE.indexOf(text.charAt(m.start() - 1)) >= 0 && (digits.equals("一") || digits.equals("两"));
+            if (named || digits.equals("两") && (unit.equals("次") || unit.equals("场")) || digits.equals("一") && (unit.equals("个") || unit.equals("种") || unit.equals("次"))) continue;
+            var value = chinese(digits);
+            if (value.isEmpty()) return null;
+            out.append(text, last, m.start()).append(value.get()); last = m.end();
+        }
+        text = out.append(text.substring(last)).toString();
+        out = new StringBuilder(); m = WORD_COUNT.matcher(text); last = 0;
+        while (m.find()) {
+            String[] parts = m.group(1).toLowerCase(Locale.ROOT).split("[-\\s]");
+            int value = WORDS.get(parts[0]);
+            if (parts.length == 2) { // "twenty-five"; "three four" or "five-six" is no single number
+                int unit = WORDS.get(parts[1]);
+                if (value < 20 || value % 10 != 0 || unit == 0 || unit > 9) return null;
+                value += unit;
+            }
+            out.append(text, last, m.start()).append(value); last = m.end();
+        }
+        return out.append(text.substring(last)).toString();
+    }
+    /** 七 = 7, 十二 = 12, 二十五 = 25, 一百零五 = 105, 两千 = 2000, 一万二千 = 12000; digits side by side ("三四", a range) are not one number. */
+    static Optional<Long> chinese(String numeral) {
+        long total = 0, section = 0, lastUnit = Long.MAX_VALUE; Integer digit = null;
+        for (char c : numeral.toCharArray()) {
+            int d = switch (c) { case '零', '〇' -> 0; case '一' -> 1; case '二', '两' -> 2; case '三' -> 3; case '四' -> 4; case '五' -> 5; case '六' -> 6;
+                case '七' -> 7; case '八' -> 8; case '九' -> 9; default -> -1; };
+            if (d >= 0) {
+                if (digit != null && digit != 0) return Optional.empty(); // "三四": two digits side by side are a range, not a number
+                digit = d; continue;
+            }
+            if (c == '万') {
+                section += digit == null ? 0 : digit;
+                if (section == 0 || total > 0) return Optional.empty();
+                total = section * 10000; section = 0; digit = null; lastUnit = Long.MAX_VALUE; continue;
+            }
+            long unit = c == '十' ? 10 : c == '百' ? 100 : 1000;
+            // "十二" is 12; "百" or "零十" alone, or units out of order ("二十三百"), are no number.
+            int factor = digit == null ? (unit == 10 && total == 0 && section == 0 ? 1 : 0) : digit;
+            if (factor == 0 || unit >= lastUnit) return Optional.empty();
+            section += factor * unit; lastUnit = unit; digit = null;
+        }
+        long value = total + section + (digit == null ? 0 : digit);
+        return value > 0 || numeral.matches("[零〇]") ? Optional.of(value) : Optional.empty();
+    }
+
+    /** Singular earlier-session wording ("the earlier session", "上次"): one session, not a mix of several. */
+    private static final Pattern PLURAL_HISTORY = Pattern.compile("(?iu)\\b(?:earlier|previous|past|prior|other) (?:sessions|shoots)\\b|\\bin the past\\b|以往|过去|历次|之前几次|前几次");
+    /** "Last time", "上次": the most recent earlier session. */
+    private static final Pattern LATEST_HISTORY = Pattern.compile("(?iu)\\blast (?:session|shoot|time|outing)\\b|\\bprevious (?:session|shoot)\\b|上一次|上一场|上次|上回|上场|前一次|前一场");
+
+    /**
+     * Figures claimed for an earlier session must come from one and the same earlier session (several related sessions are
+     * never mixed in one statement), and "last time" wording names the most recent one. A value that only another earlier
+     * session recorded does not support it. Plural wording ("in past sessions") keeps the per-figure check.
+     */
+    private static boolean oneEarlierSession(String scan, List<Figure> figures, Evidence evidence, List<int[]> items, List<String> itemNames) {
+        var earlier = figures.stream().filter(f -> f.sources.contains(Source.HISTORY)).toList();
+        var sessions = evidence.facts().stream().filter(f -> f.source() == Source.HISTORY).map(Fact::id).collect(java.util.stream.Collectors.toCollection(TreeSet::new));
+        if (earlier.isEmpty() || sessions.size() < 2 || has(PLURAL_HISTORY, scan)) return true;
+        var common = new TreeSet<>(sessions);
+        for (var figure : earlier) {
+            var supporting = evidence.facts().stream().filter(fact -> fact.source() == Source.HISTORY && matches(figure, fact, scan, figures, items, itemNames, evidence.facts()))
+                .map(Fact::id).collect(java.util.stream.Collectors.toSet());
+            common.retainAll(supporting);
+        }
+        if (common.isEmpty()) return false;
+        if (!has(LATEST_HISTORY, scan)) return true;
+        var dates = evidence.facts().stream().filter(f -> f.source() == Source.HISTORY && f.metric().equals(DATE) && f.aggregation().equals("sessionDate")).toList();
+        var latest = dates.stream().max(Comparator.comparingDouble(Fact::value)).map(Fact::id);
+        return latest.isPresent() && dates.stream().filter(d -> d.value() == dates.stream().mapToDouble(Fact::value).max().orElseThrow()).count() == 1 && common.contains(latest.get());
+    }
+
+    private static final Pattern CITE =Pattern.compile("\\[\\s*[A-Za-z]{1,2}\\d{1,4}(?:\\s*,\\s*[A-Za-z]{1,2}\\d{1,4})*\\s*]");
     private static final String N = "(?:\\d{1,3}(?:,\\d{3})+(?![\\d,])(?:\\.\\d+)?|\\d+(?:[.,]\\d+)?)";
     private static final String DASH = "[-–—~‐‑‒―〜～]";
     /** Digits may follow Chinese text directly ("焦距是85mm"); digits glued to Latin letters belong to names ("A1", "7M4"). */
@@ -299,6 +407,7 @@ final class ReviewClaims {
         + "|(?<mult>" + NOT_AFTER + "[x×]\\s?(?<m1>\\d+)(?![\\p{L}\\p{N}]|[.,]\\d)|" + NUMBER_START + "(?<m2>\\d+)\\s?[x×](?![\\p{L}\\p{N}]))"
         + "|(?<num>" + NUMBER_START + "(?<sign>[+\\-−])?(?<n1>" + N + ")(?:\\s*" + DASH + "\\s*(?<n2>" + N + "))?"
         + "(?:\\s*(?<unit>millimet(?:er|re)s?|mm|毫米|secs?|seconds?|s|秒|EV|stops?|档|%|per ?cent|photos?|photographs?|images?|frames?|files?|shots?|pictures?|exposures?|pics?|times|张|幅|帧|次"
+        + "|台|部|支|只|颗|款|个|种|场|sessions?|shoots?"
         + "|(?:(?:different|distinct|separate|unique)\\s+)?(?:lens(?:es)?|cameras?|bod(?:y|ies)|apertures?|f-numbers?|focal lengths?|shutter speeds?|ISO (?:values|settings|speeds)|ISOs)"
         + "|ISO)(?!\\p{IsLatin}))?)",
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
@@ -366,13 +475,25 @@ final class ReviewClaims {
         var found = pair(start, end, metric, m.group("n1"), m.group("n2"), negative, afterOf);
         String subject = unit.contains("lens") ? "field:lens" : unit.contains("camera") || unit.contains("bod") ? "field:camera"
             : unit.contains("aperture") || unit.contains("f-number") ? "field:" + APERTURE : unit.contains("focal") ? "field:" + FOCAL
-            : unit.contains("shutter") ? "field:" + SHUTTER : unit.startsWith("iso ") || unit.equals("isos") ? "field:" + ISO : "";
-        boolean photos = unit.matches("photos?|photographs?|images?|frames?|files?|shots?|pictures?|exposures?|pics?|times|张|幅|帧|次");
+            : unit.contains("shutter") ? "field:" + SHUTTER : unit.startsWith("iso ") || unit.equals("isos") ? "field:" + ISO
+            // Chinese counting words: bodies (台, 部), lenses (支, 只, 颗); 款/个/种 count what follows them ("2 款镜头", "3 种焦距").
+            : unit.matches("台|部") ? "field:camera" : unit.matches("支|只|颗") ? "field:lens" : unit.matches("款|个|种") ? counted(scan, end)
+            // A number of sessions is never a fact of the evidence (only the related sessions themselves are), so it stays unsupported.
+            : unit.matches("场|sessions?|shoots?") || unit.equals("次") && scan.startsWith("拍摄", end) ? SESSIONS : "";
+        boolean photos = !subject.equals(SESSIONS) && unit.matches("photos?|photographs?|images?|frames?|files?|shots?|pictures?|exposures?|pics?|times|张|幅|帧|次");
         found.forEach(f -> { f.countSubject = subject; f.photos = photos; });
         if (metric.equals(UNTYPED) && OF_AFTER.matcher(scan.substring(end, Math.min(scan.length(), end + 24))).lookingAt()) found.forEach(f -> { f.metric = COUNT; f.photos = true; }); // "1 of the photos"
         if ((metric.equals(UNTYPED) || metric.equals(COUNT)) && AMONG_AFTER.matcher(scan.substring(end)).lookingAt()) // "7 张照片中有 2 张": the 7 is the total
             found.forEach(f -> { f.metric = COUNT; f.afterOf = true; });
         return found;
+    }
+    /** Subject of a count written with 款, 个 or 种: the field named right after it, otherwise none (an unknown subject is unsupported). */
+    private static final String SESSIONS = "sessions";
+    private static String counted(String scan, int end) {
+        String next = scan.substring(end, Math.min(scan.length(), end + 6));
+        return next.matches("(?s)\\s*(?:不同的?)?(?:镜头|镜).*") ? "field:lens" : next.matches("(?s)\\s*(?:不同的?)?(?:相机|机身).*") ? "field:camera"
+            : next.matches("(?s)\\s*(?:不同的?)?焦距.*") ? "field:" + FOCAL : next.matches("(?s)\\s*(?:不同的?)?光圈.*") ? "field:" + APERTURE
+            : next.matches("(?s)\\s*(?:不同的?)?快门.*") ? "field:" + SHUTTER : next.matches("(?s)\\s*(?:不同的?)?(?:感光度|ISO).*") ? "field:" + ISO : SESSIONS;
     }
     private static List<Figure> pair(int start, int end, String metric, String first, String second, boolean negative, boolean afterOf) {
         var found = new ArrayList<Figure>();

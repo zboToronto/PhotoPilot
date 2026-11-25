@@ -82,7 +82,9 @@ class ReviewGuiTest {
             click("review-generate");
             assertNotNull(fx(() -> pane.draft()));
             assertTrue(label("review-draft-summary").startsWith("Of the 7 photos imported"), label("review-draft-summary"));
-            assertTrue(label("review-draft-differences").contains("Recorded camera SONY ILCE-7M4"), label("review-draft-differences"));
+            // PP-03: the planned A7 IV is the recorded SONY ILCE-7M4 (one catalogued model), stated as such.
+            assertTrue(label("review-draft-differences").contains("Planned camera Sony A7 IV: 2 of 6 photos with camera data (33.3%), recorded as SONY ILCE-7M4."), label("review-draft-differences"));
+            assertTrue(label("review-draft-differences").contains("are names of the same camera model"), label("review-draft-differences"));
             assertTrue(label("review-notes").contains("Related earlier sessions used as context: 0"), label("review-notes"));
             assertEquals("COMPLETED", app.facade().sessions().open(id).value().orElseThrow().status(), "a displayed draft is not saved");
             snapshot("f11-draft-wide");

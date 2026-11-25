@@ -24,7 +24,9 @@ import com.photopilot.service.ReviewClaims.Source;
  * Every evidence record carries an application id (S = this session's EXIF statistics, P = the approved plan) naming the
  * typed facts it holds ({@link ReviewClaims}). {@link #check} then removes every returned statement with a figure that no
  * fact of the same metric, statistic, source and subject supports, that claims to have seen the photographs, judges
- * image quality or artistic success, or gives a score.
+ * image quality or artistic success, or gives a score, and (Stage2OptRe1 PP-03) every statement whose equipment identity
+ * claim the recorded and planned names do not support ({@link EquipmentClaims}): one camera model written two ways is
+ * never "different equipment", and no model name identifies an individual body.
  */
 final class ReviewEvidence {
     static final String TASK = """
@@ -55,6 +57,10 @@ final class ReviewEvidence {
         its savedReviews facts, never from pastAdvice, and give them no id.
         7. Recommendations for future sessions may suggest settings or workflow changes; phrase them as suggestions.
         8. Do not change the plan or the statistics and never claim that anything was saved.
+        9. equipmentIdentity states, for each recorded and planned camera or lens name, whether the application \
+        established the same model, a different model or no determination. Names listed as the same model are one model \
+        written two ways: never describe them as different equipment. Do not claim a different or the same model where \
+        it says not determined, and never claim which individual camera body or lens was used.
         Return summary (2-4 sentences) and at most 6 short items per list: technicalObservations, \
         equipmentObservations, exposureObservations, lessons, improvements, limitations.""";
     static final int MAX_ITEMS = 6, MAX_ITEM = 600, MAX_DISTRIBUTION = 15;
@@ -76,8 +82,38 @@ final class ReviewEvidence {
         root.add("statistics", statistics(stats, facts));
         root.add("planComparison", strings(differences.stream().map(StatisticsCalculator::english).toList()));
         root.add("evidenceLimits", strings(limits.stream().map(StatisticsCalculator::english).toList()));
+        var identity = EquipmentClaims.Evidence.of(stats, Optional.of(plan));
+        root.add("equipmentIdentity", identity(identity, facts));
+        facts.identity(identity);
         differences.forEach(facts::line); limits.forEach(facts::line);
         return new Prepared(root.toString(), facts.build());
+    }
+
+    /**
+     * PP-03: the deterministic model identity of every recorded/planned camera and lens pair, so the model is told what
+     * the application established; the reply is checked against the same relation (EquipmentClaims) either way.
+     */
+    private static JsonObject identity(EquipmentClaims.Evidence identity, ReviewClaims.Builder facts) {
+        var o = new JsonObject(); var pairs = new JsonArray();
+        for (var kind : EquipmentIdentity.Kind.values()) {
+            var names = kind == EquipmentIdentity.Kind.CAMERA ? identity.cameras() : identity.lenses();
+            for (String recorded : names.recorded()) for (String planned : names.planned()) {
+                var comparison = EquipmentIdentity.compare(kind, recorded, planned);
+                var pair = new JsonObject();
+                pair.addProperty("kind", kind == EquipmentIdentity.Kind.CAMERA ? "camera" : "lens");
+                pair.addProperty("recorded", recorded); pair.addProperty("planned", planned);
+                pair.addProperty("relation", switch (comparison.relation()) {
+                    case SAME_MODEL -> "same model"; case DIFFERENT_MODEL -> "different model"; case UNKNOWN -> "not determined"; });
+                comparison.second().or(comparison::first).filter(m -> comparison.alias()).ifPresent(model -> {
+                    String label = model.brand().label() + " " + model.label();
+                    pair.addProperty("catalogModel", label); facts.name(label); facts.name(model.label()); facts.name(model.id());
+                });
+                pairs.add(pair);
+            }
+        }
+        o.add("pairs", pairs);
+        o.addProperty("note", "Model names identify models only, never an individual camera body or lens.");
+        return o;
     }
 
     static String json(ExifStatistics stats, ShootPlan plan, ShootRequirement requirement, List<LocalizedMessage> differences, List<LocalizedMessage> limits) {
@@ -235,9 +271,12 @@ final class ReviewEvidence {
 
     // ---------------------------------------------------------------- claim validation
 
-    /** A model reply after deterministic checks: kept statements (citation markers removed) and the number removed. */
+    /**
+     * A model reply after deterministic checks: kept statements (citation markers removed), the number removed and, of
+     * those, the number removed for an unsupported or contradicted equipment-identity claim (PP-03).
+     */
     record Checked(String summary, List<String> technical, List<String> equipment, List<String> exposure, List<String> lessons,
-            List<String> improvements, List<String> limitations, int removed) { }
+            List<String> improvements, List<String> limitations, int removed, int identityRemoved) { }
 
     /** Image content, quality, viewing and artistic-outcome claims; only allowed nowhere in observations. */
     private static final Pattern OUTCOME = Pattern.compile("(?iu)\\b(sharp(?:er|est|ness)?|blurr?(?:y|ed|ing)?|motion blur|out of focus|in focus|"
@@ -255,7 +294,7 @@ final class ReviewEvidence {
      * facts count only for figures introduced as earlier. Statements with an unsupported figure are removed, never repaired.
      */
     static Checked check(ReviewInterpretation reply, ReviewClaims.Evidence evidence) {
-        int[] removed = {0};
+        int[] removed = {0, 0};
         String summary = Objects.toString(reply.summary(), "").strip();
         var summaryKept = summary.isEmpty() ? List.<String>of() : keep(List.of(summary), evidence, true, removed, Integer.MAX_VALUE);
         return new Checked(summaryKept.isEmpty() ? "" : summaryKept.getFirst(),
@@ -264,12 +303,14 @@ final class ReviewEvidence {
             keep(reply.exposureObservations(), evidence, true, removed, MAX_ITEMS),
             keep(reply.lessons(), evidence, false, removed, MAX_ITEMS),
             keep(reply.improvements(), evidence, false, removed, MAX_ITEMS),
-            keep(reply.limitations(), evidence, false, removed, MAX_ITEMS), removed[0]);
+            keep(reply.limitations(), evidence, false, removed, MAX_ITEMS), removed[0], removed[1]);
     }
 
     /**
-     * Statements are kept only if bounded, free of forbidden claims and with every figure supported. Observations (claims
-     * about the session) are checked throughout; lessons and suggestions may also propose values in suggesting clauses.
+     * Statements are kept only if bounded, free of forbidden claims, with every figure supported and with no equipment
+     * identity claim the recorded and planned names cannot support (correct figures do not make such a claim true).
+     * Observations (claims about the session) are checked throughout; lessons and suggestions may also propose values in
+     * suggesting clauses. removed[0] counts every removal, removed[1] the identity ones.
      */
     private static List<String> keep(List<String> items, ReviewClaims.Evidence evidence, boolean observation, int[] removed, int limit) {
         if (items == null) return List.of();
@@ -280,7 +321,9 @@ final class ReviewEvidence {
             String shown = ReviewClaims.display(text);
             boolean ok = !shown.isEmpty() && shown.length() <= (limit == Integer.MAX_VALUE ? MAX_ITEM * 2 : MAX_ITEM) && !FORBIDDEN.matcher(shown).find()
                 && (!observation || !OUTCOME.matcher(shown).find()) && ReviewClaims.supported(text, evidence, !observation);
-            if (ok && kept.size() < limit) kept.add(shown); else removed[0]++;
+            boolean identity = ok && EquipmentClaims.check(shown, evidence.identity()).rejected();
+            if (ok && !identity && kept.size() < limit) kept.add(shown);
+            else { removed[0]++; if (identity) removed[1]++; }
         }
         return kept;
     }

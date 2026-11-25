@@ -144,6 +144,102 @@ class ExifToolRuntimeTest {
         }
     }
 
+    /** Flips one byte in the middle of {@code file}: the length stays the same (Stage2OptRe2 cache-integrity case). */
+    private static void flipByte(Path file) throws Exception {
+        byte[] bytes = Files.readAllBytes(file); bytes[bytes.length / 2] ^= 0x20; Files.write(file, bytes);
+    }
+
+    @Test void sameLengthCorruptionIsDetectedRepairedAndTheRepairedCopyRuns() throws Exception {
+        assumeTrue(ExifToolRuntime.isWindows(), "the bundled package is the Windows build");
+        Path cache = temp.resolve("cache");
+        var hashes = new HashMap<String, String>();
+        ExifToolRuntime.entries(Files.readAllBytes(VENDORED.resolve(ExifToolRuntime.MANIFEST))).forEach(entry -> hashes.put(entry.path(), entry.sha256()));
+        String perl = ExifToolRuntime.PACKAGE + "/exiftool_files/perl.exe", module = ExifToolRuntime.PACKAGE + "/exiftool_files/lib/Image/ExifTool/Sony.pm";
+        try (var loader = new URLClassLoader(new URL[] { jar("app.jar", false).toUri().toURL() }, null)) {
+            var command = new ExifToolRuntime(cache, loader, true).resolve();
+            Path folder = command.workingDirectory().getParent().getParent();
+            for (String damaged : List.of(perl, module)) {
+                long size = Files.size(folder.resolve(damaged));
+                flipByte(folder.resolve(damaged));
+                assertEquals(size, Files.size(folder.resolve(damaged)), "same length: the size check alone cannot see it");
+                assertNotEquals(hashes.get(damaged), sha256(folder.resolve(damaged)));
+                assertEquals(command, new ExifToolRuntime(cache, loader, true).resolve(), "the next start repairs the copy");
+                assertEquals(hashes.get(damaged), sha256(folder.resolve(damaged)), damaged + " restored from the bundled package");
+            }
+            try (var listing = Files.list(cache)) { assertEquals(List.of(folder.getFileName()), listing.map(Path::getFileName).toList(), "no damaged or staging copy is left"); }
+            try (var process = new ExifToolProcess(new ExifToolRuntime(cache, loader, true)::resolve, Duration.ofSeconds(60))) {
+                assertEquals(ExifToolRuntime.VERSION, new ExifToolAdapter(process).version(), "the repaired runtime runs");
+            }
+        }
+    }
+
+    @Test void aDamagedCacheIsNeverRunWhenTheBundleCannotRepairIt() throws Exception {
+        Path cache = temp.resolve("cache");
+        Path folder;
+        try (var good = new URLClassLoader(new URL[] { jar("good.jar", false).toUri().toURL() }, null)) {
+            folder = new ExifToolRuntime(cache, good, true).resolve().workingDirectory().getParent().getParent();
+        }
+        flipByte(folder.resolve(ExifToolRuntime.PACKAGE + "/README.txt"));
+        // Same manifest, so the same cache folder, but a bundle whose README no longer matches it: no trusted copy exists.
+        try (var tampered = new URLClassLoader(new URL[] { jar("tampered.jar", true).toUri().toURL() }, null)) {
+            var failure = assertThrows(ExifToolException.class, () -> new ExifToolRuntime(cache, tampered, true).resolve());
+            assertEquals(ExifToolException.Kind.UNAVAILABLE, failure.kind(), "reported, never executed");
+            assertTrue(failure.getMessage().contains("integrity"), failure.getMessage());
+        }
+        try (var listing = Files.list(cache)) { assertEquals(List.of(folder.getFileName()), listing.map(Path::getFileName).toList(), "the failed staging copy is removed"); }
+    }
+
+    @Test void anInterruptedExtractionIsNeverUsedAndConcurrentStartsPublishOneVerifiedCopy() throws Exception {
+        assumeTrue(ExifToolRuntime.isWindows(), "the bundled package is the Windows build");
+        byte[] manifest = Files.readAllBytes(VENDORED.resolve(ExifToolRuntime.MANIFEST));
+        String id = ExifToolRuntime.VERSION + "-" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(manifest)).substring(0, 16);
+        var entries = ExifToolRuntime.entries(manifest);
+        try (var loader = new URLClassLoader(new URL[] { jar("app.jar", false).toUri().toURL() }, null)) {
+            // Left behind by a killed process: a staging folder and a published-looking folder without a completion marker.
+            Path cache = temp.resolve("interrupted");
+            Files.createDirectories(cache.resolve(".extract-killed").resolve(ExifToolRuntime.PACKAGE));
+            Files.writeString(cache.resolve(".extract-killed").resolve(ExifToolRuntime.PACKAGE).resolve("README.txt"), "partial");
+            Path half = Files.createDirectories(cache.resolve(id).resolve(ExifToolRuntime.PACKAGE).resolve("exiftool_files"));
+            Files.writeString(half.resolve("exiftool.pl"), "#!perl partial");
+            Path folder = new ExifToolRuntime(cache, loader, true).resolve().workingDirectory().getParent().getParent();
+            assertEquals(id, folder.getFileName().toString());
+            for (var entry : entries) assertEquals(entry.sha256(), sha256(folder.resolve(entry.path())), entry.path());
+            try (var listing = Files.list(cache)) {
+                assertEquals(Set.of(id, ".extract-killed"), listing.map(p -> p.getFileName().toString()).collect(java.util.stream.Collectors.toSet()),
+                    "the partial copy was replaced; an old staging folder is left alone and never used");
+            }
+            // Several windows starting at once on an empty cache: one verified copy, used by all of them.
+            Path shared = temp.resolve("concurrent");
+            var pool = java.util.concurrent.Executors.newFixedThreadPool(3);
+            try {
+                var ready = new java.util.concurrent.CountDownLatch(1);
+                var starts = new ArrayList<java.util.concurrent.Future<ExifToolRuntime.Command>>();
+                for (int i = 0; i < 3; i++) starts.add(pool.submit(() -> { ready.await(); return new ExifToolRuntime(shared, loader, true).resolve(); }));
+                ready.countDown();
+                var commands = new HashSet<ExifToolRuntime.Command>();
+                for (var start : starts) commands.add(start.get(180, java.util.concurrent.TimeUnit.SECONDS));
+                assertEquals(1, commands.size(), "every start uses the same published copy");
+            } finally { pool.shutdownNow(); }
+            try (var listing = Files.list(shared)) { assertEquals(List.of(id), listing.map(p -> p.getFileName().toString()).toList(), "no staging copy is left"); }
+            for (var entry : entries) assertEquals(entry.sha256(), sha256(shared.resolve(id).resolve(entry.path())), entry.path());
+        }
+    }
+
+    @Test void verifyingAPublishedCopyIsCheapComparedWithExtractingIt() throws Exception {
+        Path cache = temp.resolve("cache");
+        try (var loader = new URLClassLoader(new URL[] { jar("app.jar", false).toUri().toURL() }, null)) {
+            long extract = System.nanoTime(); new ExifToolRuntime(cache, loader, true).resolve(); extract = System.nanoTime() - extract;
+            // The first read of freshly written files can include an on-access virus scan; the second start is the steady state.
+            long first = System.nanoTime(); new ExifToolRuntime(cache, loader, true).resolve(); first = System.nanoTime() - first;
+            long verify = System.nanoTime(); new ExifToolRuntime(cache, loader, true).resolve(); verify = System.nanoTime() - verify;
+            var runtime = new ExifToolRuntime(cache, loader, true); runtime.resolve();
+            long repeated = System.nanoTime(); for (int i = 0; i < 100; i++) runtime.resolve(); repeated = System.nanoTime() - repeated;
+            System.out.printf("ExifTool runtime: extract %d ms, first verify %d ms, steady verify on start %d ms, 100 repeated resolves %d ms%n",
+                extract / 1_000_000, first / 1_000_000, verify / 1_000_000, repeated / 1_000_000);
+            assertTrue(repeated < verify, "repeated shutter-count operations reuse the verified command without hashing again");
+        }
+    }
+
     @Test void missingBundleAndOtherSystemsAreReportedAsUnavailable() throws Exception {
         try (var empty = new URLClassLoader(new URL[0], null)) {
             assertEquals(ExifToolException.Kind.UNAVAILABLE, assertThrows(ExifToolException.class, () -> new ExifToolRuntime(temp, empty, true).resolve()).kind());

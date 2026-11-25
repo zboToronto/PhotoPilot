@@ -25,7 +25,7 @@ import javafx.stage.FileChooser;
  * (Completed -> Reviewed) or Discard; saved reviews reopen read-only. Reuses PlanPane's controls, cards and Task
  * lifecycle; all rules live in ReviewService.
  */
-final class ReviewPane extends VBox {
+final class ReviewPane extends VBox implements SessionScoped {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -38,6 +38,9 @@ final class ReviewPane extends VBox {
     private final VBox controls = new VBox(16), inputsBox = new VBox(10), importBox = new VBox(12), analysisBox = new VBox(12), statsBox = new VBox(12),
         generateBox = new VBox(12), savedBox = new VBox(12), results = new VBox(18), feedbackBox = new VBox(8);
     private final Button analyze, generate, save;
+    private final OperationRunner tracked;
+    private final NextStepHint prerequisite;
+    private final SessionChooser chooser;
     private final Set<Path> selected = new LinkedHashSet<>();
     private ReviewInputs inputs;
     private ExifAnalysis analysis;
@@ -48,14 +51,17 @@ final class ReviewPane extends VBox {
     ReviewPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
+        prerequisite = new NextStepHint(localization, "review-next");
         session.setId("review-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "review.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
         session.valueProperty().addListener((o, old, value) -> { if (draft == null) { analysis = null; showSession(); } });
+        chooser = new SessionChooser(session, texts);
         Label sessionCaption = texts.label("review.session", "section-title"); sessionCaption.setLabelFor(session);
         Button refresh = button("gear.refresh", "review-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
 
         inputLines.setId("review-inputs");
-        inputsBox.getChildren().addAll(texts.label("review.inputs.title", "section-title"), inputLines);
+        inputsBox.getChildren().addAll(texts.label("review.inputs.title", "section-title"), inputLines, prerequisite);
         path.setId("review-path"); texts.inputMenu(path); texts.text(path.promptTextProperty(), "review.pathPrompt"); texts.text(path.accessibleTextProperty(), "review.path");
         Label pathCaption = texts.label("review.path", "section-title"); pathCaption.setLabelFor(path);
         Button add = button("review.add", "review-add", this::addPath, false), browse = button("review.browse", "review-browse", this::browse, false);
@@ -70,8 +76,8 @@ final class ReviewPane extends VBox {
         generateBox.getChildren().addAll(texts.label("review.generate.title", "section-title"), texts.label("review.ai.notice", "secondary-text"), new FlowPane(12, 10, generate));
         save = button("review.save", "review-save", this::save, true);
         for (var box : List.of(inputsBox, importBox, analysisBox, statsBox, generateBox, savedBox, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("review.feedback", "section-title"), feedback);
-        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), sessionHint), inputsBox, importBox, analysisBox, statsBox, generateBox, savedBox);
+        feedbackBox.getChildren().addAll(texts.label("review.feedback", "section-title"), feedback, tracked.view());
+        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), chooser.context(), sessionHint), inputsBox, importBox, analysisBox, statsBox, generateBox, savedBox);
         for (var node : List.<Node>of(feedbackBox, sessionHint, inputsBox, importBox, analysisBox, statsBox, generateBox, savedBox, results, replace)) hide(node);
         getChildren().addAll(controls, results, feedbackBox);
         renderSelection();
@@ -84,7 +90,10 @@ final class ReviewPane extends VBox {
     }
 
     void activate(boolean active) { if (active && !busy) refresh(); }
-    void dispose() { disposed = true; texts.close(); }
+    void dispose() { disposed = true; texts.close(); tracked.view().dispose(); }
+    OperationRunner tracked() { return tracked; }
+    @Override public javafx.beans.value.ObservableValue<PhotographySession> selectedSession() { return chooser.selected(); }
+    @Override public void useSessions(SessionWorkflowModel sessions) { chooser.use(sessions); }
     boolean dirty() { return draft != null || !selected.isEmpty(); }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
@@ -98,13 +107,12 @@ final class ReviewPane extends VBox {
 
     /** Completed sessions accept imports and reviews; reviewed ones reopen their saved evidence and reviews. */
     void refresh() {
-        UUID current = draft != null ? draft.sessionId() : preferred != null ? preferred : session.getValue() == null ? null : session.getValue().id();
+        UUID kept = draft != null ? draft.sessionId() : preferred;
         run(() -> app.sessions().search(""), found -> {
             preferred = null;
             var eligible = found.stream().filter(s -> s.status().equals("COMPLETED") || s.status().equals("REVIEWED")).toList();
             session.getItems().setAll(eligible);
-            eligible.stream().filter(s -> s.id().equals(current)).findFirst().ifPresentOrElse(session::setValue,
-                () -> { if (!eligible.isEmpty()) session.setValue(eligible.getFirst()); });
+            chooser.select(eligible, kept, false);
             texts.text(sessionHint.textProperty(), "review.noSessions");
             if (eligible.isEmpty()) show(sessionHint); else hide(sessionHint);
             showSession();
@@ -125,6 +133,8 @@ final class ReviewPane extends VBox {
             if (analysis != null) show(analysisBox); else hide(analysisBox);
             if (found.session().status().equals("COMPLETED")) show(generateBox); else hide(generateBox);
             generate.setDisable(!found.canReview());
+            // Before execution: the prerequisite another page resolves (statistics are added on this page).
+            prerequisite.show(com.photopilot.application.NextSteps.before(found.reviewBlockers()));
             if (found.saved().isEmpty()) hide(savedBox); else show(savedBox);
         }, failure -> message(() -> errors(failure)));
     }
@@ -161,7 +171,7 @@ final class ReviewPane extends VBox {
         if (selected.isEmpty()) { message(() -> localization.text("review.error.noFiles")); return; }
         var files = List.copyOf(selected); boolean replacing = replace.isSelected(); UUID id = chosen.id();
         message(() -> localization.text("review.analyzing", files.size()));
-        run(() -> app.reviews().analysis(id, files, replacing), found -> {
+        run(OperationKind.REVIEW_ANALYZE, () -> app.reviews().analysis(id, files, replacing), found -> {
             analysis = found;
             if (found.status().persisted()) { selected.clear(); replace.setSelected(false); hide(replace); renderSelection(); }
             if (found.status() == ExifAnalysis.Status.REPLACE_REQUIRED) show(replace);
@@ -174,7 +184,7 @@ final class ReviewPane extends VBox {
         if (chosen == null) return;
         clearDraft(); message(() -> localization.text("review.generating"));
         UUID id = chosen.id();
-        run(() -> app.reviews().draft(id), found -> {
+        run(OperationKind.REVIEW_DRAFT, () -> app.reviews().draft(id), found -> {
             draft = found; session.setDisable(true); render(); show(results);
             message(() -> localization.text("review.ready"));
             SessionPane.reveal(this, results);
@@ -184,7 +194,7 @@ final class ReviewPane extends VBox {
         if (draft == null) return;
         var reviewed = draft;
         message(() -> localization.text("review.saving"));
-        run(() -> app.reviews().save(reviewed.sessionId(), reviewed.review()), saved -> {
+        run(OperationKind.REVIEW_SAVE, () -> app.reviews().save(reviewed.sessionId(), reviewed.review()), saved -> {
             clearDraft(); session.setDisable(false);
             message(() -> localization.text("review.savedGui"));
             refresh();
@@ -193,7 +203,7 @@ final class ReviewPane extends VBox {
     private void discard() {
         if (draft == null) return;
         app.reviews().discard(draft.sessionId(), draft.review());
-        clearDraft(); session.setDisable(false);
+        clearDraft(); session.setDisable(false); tracked.view().clear();
         message(() -> localization.text("review.discarded"));
         showSession();
     }
@@ -201,6 +211,7 @@ final class ReviewPane extends VBox {
 
     /** Rebuilds the localized cards from the last service results (also on language change). */
     private void render() {
+        prerequisite.render();
         if (inputs != null) {
             inputLines.setText(String.join("\n", ReviewPresentation.inputs(inputs, localization)));
             analysisBox.getChildren().clear();
@@ -229,8 +240,10 @@ final class ReviewPane extends VBox {
                 savedBox.getChildren().add(FeaturePane.label(localization.text("review.saved.title"), "section-title"));
                 for (var review : inputs.saved()) {
                     savedBox.getChildren().add(FeaturePane.label(ReviewPresentation.heading(review, localization), "section-title"));
+                    // Saved history is shown as stored; statements today's identity check rejects get a note (PP-03).
                     for (String section : ReviewPresentation.SECTIONS)
-                        savedBox.getChildren().add(card("review.section." + section, "review-saved-" + section, ReviewPresentation.section(review, section, localization)));
+                        savedBox.getChildren().add(card("review.section." + section, "review-saved-" + section,
+                            ReviewPresentation.section(review, inputs.session(), section, localization)));
                 }
             }
         }
@@ -256,6 +269,17 @@ final class ReviewPane extends VBox {
         var body = FeaturePane.label(String.join("\n", lines), "secondary-text"); body.setId(id); return body;
     }
 
+    /** A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true); results.setDisable(true);
+        tracked.run(kind, operation, result -> {
+            if (disposed) return;
+            done();
+            if (result.isSuccess()) success.accept(result.value().orElseThrow());
+            else failure.accept(result);
+        }, () -> { if (disposed) return; done(); message(() -> localization.text("progress.cancelled")); });
+    }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;
         busy = true; controls.setDisable(true); results.setDisable(true);

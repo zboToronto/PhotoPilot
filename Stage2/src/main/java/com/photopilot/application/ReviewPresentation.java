@@ -10,7 +10,9 @@ import com.photopilot.i18n.LocalizedMessage;
 import com.photopilot.model.ExifStatistics;
 import com.photopilot.model.ExifValues;
 import com.photopilot.model.MetadataScan;
+import com.photopilot.model.PhotographySession;
 import com.photopilot.model.PostShootReview;
+import com.photopilot.service.EquipmentClaims;
 import com.photopilot.service.ExifAnalysis;
 import com.photopilot.service.ReviewInputs;
 
@@ -145,6 +147,33 @@ public final class ReviewPresentation {
         };
         if (items.isEmpty()) return List.of(l.text("review.section.empty"));
         return section.equals("summary") ? items : items.stream().map(item -> "- " + item).toList();
+    }
+
+    /**
+     * A saved review section with a note under each statement that today's equipment-identity check rejects
+     * (Stage2OptRe1 PP-03), judged against the review's frozen statistics and the plan revision it was compared with.
+     * Saved reviews are immutable history: the stored text is shown unchanged and nothing is written.
+     */
+    public static List<String> section(PostShootReview review, PhotographySession session, String section, LocalizationService l) {
+        var lines = section(review, section, l);
+        var conflicts = EquipmentClaims.audit(review, session).stream().filter(c -> c.section().equals(section)).toList();
+        if (conflicts.isEmpty()) return lines;
+        var result = new ArrayList<String>();
+        for (String line : lines) {
+            result.add(line);
+            for (var conflict : conflicts)
+                if (line.equals(section.equals("summary") ? conflict.statement() : "- " + conflict.statement())) result.add("  " + identityWarning(conflict.finding(), l));
+        }
+        return result;
+    }
+    /** The note for one rejected saved statement. */
+    public static String identityWarning(EquipmentClaims.Finding finding, LocalizationService l) {
+        if (finding.body()) return l.text("review.identity.warningBody");
+        var comparison = finding.comparison().orElseThrow();
+        if (finding.verdict() == EquipmentClaims.Verdict.UNSUPPORTED) return l.text("review.identity.warningUnknown", finding.recorded(), finding.planned());
+        if (comparison.different()) return l.text("review.identity.warningDifferent", finding.recorded(), finding.planned());
+        return l.text("review.identity.warningSame", finding.recorded(), finding.planned(),
+            comparison.first().or(comparison::second).map(m -> m.brand().label() + " " + m.label()).orElse(finding.planned()));
     }
 
     private static String time(Instant at) { return MINUTE.format(at.atZone(ZoneId.systemDefault())); }

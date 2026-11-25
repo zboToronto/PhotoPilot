@@ -77,7 +77,8 @@ final class ReviewCommands {
         }
         if (files.isEmpty()) throw new LocalizedException("review.cli.analyzeUsage");
         output.println(localization.text("review.analyzing", files.size()));
-        var result = app.reviews().analysis(session.id(), files, replace);
+        boolean replacing = replace;
+        var result = CliProgress.run(OperationKind.REVIEW_ANALYZE, session.id(), () -> app.reviews().analysis(session.id(), files, replacing));
         if (!report(result)) return 2;
         var analysis = result.value().orElseThrow();
         output.println(localization.text("review.card.files"));
@@ -115,7 +116,7 @@ final class ReviewCommands {
     private int generate(List<String> words) {
         var session = session(words, 3); if (session == null) return 2;
         output.println(localization.text("review.generating"));
-        var draft = app.reviews().draft(session.id());
+        var draft = CliProgress.run(OperationKind.REVIEW_DRAFT, () -> app.reviews().draft(session.id()));
         if (!report(draft)) { output.println(localization.text("review.cli.statisticsKept")); return 2; }
         if (state.pending != null) app.reviews().discard(state.pending.sessionId(), state.pending.review());
         state.pending = draft.value().orElseThrow();
@@ -125,7 +126,7 @@ final class ReviewCommands {
     private int save() {
         if (!pending()) return 2;
         var draft = state.pending;
-        var saved = app.reviews().save(draft.sessionId(), draft.review());
+        var saved = CliProgress.run(OperationKind.REVIEW_SAVE, draft.sessionId(), () -> app.reviews().save(draft.sessionId(), draft.review()));
         if (!report(saved)) { output.println(localization.text("review.saveFailed")); return 2; }
         state.pending = null;
         var session = app.sessions().open(draft.sessionId());
@@ -155,7 +156,7 @@ final class ReviewCommands {
             try { index = Integer.parseInt(words.get(3)); } catch (NumberFormatException invalid) { throw new LocalizedException("error.cli.option", words.get(3)); }
         }
         if (index < 1 || index > all.size()) { output.println(localization.text("review.cli.noSaved")); return 2; }
-        printReview(all.get(index - 1));
+        printReview(all.get(index - 1), session);
         return 0;
     }
 
@@ -167,11 +168,14 @@ final class ReviewCommands {
         ReviewPresentation.lines(draft.notes(), localization).stream().map(ReviewCommands::indent).forEach(output::println);
         output.println(localization.text("review.cli.next"));
     }
-    private void printReview(PostShootReview review) {
+    private void printReview(PostShootReview review) { printReview(review, null); }
+    /** A review; a saved one with its session also notes statements today's identity check rejects (PP-03, unchanged). */
+    private void printReview(PostShootReview review, PhotographySession session) {
         output.println(ReviewPresentation.heading(review, localization));
         for (String section : ReviewPresentation.SECTIONS) {
             output.println(localization.text("review.section." + section));
-            ReviewPresentation.section(review, section, localization).forEach(line -> output.println("  " + line));
+            (session == null ? ReviewPresentation.section(review, section, localization) : ReviewPresentation.section(review, session, section, localization))
+                .forEach(line -> output.println("  " + line));
         }
     }
     private void printStatistics(ExifStatistics stats) {

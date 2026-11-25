@@ -20,7 +20,8 @@ import java.util.*;
  *   <li>Classes on disk ({@code javafx:run}, tests, IDE): the package is used where it is, after checking that every file
  *       in {@code MANIFEST.sha256} is present with the listed size.</li>
  *   <li>Inside a JAR: the files are extracted once to {@code <cache>/<version>-<manifest hash>}, each verified against its
- *       SHA-256, then reused. The cache defaults to {@code %LOCALAPPDATA%\PhotoPilot\exiftool}.</li>
+ *       SHA-256, then reused after the same SHA-256 check against the bundled manifest (once per runtime); a damaged copy
+ *       is replaced. The cache defaults to {@code %LOCALAPPDATA%\PhotoPilot\exiftool}.</li>
  * </ul>
  * The command is {@code exiftool_files\perl.exe exiftool.pl} run inside {@code exiftool_files}: what the package's
  * launcher does, without the launcher's name-dependent pause, and without the install path on the Perl command line
@@ -154,6 +155,12 @@ public final class ExifToolRuntime {
         }
         deleteTree(aside);
     }
+    /**
+     * Whether the published copy is exactly the bundled package: marker, presence and size first (cheap), then every
+     * file's SHA-256 against {@code entries}, which come from the manifest inside the application, never from the cache,
+     * so a damaged or replaced cached file cannot vouch for itself (Stage2OptRe2: same-length corruption). This runs once
+     * per runtime instance; later calls reuse the resolved command.
+     */
     private static boolean complete(Path target, String id, List<Entry> entries) throws IOException {
         Path marker = target.resolve(".complete");
         try {
@@ -163,7 +170,16 @@ public final class ExifToolRuntime {
             Path file = target.resolve(entry.path());
             if (!Files.isRegularFile(file) || Files.size(file) != entry.size()) return false;
         }
+        for (Entry entry : entries) if (!hash(target.resolve(entry.path())).equals(Optional.of(entry.sha256()))) return false;
         return true;
+    }
+    /** SHA-256 of a cached file; empty when it cannot be read (a damaged copy, repaired like any other). */
+    private static Optional<String> hash(Path file) {
+        var digest = sha256();
+        try (var in = new DigestInputStream(Files.newInputStream(file), digest)) {
+            in.transferTo(java.io.OutputStream.nullOutputStream());
+        } catch (IOException | SecurityException unreadable) { return Optional.empty(); }
+        return Optional.of(HexFormat.of().formatHex(digest.digest()));
     }
     private static MessageDigest sha256() {
         try { return MessageDigest.getInstance("SHA-256"); } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }

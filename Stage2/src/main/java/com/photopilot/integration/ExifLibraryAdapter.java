@@ -64,6 +64,13 @@ public class ExifLibraryAdapter implements MetadataExtractor {
     public static final Set<String> ALL_FORMATS = Set.of(JPEG, EXIFTOOL_JSON, RAW);
     public static final long MAX_JPEG_BYTES = 100L * 1024 * 1024, MAX_EXPORT_BYTES = 20L * 1024 * 1024, MAX_RAW_BYTES = 256L * 1024 * 1024;
     public static final int MAX_FILES = 2000, MAX_EXPORT_ENTRIES = 20_000;
+    /**
+     * Photo records one scan may decode across all its files (Stage2OptRe2 X02 / Review2 #04): the per-file limits alone
+     * allowed MAX_FILES exports of MAX_EXPORT_ENTRIES each (40 million records in memory). 2.5 exports at the per-file
+     * maximum, far above one shoot's photos; above it the whole scan is refused, never truncated, so no partial statistics
+     * are presented or saved. Peak memory stays bounded by this plus one file's records.
+     */
+    public static final int MAX_RECORDS = 50_000;
     /** Supported RAW extensions (matched case-insensitively) and the ExifTool FileType each file must have. */
     public static final Map<String, String> RAW_TYPES = Map.of("arw", "ARW", "raf", "RAF", "cr3", "CR3", "nef", "NEF", "dng", "DNG");
     /**
@@ -87,16 +94,24 @@ public class ExifLibraryAdapter implements MetadataExtractor {
 
     private Set<String> supportedFormats;
     private final RawReader rawReader;
+    private final int maxRecords;
 
     public ExifLibraryAdapter(Set<String> supportedFormats) {
         this(supportedFormats, null);
     }
 
     public ExifLibraryAdapter(Set<String> supportedFormats, RawReader rawReader) {
+        this(supportedFormats, rawReader, MAX_RECORDS);
+    }
+
+    /** {@code maxRecords} replaces {@link #MAX_RECORDS} (tests use small limits instead of large fixtures). */
+    public ExifLibraryAdapter(Set<String> supportedFormats, RawReader rawReader, int maxRecords) {
         this.supportedFormats = Set.copyOf(supportedFormats);
         if (!ALL_FORMATS.containsAll(this.supportedFormats)) throw new IllegalArgumentException("Unsupported metadata format: " + supportedFormats);
         if (this.supportedFormats.contains(RAW) && rawReader == null) throw new IllegalArgumentException("RAW metadata needs an ExifTool reader");
+        if (maxRecords < 1) throw new IllegalArgumentException("maxRecords must be positive");
         this.rawReader = rawReader;
+        this.maxRecords = maxRecords;
     }
 
     public boolean supports(Path file) {
@@ -138,7 +153,12 @@ public class ExifLibraryAdapter implements MetadataExtractor {
         var contents = new HashMap<String, String>();
         var used = new TreeSet<String>();
         var rawRun = new RawRun();
+        // Execution feedback with real counts: files whose reading has finished, of the candidates found.
+        com.photopilot.progress.Progress.stage("review.read");
+        int processed = 0;
         for (Path file : candidates) {
+            com.photopilot.progress.Progress.count(processed++, candidates.size());
+            if (com.photopilot.progress.Progress.cancelled()) return Result.failureKey("progress.cancelled");
             String name = name(file);
             if (!Files.exists(file)) { outcomes.add(outcome(file, "", Status.MISSING, "review.file.missing")); continue; }
             if (!Files.isRegularFile(file)) { outcomes.add(outcome(file, "", Status.UNSUPPORTED, "review.file.notRegular")); continue; }
@@ -173,11 +193,14 @@ public class ExifLibraryAdapter implements MetadataExtractor {
                 contents.put(hash, name);
                 var read = jpeg ? jpeg(name, bytes) : rawFile ? raw(name, rawType, file, rawRun) : export(name, bytes);
                 outcomes.add(read.outcome()); records.addAll(read.records());
+                // Aggregate bound: the scan stops here and reports why; nothing read so far is presented as a result.
+                if (records.size() > maxRecords) return Result.failureKey("review.error.tooManyRecords", maxRecords);
                 if (!read.records().isEmpty()) used.add(hash);
             } catch (IOException | SecurityException unreadable) {
                 outcomes.add(outcome(file, "", Status.UNREADABLE, "review.file.unreadable"));
             }
         }
+        com.photopilot.progress.Progress.count(candidates.size(), candidates.size());
         if (outcomes.isEmpty()) return Result.failureKey("review.error.noFiles");
         return Result.success(new MetadataScan(records, outcomes, used.isEmpty() ? "" : sha256(String.join("\n", used).getBytes(StandardCharsets.UTF_8))));
     }
