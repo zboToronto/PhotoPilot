@@ -17,6 +17,7 @@ import com.photopilot.model.EquipmentRequirementProfile;
 import com.photopilot.model.Loadout;
 import com.photopilot.model.PhotographySession;
 import com.photopilot.model.ShootRequirement;
+import com.photopilot.progress.Progress;
 import com.photopilot.repository.InventoryRepository;
 import com.photopilot.repository.SessionRepository;
 import com.photopilot.validation.EnvironmentEvidence;
@@ -42,8 +43,24 @@ public class PlanningService {
      * Latest successful F09 assessment per session in this process (never persisted), with the confirmed requirement it
      * was made under. F06 and F10 use it only through the shared {@link EnvironmentEvidence} check.
      */
-    private record Assessed(EnvironmentAssessment assessment, EnvironmentEvidence.Basis basis) { }
+    private record Assessed(EnvironmentAssessment assessment, EnvironmentEvidence.Basis basis, java.time.LocalDate sessionDate) { }
     private final Map<UUID, Assessed> assessments = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Object> assessmentRuns = new java.util.HashMap<>();
+    /** AI-only retries in progress per session (at most one; a second request is refused, never queued). */
+    private final Map<UUID, Object> interpretationRetries = new java.util.HashMap<>();
+
+    /** Drop only this session's in-process evidence. Persisted checks and approved plans retain their history. */
+    public synchronized void invalidateEnvironment(UUID id) {
+        assessments.remove(id);
+        assessmentRuns.remove(id);
+    }
+
+    private synchronized Object beginAssessment(UUID id) {
+        Object token = new Object();
+        assessmentRuns.put(id, token);
+        assessments.remove(id);
+        return token;
+    }
     /** Previews issued by this service, keyed by the exact preview object, with their owning session. */
     private record Issued(ShootPlan plan) {
         @Override public boolean equals(Object other) { return other instanceof Issued that && that.plan == plan; }
@@ -75,6 +92,7 @@ public class PlanningService {
 
     /** F03 parse for an existing, still-editable session. Returns an unconfirmed draft; nothing is saved. */
     public Result<ShootRequirement> parse(UUID id, String text) {
+        Progress.stage("session.load");
         var session = editable(id);
         if (!session.isSuccess()) return Result.failure(session);
         return requirements.parse(text, new AgentContext(id, List.of(), "{}", List.of(), Optional.empty()));
@@ -82,6 +100,7 @@ public class PlanningService {
 
     /** F03 clarification: answers are resubmitted with the draft; the result is still an unconfirmed draft. */
     public Result<ShootRequirement> clarify(UUID id, ShootRequirement draft, String answers) {
+        Progress.stage("session.load");
         var session = editable(id);
         return session.isSuccess() ? requirements.clarify(draft, answers) : Result.failure(session);
     }
@@ -98,8 +117,10 @@ public class PlanningService {
      */
     public Result<ShootRequirement> confirm(PhotographySession expected, ShootRequirement edited) {
         if (expected == null) return Result.failureKey("error.session.id");
+        Progress.validating("requirement.validate");
         var confirmed = requirements.confirm(edited);
         if (!confirmed.isSuccess()) return confirmed;
+        Progress.stage("requirement.save");
         var attached = expected.attachRequirement(confirmed.value().orElseThrow());
         if (!attached.isSuccess()) return Result.failure(attached);
         var saved = sessions.save(attached.value().orElseThrow());
@@ -134,18 +155,22 @@ public class PlanningService {
      * any) go to Gemini; the reply is converted and checked deterministically into an unreviewed draft.
      */
     public Result<CapabilityProposal> proposeNeeds(UUID id) {
+        Progress.stage("session.load");
         var session = needsSession(id);
         if (!session.isSuccess()) return Result.failure(session);
         var found = session.value().orElseThrow(); var requirement = confirmedRequirement(found);
+        Progress.stage("needs.evidence");
         var environment = storedEvidence(found, requirement);
         return withEnvironment(requirements.analyzeProfile(requirement, needsEnvironment(environment)), environment);
     }
 
     /** F06 clarification: the current draft (with manual edits) and the answers are resubmitted; still unreviewed. */
     public Result<CapabilityProposal> clarifyNeeds(UUID id, CapabilityProposal current, String answers) {
+        Progress.stage("session.load");
         var session = needsSession(id);
         if (!session.isSuccess()) return Result.failure(session);
         var found = session.value().orElseThrow(); var requirement = confirmedRequirement(found);
+        Progress.stage("needs.evidence");
         var environment = storedEvidence(found, requirement);
         return withEnvironment(requirements.clarifyProfile(requirement, needsEnvironment(environment), current, answers), environment);
     }
@@ -189,6 +214,7 @@ public class PlanningService {
         if (!environment.usable()) return "";
         var assessment = environment.assessment().orElseThrow();
         var json = new com.google.gson.JsonObject();
+        assessment.request().ifPresent(r -> json.addProperty("locationSource", r.locationSource().name()));
         var windows = new com.google.gson.JsonArray();
         for (var window : assessment.windows()) {
             var item = new com.google.gson.JsonObject();
@@ -258,6 +284,7 @@ public class PlanningService {
         if (!stored.isSuccess()) return Result.failure(stored);
         if (!stored.value().orElseThrow().revision().equals(expected.revision())) return Result.failureKey("error.session.changed");
         if (expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent() && !replace) return Result.failureKey("needs.error.replaceRequired");
+        Progress.validating("needs.validate");
         var structural = requirements.validateProfile(edited);
         if (!structural.isSuccess()) return structural;
         var consistent = edited.validate(requirement.get());
@@ -266,6 +293,7 @@ public class PlanningService {
         if (!confirmed.isSuccess()) return confirmed;
         var attached = expected.attachProfile(confirmed.value().orElseThrow());
         if (!attached.isSuccess()) return Result.failure(attached);
+        Progress.stage("needs.save");
         var saved = sessions.save(attached.value().orElseThrow());
         if (!saved.isSuccess()) return Result.failure(saved);
         return saved.value().orElseThrow().profile().map(Result::success).orElseGet(() -> Result.failureKey("needs.error.none"));
@@ -304,12 +332,14 @@ public class PlanningService {
     /** F07/UC07: confirmed profile + current F05 inventory -> UC14-verified, ranked candidates. Nothing is saved. */
     public Result<com.photopilot.model.GearMatchReport> matchGear(UUID id, String strategy) {
         if (id == null) return Result.failureKey("error.session.id");
+        Progress.stage("session.load");
         var found = sessions.find(id);
         if (!found.isSuccess()) return Result.failure(found);
         var session = found.value().orElseThrow();
         if (!session.state().canEditPlan()) return Result.failureKey("match.error.historical");
         var profile = usableProfile(session);
         if (!profile.isSuccess()) return Result.failure(profile);
+        Progress.stage("match.inventory");
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
         return matching.analyze(profile.value().orElseThrow(), confirmedOrNull(session), gear.value().orElseThrow(), strategy, shootContext(session));
@@ -339,6 +369,7 @@ public class PlanningService {
         var usable = usableProfile(expected);
         if (!usable.isSuccess()) return Result.failure(usable);
         var profile = usable.value();
+        Progress.validating("match.recheck");
         var loaded = inventory.load();
         if (!loaded.isSuccess()) return Result.failure(loaded);
         var gear = loaded.value().orElseThrow();
@@ -357,6 +388,7 @@ public class PlanningService {
         var evaluated = matching.evaluate(fresh.get(), profile.get(), scope.mounting()).loadout();
         var attached = expected.attachSelectedLoadout(evaluated);
         if (!attached.isSuccess()) return Result.failure(attached);
+        Progress.stage("match.save");
         var saved = sessions.save(attached.value().orElseThrow());
         if (!saved.isSuccess()) return Result.failure(saved);
         return saved.value().orElseThrow().selectedLoadout().map(Result::success).orElseGet(() -> Result.failureKey("match.error.noSavedSelection"));
@@ -372,11 +404,22 @@ public class PlanningService {
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
         var mounting = com.photopilot.validation.CompatibilityValidator.Mounting.of(confirmedOrNull(session));
-        var check = matching.validator().assess(saved.get(), mounting);
-        var compatibility = new java.util.ArrayList<>(check.violations()); compatibility.addAll(check.unverified());
+        var check = selectionCheck(matching.validator(), saved.get(), confirmedOrNull(session), gear.value().orElseThrow());
         var evaluation = matching.evaluate(saved.get(), session.profile().filter(EquipmentRequirementProfile::reviewed).orElse(null), mounting);
-        return Result.success(new com.photopilot.model.GearMatchReport.SelectionStatus(saved.get(), evaluation, compatibility,
-            matching.validator().availability(saved.get(), gear.value().orElseThrow())));
+        return Result.success(new com.photopilot.model.GearMatchReport.SelectionStatus(saved.get(), evaluation, check.compatibility(), check.availability()));
+    }
+
+    /** The read-only recheck of a saved selection: UC14 problems (violations, then unverified items) and F05 availability now. */
+    public record SelectionCheck(List<com.photopilot.i18n.LocalizedMessage> compatibility, List<com.photopilot.i18n.LocalizedMessage> availability) {
+        public SelectionCheck { compatibility = List.copyOf(compatibility); availability = List.copyOf(availability); }
+        public boolean current() { return compatibility.isEmpty() && availability.isEmpty(); }
+    }
+    /** Shared by {@link #selection(UUID)} and the session workflow progress, so both judge a saved selection alike. */
+    static SelectionCheck selectionCheck(com.photopilot.validation.CompatibilityValidator validator, Loadout saved, ShootRequirement requirementOrNull,
+            com.photopilot.model.GearInventory gear) {
+        var check = validator.assess(saved, com.photopilot.validation.CompatibilityValidator.Mounting.of(requirementOrNull));
+        var compatibility = new ArrayList<>(check.violations()); compatibility.addAll(check.unverified());
+        return new SelectionCheck(compatibility, validator.availability(saved, gear));
     }
 
     /** Ranking strategies available to GUI and CLI; the first is the configured default. */
@@ -404,12 +447,13 @@ public class PlanningService {
         if (!session.isSuccess()) return Result.failure(session);
         var requirement = session.value().orElseThrow().requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) return Result.failureKey("env.error.needsInput", "confirmed requirement or reviewed environment inputs");
-        return remember(session.value().orElseThrow(), environment.assess(requirement.get()));
+        return remember(session.value().orElseThrow(), beginAssessment(id), environment.assess(requirement.get()));
     }
     /** Keeps a successful assessment with the confirmed requirement it was made under (F03 is never changed here). */
-    private Result<EnvironmentAssessment> remember(PhotographySession session, Result<EnvironmentAssessment> assessed) {
+    private synchronized Result<EnvironmentAssessment> remember(PhotographySession session, Object token, Result<EnvironmentAssessment> assessed) {
+        if (!assessmentRuns.remove(session.id(), token) || Progress.cancelled()) return Result.failureKey("env.resolve.changed");
         var basis = new EnvironmentEvidence.Basis(session.requirements().filter(ShootRequirement::confirmed));
-        assessed.value().ifPresent(value -> assessments.put(session.id(), new Assessed(value, basis)));
+        assessed.value().ifPresent(value -> assessments.put(session.id(), new Assessed(value, basis, session.date())));
         return assessed;
     }
 
@@ -418,13 +462,160 @@ public class PlanningService {
      * requirement (never modified); returns a validated assessment for display or later F10 use. Nothing is saved.
      */
     public Result<EnvironmentAssessment> assessEnvironment(UUID id, com.photopilot.model.EnvironmentRequest request) {
+        return assessEnvironment(id, request, null);
+    }
+
+    /**
+     * {@link #assessEnvironment(UUID, com.photopilot.model.EnvironmentRequest)} that passes the factual snapshot to
+     * {@code onFacts} (on the calling thread) while the Gemini interpretation is still pending; only the returned
+     * assessment is remembered for the session.
+     */
+    public Result<EnvironmentAssessment> assessEnvironment(UUID id, com.photopilot.model.EnvironmentRequest request,
+            java.util.function.Consumer<EnvironmentAssessment> onFacts) {
+        Progress.stage("session.load");
         var found = environmentSession(id);
         if (!found.isSuccess()) return Result.failure(found);
         var session = found.value().orElseThrow();
-        var assessed = environment.assess(session.requirements().filter(ShootRequirement::confirmed).orElse(null), request);
-        if (!assessed.isSuccess() || request == null || request.date() == null || session.date().equals(request.date())) return remember(session, assessed);
-        return remember(session, Result.success(assessed.value().orElseThrow().withNotices(List.of(com.photopilot.i18n.LocalizedMessage.of(
-            "env.notice.sessionDate", session.date().toString(), request.date().toString())))));
+        Object token = beginAssessment(id);
+        boolean otherDate = request != null && request.date() != null && !session.date().equals(request.date());
+        java.util.function.UnaryOperator<EnvironmentAssessment> sessionNotice = value -> otherDate ? value.withNotices(List.of(com.photopilot.i18n.LocalizedMessage.of(
+            "env.notice.sessionDate", session.date().toString(), request.date().toString()))) : value;
+        var assessed = environment.assess(session.requirements().filter(ShootRequirement::confirmed).orElse(null), request,
+            onFacts == null ? null : facts -> onFacts.accept(sessionNotice.apply(facts)));
+        if (!assessed.isSuccess()) return remember(session, token, assessed);
+        return remember(session, token, Result.success(sessionNotice.apply(assessed.value().orElseThrow())));
+    }
+
+    /** The deterministic dashboard analysis of an assessment (no provider or Gemini request); {@code aiPending} for a factual snapshot. */
+    public com.photopilot.model.EnvironmentAnalysis analyzeEnvironment(EnvironmentAssessment assessment, boolean aiPending) {
+        return EnvironmentAnalyzer.analyze(assessment, aiPending);
+    }
+
+    /**
+     * Why an AI-only retry of {@code shown} is not possible now, or empty when it is. Deterministic and local: the shown
+     * assessment must still be the session's latest one (any edit of place, coordinates, date, times or zone, or a new
+     * assessment, replaces or clears it), the session's date and confirmed requirement must be those it was made under,
+     * its evidence must still be fresh, its availability must not have ended, and its interpretation must have failed.
+     */
+    public synchronized Optional<com.photopilot.i18n.LocalizedMessage> environmentRetryRefusal(UUID id, EnvironmentAssessment shown) {
+        var quick = environmentRetryPrecheck(id, shown);
+        if (quick.isPresent()) return quick;
+        var stored = assessments.get(id);
+        var found = sessions.find(id);
+        if (!found.isSuccess()) return Optional.of(found.messages().isEmpty() ? com.photopilot.i18n.LocalizedMessage.of("error.session.id") : found.messages().getFirst());
+        var session = found.value().orElseThrow();
+        if (!session.state().canEditPlan()) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.error.historical"));
+        if (!session.date().equals(stored.sessionDate())) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.sessionChanged"));
+        if (!sameRequirement(stored.basis().requirement(), session.requirements().filter(ShootRequirement::confirmed)))
+            return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.requirementChanged"));
+        return Optional.empty();
+    }
+
+    /**
+     * The in-memory part of {@link #environmentRetryRefusal} (no storage read), cheap enough for an interface to decide
+     * whether to offer the retry: current assessment, failed interpretation, no retry running, fresh evidence and an
+     * availability that has not ended. The session date and requirement are checked again when the retry runs.
+     */
+    public synchronized Optional<com.photopilot.i18n.LocalizedMessage> environmentRetryPrecheck(UUID id, EnvironmentAssessment shown) {
+        if (id == null) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("error.session.id"));
+        var stored = assessments.get(id);
+        if (stored == null || shown == null) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.none"));
+        if (stored.assessment() != shown || assessmentRuns.containsKey(id)) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.replaced"));
+        if (interpretationRetries.containsKey(id)) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.busy"));
+        var ai = EnvironmentAnalyzer.ai(shown, false).status();
+        if (ai == com.photopilot.model.EnvironmentAnalysis.AiStatus.SUCCESS) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.notNeeded"));
+        if (!ai.failed()) return Optional.of(com.photopilot.i18n.LocalizedMessage.of("env.retry.skipped"));
+        return environment.reinterpretRefusal(shown);
+    }
+
+    /**
+     * Interpretation-only retry for the session's current assessment {@code shown}: reuses its confirmed location and
+     * provenance, retrieved weather and sun data, computed phases and resolved availability, and asks only Gemini again
+     * (never the place lookup, weather or sun providers). Refused under the conditions of
+     * {@link #environmentRetryRefusal}; a second retry while one runs is refused. The result replaces the session's
+     * assessment only if nothing replaced or cleared it meanwhile; otherwise it is discarded and the refusal returned.
+     */
+    public Result<EnvironmentAssessment> retryEnvironmentInterpretation(UUID id, EnvironmentAssessment shown) {
+        Progress.stage("session.load");
+        Object token = new Object();
+        Optional<ShootRequirement> requirement;
+        synchronized (this) {
+            var refusal = environmentRetryRefusal(id, shown);
+            if (refusal.isPresent()) return Result.failure(refusal.get());
+            interpretationRetries.put(id, token);
+            requirement = assessments.get(id).basis().requirement();
+        }
+        try {
+            Progress.validating("env.retryCheck");
+            var result = environment.reinterpret(requirement.orElse(null), shown);
+            synchronized (this) {
+                var current = assessments.get(id);
+                if (current == null || current.assessment() != shown || assessmentRuns.containsKey(id) || Progress.cancelled())
+                    return Result.failureKey("env.retry.replaced");
+                result.value().ifPresent(value -> assessments.put(id, new Assessed(value, current.basis(), current.sessionDate())));
+                return result;
+            }
+        } finally {
+            synchronized (this) { interpretationRetries.remove(id, token); }
+        }
+    }
+
+    /** The confirmed requirement fields an interpretation depends on (subject, goals, timing, duration, place, date). */
+    private static boolean sameRequirement(Optional<ShootRequirement> then, Optional<ShootRequirement> now) {
+        if (then.isEmpty() || now.isEmpty()) return then.isEmpty() && now.isEmpty();
+        var a = then.get(); var b = now.get();
+        return Objects.equals(a.subject(), b.subject()) && Objects.equals(a.goals(), b.goals()) && Objects.equals(a.timeWindow(), b.timeWindow())
+            && Objects.equals(a.duration(), b.duration()) && Objects.equals(a.date(), b.date())
+            && Objects.equals(a.time().map(java.time.ZonedDateTime::toLocalDateTime), b.time().map(java.time.ZonedDateTime::toLocalDateTime))
+            && Objects.equals(a.priorities(), b.priorities()) && Objects.equals(a.fixedConstraints(), b.fixedConstraints())
+            && Objects.equals(a.location().map(com.photopilot.model.GeoLocation::label), b.location().map(com.photopilot.model.GeoLocation::label))
+            && Objects.equals(a.location().flatMap(com.photopilot.model.GeoLocation::latitude), b.location().flatMap(com.photopilot.model.GeoLocation::latitude))
+            && Objects.equals(a.location().flatMap(com.photopilot.model.GeoLocation::longitude), b.location().flatMap(com.photopilot.model.GeoLocation::longitude));
+    }
+
+    /**
+     * F09 -> workflow milestone 04: adds the record of this process's latest successful assessment of the session
+     * ({@link EnvironmentCheck}: identifying metadata only) to the session the user reviewed it for. Refused when there is
+     * no assessment, when the session is historical, when the assessment was made for another day than the shooting date,
+     * or when it does not apply to the current confirmed requirement (the check F06 and F10 use). An earlier record is
+     * replaced. Atomic save against the reviewed session version (a concurrent change is rejected by the revision
+     * check); success is reported only after the save. F06/F10 keep using the in-process assessment itself.
+     * {@code shown} must be the assessment the user reviewed, which is still the latest one for the session.
+     */
+    public Result<PhotographySession> recordEnvironment(PhotographySession expected, EnvironmentAssessment shown) {
+        if (expected == null) return Result.failureKey("error.session.id");
+        if (!expected.state().canEditPlan()) return Result.failureKey("env.error.historical");
+        var assessed = assessments.get(expected.id());
+        if (assessed == null || shown == null) return Result.failureKey("env.record.error.none");
+        // Only the assessment the user reviewed is recorded; a later run for the session replaced it.
+        if (assessed.assessment() != shown) return Result.failureKey("env.record.error.replaced");
+        Progress.validating("env.recordCheck");
+        var assessment = assessed.assessment();
+        var request = assessment.request();
+        var availability = assessment.availability();
+        if (request.isEmpty() || availability.isEmpty()) return Result.failureKey("env.record.error.incomplete");
+        var requirement = expected.requirements().filter(ShootRequirement::confirmed);
+        var shootingDate = requirement.map(r -> PlanAssembly.shootingDate(expected, r)).orElse(expected.date());
+        if (!request.get().date().equals(shootingDate))
+            return Result.failureKey("env.record.error.date", request.get().date().toString(), shootingDate.toString());
+        if (requirement.isPresent()) {
+            var evidence = environmentEvidence(expected, requirement.get(), assessment);
+            if (!evidence.usable()) {
+                var reasons = new ArrayList<com.photopilot.i18n.LocalizedMessage>();
+                reasons.add(com.photopilot.i18n.LocalizedMessage.of("env.record.error.notApplicable")); reasons.addAll(evidence.notes());
+                return Result.failures(reasons);
+            }
+        }
+        // The record keeps the basis the shared check used (the requirement confirmed when the assessment was made), so a
+        // later check of the record decides exactly as EnvironmentEvidence.check does for the assessment itself.
+        var basis = assessed.basis().requirement();
+        var check = new com.photopilot.model.EnvironmentCheck(assessment.assessedAt(), request.get().date(), request.get().place(),
+            availability.get().start(), availability.get().end(), assessment.windows().size(),
+            basis.flatMap(ShootRequirement::location), basis.map(ShootRequirement::timeWindow), request.get().accepted().map(com.photopilot.model.PlaceCandidate::source));
+        var attached = expected.attachEnvironmentCheck(check);
+        if (!attached.isSuccess()) return attached;
+        Progress.stage("env.record");
+        return sessions.save(attached.value().orElseThrow());
     }
 
     /** Location selection (manual, consented device, place lookup) shared by the F09 GUI and CLI. */
@@ -461,6 +652,8 @@ public class PlanningService {
         var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
         if (requirement.isEmpty()) blockers.add(com.photopilot.i18n.LocalizedMessage.of("plan.missing.requirement"));
         if (profile.isEmpty()) blockers.add(com.photopilot.i18n.LocalizedMessage.of("plan.missing.profile"));
+        // The same rule as F07 (usableProfile): a profile confirmed for an earlier requirement that no longer fits is kept but not used.
+        else if (requirement.isPresent()) { var usable = usableProfile(session); if (!usable.isSuccess()) blockers.addAll(usable.messages()); }
         var assessment = environmentFor(id);
         int offered = 0;
         if (requirement.isPresent() && profile.isPresent()) {
@@ -521,7 +714,9 @@ public class PlanningService {
         var existing = latest(in.session().plans());
         if (existing.isPresent() && existing.get().fixedConstraints().equals(PlanValidator.constraintsOf(in.requirement(), Optional.of(in.profile()))))
             return Result.failureKey("plan.error.exists", existing.get().revision());
+        Progress.stage("plan.offers");
         var offers = assembly.offers(in.session(), in.requirement(), in.profile(), in.gear(), existing);
+        Progress.stage("plan.environment");
         var timing = assembly.timing(in.session(), in.requirement(), environmentEvidence(in.session(), in.requirement(), assessment));
         var context = new AgentContext(id, List.of("Generate the shoot plan for this photography session."),
             assembly.evidence(in.requirement(), in.profile(), offers, timing, Optional.empty()), List.of(), Optional.empty())
@@ -529,12 +724,14 @@ public class PlanningService {
         var run = agent.runWithTools(PlanAssembly.GENERATE, context, PlanGeneration.class, PLAN_TOOLS);
         if (!run.isSuccess()) return aiFailure(run);
         var output = run.value().orElseThrow();
+        Progress.validating("plan.validate");
         var built = assembly.plan(output.output(), offers, timing, in.session(), in.requirement(), in.profile(),
             existing.map(ShootPlan::id).orElseGet(UUID::randomUUID), existing.map(p -> p.revision() + 1).orElse(1), output.tools());
         var plan = built.plan();
         if (existing.isPresent()) plan = plan.asRegeneration().withExplanation(plan.summary(), com.photopilot.i18n.EnglishMessages.text("plan.regenerated"),
             plan.limitations(), plan.calculations(), plan.provisionalReasons());
         var report = merge(validator.assess(plan, in.requirement(), validation(in, timing, Optional.empty())), built.problems());
+        Progress.stage("plan.ready");
         var evidence = evidence(in, offers, built.notes(), output);
         var changed = existing.map(plan::differingSections).orElse(List.of()).stream().filter(ShootPlan.DECISIONS::contains).toList();
         return Result.success(issue(new PlanPreview(id, plan, existing, report, evidence, output.tools(), texts(output.output().questions()), "", changed)));
@@ -561,7 +758,9 @@ public class PlanningService {
         var in = inputs.value().orElseThrow();
         var base = latest(in.session().plans());
         if (base.isEmpty()) return Result.failureKey("plan.error.noSavedPlan");
+        Progress.stage("plan.offers");
         var offers = assembly.offers(in.session(), in.requirement(), in.profile(), in.gear(), base);
+        Progress.stage("plan.environment");
         var timing = assembly.timing(in.session(), in.requirement(), storedEvidence(in.session(), in.requirement()));
         String request = text.strip();
         var context = new AgentContext(id, List.of("Change request:\n" + request),
@@ -582,6 +781,7 @@ public class PlanningService {
             case "change" -> { }
             default -> { return Result.failureKey("plan.error.malformed"); }
         }
+        Progress.stage("plan.commands");
         var commands = assembly.commands(change, base.get(), offers, timing, in.profile());
         if (!commands.isSuccess()) return Result.failure(commands);
         var planned = new ArrayList<com.photopilot.command.PlanCommand>(commands.value().orElseThrow());
@@ -604,11 +804,13 @@ public class PlanningService {
         String summary = Objects.toString(change.summary(), "").strip();
         draft = draft.withExplanation(base.get().summary(), (com.photopilot.i18n.EnglishMessages.text("plan.changeRequest", request) + " " + summary).strip(),
             limitations, calculations, provisional);
+        Progress.validating("plan.validate");
         var report = validator.assess(draft, in.requirement(), validation(in, timing, base));
         // The change summary may be long because it echoes the request; the model's own part keeps MAX_SUMMARY.
         if (summary.length() > PlanValidator.MAX_SUMMARY)
             report = merge(report, List.of(com.photopilot.i18n.LocalizedMessage.of("plan.violation.text", com.photopilot.i18n.LocalizedMessage.of("plan.section.summary"))));
         var changed = draft.differingSections(base.get()).stream().filter(ShootPlan.DECISIONS::contains).toList();
+        Progress.stage("plan.ready");
         return Result.success(issue(new PlanPreview(id, draft, base, report, evidence(in, offers, notes, output), output.tools(), texts(change.questions()), request, changed)));
     }
 
@@ -649,6 +851,7 @@ public class PlanningService {
         // Date and place are not fixed constraints; a plan prepared for another shoot date or place is not approved.
         if (!sameShoot(reviewed, in.session(), in.requirement())) return Result.failureKey("plan.violation.constraintsChanged");
         var timing = assembly.timing(in.session(), in.requirement(), storedEvidence(in.session(), in.requirement()));
+        Progress.validating("plan.validate");
         var report = validator.assess(reviewed, in.requirement(), validation(in, timing, reviewed.regeneration() ? Optional.empty() : existing));
         if (!report.valid()) return Result.failures(report.blocking());
         if (reviewed.revision() > 1 && !reviewed.regeneration()) {
@@ -666,6 +869,7 @@ public class PlanningService {
             next = transitioned.value().orElseThrow();
         }
         // The only path that grows the plan history; a plain save refuses any plan change.
+        Progress.stage("plan.save");
         var saved = sessions.append(next);
         if (!saved.isSuccess()) return Result.failure(saved);
         reject(id, plan);
@@ -678,25 +882,30 @@ public class PlanningService {
      * (labels compared as EnvironmentEvidence does). This is the rule PlanValidator uses to carry a base plan's windows;
      * facts that depend on in-memory F09 evidence (a looked-up place, its availability) are deliberately not compared.
      */
-    private static boolean sameShoot(ShootPlan plan, PhotographySession session, ShootRequirement requirement) {
+    static boolean sameShoot(ShootPlan plan, PhotographySession session, ShootRequirement requirement) {
         var info = plan.sessionInfo();
         if (!PlanAssembly.shootingDate(session, requirement).toString().equals(info.get("date"))) return false;
         return requirement.location().map(place -> info.containsKey("location") && EnvironmentEvidence.sameLabel(place.label(), info.get("location"))).orElse(true);
     }
     private record Planning(PhotographySession session, ShootRequirement requirement, EquipmentRequirementProfile profile, com.photopilot.model.GearInventory gear) { }
-    /** UC10/UC11 preconditions: editable session, confirmed requirement, reviewed profile, readable inventory. */
+    /**
+     * UC10/UC11 preconditions: editable session, confirmed requirement, a reviewed profile that still fits that requirement
+     * (F07's {@link #usableProfile} rule; Stage2OptRe2 Review2 #03), readable inventory. Used by generate, revise and approve.
+     */
     private Result<Planning> planningInputs(UUID id) {
+        Progress.stage("plan.inputs");
         var found = sessions.find(id);
         if (!found.isSuccess()) return Result.failure(found);
         var session = found.value().orElseThrow();
         if (!session.state().canEditPlan()) return Result.failureKey("plan.error.historical");
         var requirement = session.requirements().filter(ShootRequirement::confirmed);
         if (requirement.isEmpty()) return Result.failureKey("plan.missing.requirement");
-        var profile = session.profile().filter(EquipmentRequirementProfile::reviewed);
-        if (profile.isEmpty()) return Result.failureKey("plan.missing.profile");
+        if (session.profile().filter(EquipmentRequirementProfile::reviewed).isEmpty()) return Result.failureKey("plan.missing.profile");
+        var profile = usableProfile(session);
+        if (!profile.isSuccess()) return Result.failure(profile);
         var gear = inventory.load();
         if (!gear.isSuccess()) return Result.failure(gear);
-        return Result.success(new Planning(session, requirement.get(), profile.get(), gear.value().orElseThrow()));
+        return Result.success(new Planning(session, requirement.get(), profile.value().orElseThrow(), gear.value().orElseThrow()));
     }
     private static PlanValidator.Context validation(Planning in, PlanAssembly.Timing timing, Optional<ShootPlan> base) {
         return new PlanValidator.Context(Optional.of(in.profile()), Optional.of(in.gear()), timing.environment(), timing.availability(), timing.zone(),

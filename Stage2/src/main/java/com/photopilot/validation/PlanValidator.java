@@ -101,6 +101,11 @@ public class PlanValidator {
         if (req == null || !req.confirmed()) missing.add(LocalizedMessage.of("plan.missing.requirement"));
         else if (!plan.fixedConstraints().equals(constraintsOf(req, context.profile()))) violations.add(LocalizedMessage.of("plan.violation.constraintsChanged"));
         if (context.profile().filter(EquipmentRequirementProfile::reviewed).isEmpty()) missing.add(LocalizedMessage.of("plan.missing.profile"));
+        else if (req != null && req.confirmed()) {
+            // A profile confirmed for an earlier requirement that it now contradicts is stale here as in F07 (usableProfile).
+            var consistent = context.profile().get().validate(req);
+            if (!consistent.isSuccess()) { missing.add(LocalizedMessage.of("needs.error.stale")); missing.addAll(consistent.messages()); }
+        }
         loadout(plan, req, context, violations, missing, limitations);
         settings(plan, violations, unverified);
         violations.addAll(calculationProblems(plan));
@@ -289,10 +294,15 @@ public class PlanValidator {
         if (windows.size() > MAX_WINDOWS) violations.add(LocalizedMessage.of("plan.violation.tooMany", LocalizedMessage.of("plan.section.schedule"), MAX_WINDOWS));
         var carried = new HashSet<String>();
         context.base().filter(base -> sameShootingContext(base, req, context)).ifPresent(base -> base.windows().forEach(w -> carried.add(signature(w))));
+        var confirmed = ShootingTime.of(req);
         var fresh = new ArrayList<ShootingWindow>();
         for (ShootingWindow window : windows) {
             var structural = window.validate();
             if (!structural.isSuccess()) { violations.addAll(structural.messages()); continue; }
+            // F03 hard limit first: a wider F09 availability (or a window carried from an approved base) never widens the
+            // confirmed start time and duration. Every window, fresh or carried, must lie inside them.
+            var outside = confirmed.flatMap(time -> time.violation(window));
+            if (outside.isPresent()) { violations.add(outside.get()); continue; }
             // Approved earlier against its own evidence; that holds only inside the current availability, when one is known.
             if (carried.contains(signature(window)) && context.availability().map(a -> a.contains(window.start(), window.end())).orElse(true)) continue;
             fresh.add(window);
@@ -324,6 +334,48 @@ public class PlanValidator {
         });
     }
     private static String signature(ShootingWindow w) { return w.start() + "|" + w.end() + "|" + w.arrival() + "|" + w.conditions(); }
+
+    /**
+     * The confirmed F03 shooting time: from the confirmed start time for the confirmed duration (open-ended without a
+     * duration). Compared as instants, so time zones with the same offset, DST transitions and midnight crossings are exact.
+     * Arrival is not bounded here: a suggested arrival before the start is preparation lead time and stays limited by the
+     * availability (F09, or the requirement itself when F09 evidence is not used).
+     */
+    public record ShootingTime(java.time.ZonedDateTime start, Optional<java.time.ZonedDateTime> end) {
+        public ShootingTime { Objects.requireNonNull(start, "start"); Objects.requireNonNull(end, "end"); }
+        /** Empty when the confirmed requirement has no start time (a duration alone limits only the total). */
+        public static Optional<ShootingTime> of(ShootRequirement req) {
+            if (req == null || req.time().isEmpty()) return Optional.empty();
+            var start = req.time().get();
+            return Optional.of(new ShootingTime(start, req.duration().map(start::plus)));
+        }
+        public boolean contains(ShootingWindow window) {
+            return !window.start().isBefore(start) && end.map(limit -> !window.end().isAfter(limit)).orElse(true);
+        }
+        /**
+         * The part of {@code availability} inside this shooting time, in the availability's zone; empty when they do not
+         * overlap. This is the interval new windows may use.
+         */
+        public Optional<Availability> within(Availability availability) {
+            var zone = availability.start().getZone();
+            var from = availability.start().isBefore(start) ? start.withZoneSameInstant(zone) : availability.start();
+            var until = end.filter(limit -> limit.isBefore(availability.end())).map(limit -> limit.withZoneSameInstant(zone)).orElse(availability.end());
+            return until.isAfter(from) ? Optional.of(new Availability(from, until)) : Optional.empty();
+        }
+        Optional<LocalizedMessage> violation(ShootingWindow window) {
+            if (contains(window)) return Optional.empty();
+            String label = window.label().isBlank() ? window.conditions() : window.label();
+            var zone = window.start().getZone();
+            var from = start.withZoneSameInstant(zone);
+            if (end.isEmpty()) return Optional.of(LocalizedMessage.of("plan.violation.beforeStart", label, local(from) + " " + zone.getId()));
+            var until = end.get().withZoneSameInstant(zone);
+            String to = until.toLocalDate().equals(from.toLocalDate()) ? until.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES).toString() : local(until);
+            return Optional.of(LocalizedMessage.of("plan.violation.requirementTime", label, local(from) + "–" + to + " " + zone.getId()));
+        }
+        private static String local(java.time.ZonedDateTime time) {
+            return time.toLocalDate() + " " + time.toLocalTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
+        }
+    }
     /**
      * Whether the base plan's windows were planned for the same shoot: same plan date and, when the confirmed requirement
      * names a location, the same location (EnvironmentEvidence label rule). A re-confirmed date or place makes carried

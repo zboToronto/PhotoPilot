@@ -32,6 +32,8 @@ public class PhotographySession {
     private List<ActivitySuggestion> savedIdeas;
     /** F07 explicitly selected owned-gear loadout (immutable snapshots), consumed by F10. */
     private Optional<Loadout> selectedLoadout;
+    /** F09 assessment explicitly added to the session (workflow milestone 04); identifying metadata only. */
+    private Optional<EnvironmentCheck> environmentCheck;
     private transient String revision = "";
 
     public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas) {
@@ -39,6 +41,10 @@ public class PhotographySession {
     }
 
     public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas, Optional<Loadout> selectedLoadout) {
+        this(id, title, date, location, notes, createdAt, updatedAt, state, requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout, Optional.empty());
+    }
+
+    public PhotographySession(UUID id, String title, LocalDate date, Optional<GeoLocation> location, String notes, Instant createdAt, Instant updatedAt, SessionState state, Optional<ShootRequirement> requirements, List<ShootPlan> plans, List<PostShootReview> reviews, Optional<EquipmentRequirementProfile> profile, Optional<ExifStatistics> statistics, List<ActivitySuggestion> savedIdeas, Optional<Loadout> selectedLoadout, Optional<EnvironmentCheck> environmentCheck) {
         this.id =Objects.requireNonNull(id, "id");
         this.title = Objects.requireNonNull(title, "title");
         this.date = Objects.requireNonNull(date, "date");
@@ -54,6 +60,7 @@ public class PhotographySession {
         this.statistics = Objects.requireNonNull(statistics, "statistics");
         this.savedIdeas = List.copyOf(savedIdeas);
         this.selectedLoadout = Objects.requireNonNull(selectedLoadout, "selectedLoadout");
+        this.environmentCheck = Objects.requireNonNull(environmentCheck, "environmentCheck");
     }
 
     public Result<PhotographySession> apply(SessionEvent event) {
@@ -80,11 +87,12 @@ public class PhotographySession {
     public Optional<ExifStatistics> statistics() { return statistics; }
     public List<ActivitySuggestion> savedIdeas() { return List.copyOf(savedIdeas); }
     public Optional<Loadout> selectedLoadout() { return selectedLoadout == null ? Optional.empty() : selectedLoadout; }
+    public Optional<EnvironmentCheck> environmentCheck() { return environmentCheck == null ? Optional.empty() : environmentCheck; }
     public String revision() { return revision == null ? "" : revision; }
     /** Repository revision token; callers cannot bypass the persisted-content comparison. */
     public PhotographySession withRevision(String revision) {
         var copy = new PhotographySession(id, title, date, location, notes, createdAt, updatedAt,
-            state, requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout);
+            state, requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout, environmentCheck);
         copy.revision = Objects.requireNonNull(revision);
         return copy;
     }
@@ -95,16 +103,17 @@ public class PhotographySession {
         Instant now = Instant.now();
         if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
         return new PhotographySession(id, title, date, location, notes, createdAt, now, state,
-            requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision());
+            requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout, environmentCheck).withRevision(revision());
     }
     public Result<PhotographySession> validate() {
         if (id == null || title == null || title.isBlank() || title.length() > 200 || date == null
                 || notes == null || notes.length() > 20000 || location == null || state == null
                 || createdAt == null || updatedAt == null || updatedAt.isBefore(createdAt)
                 || requirements == null || plans == null || reviews == null || profile == null
-                || statistics == null || savedIdeas == null || selectedLoadout == null)
+                || statistics == null || savedIdeas == null || selectedLoadout == null || environmentCheck == null)
             return Result.failureKey("error.session.details");
         if (location.isPresent() && !location.get().validate().isSuccess()) return Result.failure(location.get().validate());
+        if (environmentCheck.isPresent() && !environmentCheck.get().validate().isSuccess()) return Result.failure(environmentCheck.get().validate());
         if (!java.util.Set.of("DRAFT", "PLANNED", "COMPLETED", "REVIEWED").contains(status()))
             return Result.failureKey("error.session.state");
         if (!status().equals("DRAFT") && plans.stream().noneMatch(ShootPlan::approved))
@@ -138,7 +147,7 @@ public class PhotographySession {
         Instant now = Instant.now();
         if (!now.isAfter(updatedAt)) now = updatedAt.plusNanos(1);
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, now, state,
-            Optional.of(requirement), plans, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
+            Optional.of(requirement), plans, reviews, profile, statistics, savedIdeas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
 
     /**
@@ -151,7 +160,7 @@ public class PhotographySession {
         if (!profile.problems().isEmpty()) return Result.failures(profile.problems());
         if (!state.canEditPlan()) return Result.failureKey("needs.error.historical");
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, plans, reviews, Optional.of(profile), statistics, savedIdeas, selectedLoadout).withRevision(revision()));
+            requirements, plans, reviews, Optional.of(profile), statistics, savedIdeas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
 
     /** F07: copy carrying an explicitly selected, already revalidated loadout; replacement policy belongs to the caller. */
@@ -160,8 +169,22 @@ public class PhotographySession {
         if (!loadout.compatibility().isUsable()) return Result.failureKey("match.error.notUsable");
         if (!state.canEditPlan()) return Result.failureKey("match.error.historical");
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, plans, reviews, profile, statistics, savedIdeas, Optional.of(loadout)).withRevision(revision()));
+            requirements, plans, reviews, profile, statistics, savedIdeas, Optional.of(loadout), environmentCheck).withRevision(revision()));
     }
+    /**
+     * F09 (workflow milestone 04): copy carrying the record of a reviewed environment assessment, replacing an earlier
+     * one. Whether the assessment applies to this session is decided by the caller (PlanningService.recordEnvironment);
+     * completed and reviewed sessions keep their record.
+     */
+    public Result<PhotographySession> attachEnvironmentCheck(EnvironmentCheck check) {
+        if (check == null) return Result.failureKey("env.record.error.none");
+        var valid = check.validate();
+        if (!valid.isSuccess()) return Result.failure(valid);
+        if (!state.canEditPlan()) return Result.failureKey("env.error.historical");
+        return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
+            requirements, plans, reviews, profile, statistics, savedIdeas, selectedLoadout, Optional.of(check)).withRevision(revision()));
+    }
+
     /**
      * F02: copy with one more saved idea; returns a Result copy like attachRequirement. Historical sessions keep their
      * record, an idea is saved at most once, and a requirement or plan of the session is never touched.
@@ -175,7 +198,7 @@ public class PhotographySession {
         if (savedIdeas.size() >= MAX_SAVED_IDEAS) return Result.failureKey("discover.error.tooManySaved", MAX_SAVED_IDEAS);
         var ideas = new java.util.ArrayList<>(savedIdeas); ideas.add(idea);
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, plans, reviews, profile, statistics, ideas, selectedLoadout).withRevision(revision()));
+            requirements, plans, reviews, profile, statistics, ideas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
     public static final int MAX_SAVED_IDEAS = 50;
     private Instant next() {
@@ -193,7 +216,7 @@ public class PhotographySession {
         if (!valid.isSuccess()) return Result.failure(valid);
         if (!(state instanceof com.photopilot.state.CompletedState)) return Result.failureKey("review.error.notCompleted", status());
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, plans, reviews, profile, Optional.of(stats), savedIdeas, selectedLoadout).withRevision(revision()));
+            requirements, plans, reviews, profile, Optional.of(stats), savedIdeas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
 
     /**
@@ -208,7 +231,7 @@ public class PhotographySession {
             return Result.failureKey("plan.error.stale");
         var history = new java.util.ArrayList<>(plans); history.add(plan);
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, history, reviews, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
+            requirements, history, reviews, profile, statistics, savedIdeas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
 
     /**
@@ -224,6 +247,6 @@ public class PhotographySession {
         if (!valid.isSuccess()) return Result.failure(valid);
         var history = new java.util.ArrayList<>(reviews); history.add(review);
         return Result.success(new PhotographySession(id, title, date, location, notes, createdAt, next(), state,
-            requirements, plans, history, profile, statistics, savedIdeas, selectedLoadout).withRevision(revision()));
+            requirements, plans, history, profile, statistics, savedIdeas, selectedLoadout, environmentCheck).withRevision(revision()));
     }
 }

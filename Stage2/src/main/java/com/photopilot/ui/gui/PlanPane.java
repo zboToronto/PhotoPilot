@@ -20,7 +20,7 @@ import javafx.scene.layout.*;
  * -> natural-language revision -> comparison -> approve/reject. Reuses GearMatchPane's controls, cards and Task
  * lifecycle; all rules live in PlanningService.
  */
-final class PlanPane extends VBox {
+final class PlanPane extends VBox implements SessionScoped {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -32,6 +32,9 @@ final class PlanPane extends VBox {
     private final VBox controls = new VBox(16), inputsBox = new VBox(10), generateBox = new VBox(12), savedBox = new VBox(12),
         savedSections = new VBox(10), results = new VBox(18), feedbackBox = new VBox(8);
     private final Button generate, approve;
+    private final OperationRunner tracked;
+    private final NextStepHint prerequisite;
+    private final SessionChooser chooser;
     private PlanInputs inputs;
     private PlanPreview preview;
     private boolean busy, disposed;
@@ -39,14 +42,17 @@ final class PlanPane extends VBox {
     PlanPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
+        prerequisite = new NextStepHint(localization, "plan-next");
         session.setId("plan-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "plan.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
         session.valueProperty().addListener((o, old, value) -> { if (preview == null) showSession(); });
+        chooser = new SessionChooser(session, texts);
         Label sessionCaption = texts.label("plan.session", "section-title"); sessionCaption.setLabelFor(session);
         Button refresh = button("gear.refresh", "plan-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
 
         inputLines.setId("plan-inputs");
-        inputsBox.getChildren().addAll(texts.label("plan.inputs.title", "section-title"), inputLines);
+        inputsBox.getChildren().addAll(texts.label("plan.inputs.title", "section-title"), inputLines, prerequisite);
         generate = button("plan.generate", "plan-generate", this::generate, true);
         generateBox.getChildren().addAll(texts.label("plan.generate.title", "section-title"), texts.label("plan.ai.notice", "secondary-text"), new FlowPane(12, 10, generate));
         historyLines.setId("plan-history"); savedSections.setId("plan-saved");
@@ -58,8 +64,8 @@ final class PlanPane extends VBox {
             new FlowPane(12, 10, button("plan.revise.action", "plan-revise", this::revise, false)));
         approve = button("plan.approve", "plan-approve", this::approve, true);
         for (var box : List.of(inputsBox, generateBox, savedBox, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("plan.feedback", "section-title"), feedback);
-        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), sessionHint), inputsBox, generateBox, savedBox);
+        feedbackBox.getChildren().addAll(texts.label("plan.feedback", "section-title"), feedback, tracked.view());
+        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), chooser.context(), sessionHint), inputsBox, generateBox, savedBox);
         hide(feedbackBox); hide(sessionHint); hide(savedBox); hide(results); hide(inputsBox); hide(generateBox);
         getChildren().addAll(controls, results, feedbackBox);
         texts.onRefresh(this::render);
@@ -71,20 +77,22 @@ final class PlanPane extends VBox {
     }
 
     void activate(boolean active) { if (active && !busy) refresh(); }
-    void dispose() { disposed = true; texts.close(); }
+    void dispose() { disposed = true; texts.close(); tracked.view().dispose(); }
     boolean dirty() { return preview != null || !request.getText().isBlank(); }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
     PlanPreview preview() { return preview; }
+    OperationRunner tracked() { return tracked; }
+    @Override public javafx.beans.value.ObservableValue<PhotographySession> selectedSession() { return chooser.selected(); }
+    @Override public void useSessions(SessionWorkflowModel sessions) { chooser.use(sessions); }
 
     /** Editable sessions only: completed/reviewed sessions keep their historical plans. */
     void refresh() {
-        UUID selected = preview != null ? preview.sessionId() : session.getValue() == null ? null : session.getValue().id();
+        UUID kept = preview == null ? null : preview.sessionId();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
             session.getItems().setAll(editable);
-            editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
-                () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
+            chooser.select(editable, kept, false);
             texts.text(sessionHint.textProperty(), "requirement.noSessions");
             if (editable.isEmpty()) show(sessionHint); else hide(sessionHint);
             showSession();
@@ -101,6 +109,7 @@ final class PlanPane extends VBox {
             inputs = found; render();
             show(inputsBox); show(generateBox);
             generate.setDisable(!found.ready());
+            prerequisite.show(com.photopilot.application.NextSteps.before(found.blockers()));
             if (found.current().isPresent()) show(savedBox); else hide(savedBox);
         }, failure -> message(() -> String.join(" ", failure.errors(localization))));
     }
@@ -110,7 +119,7 @@ final class PlanPane extends VBox {
         if (selected == null) { message(() -> localization.text("requirement.noSessions")); return; }
         clearPreview(); message(() -> localization.text("plan.generating"));
         UUID id = selected.id();
-        run(() -> app.planning().generatePreview(id), found -> {
+        run(OperationKind.PLAN_GENERATE, () -> app.planning().generatePreview(id), found -> {
             preview = found; session.setDisable(true); render(); show(results);
             message(() -> localization.text(found.approvable() ? "plan.ready" : "plan.readyBlocked"));
             SessionPane.reveal(this, results);
@@ -123,7 +132,7 @@ final class PlanPane extends VBox {
         if (text.isBlank()) { message(() -> localization.text("plan.error.request")); return; }
         clearPreview(); message(() -> localization.text("plan.revising"));
         UUID id = selected.id();
-        run(() -> app.planning().revisePreview(id, text), found -> {
+        run(OperationKind.PLAN_REVISE, () -> app.planning().revisePreview(id, text), found -> {
             preview = found; session.setDisable(true); render(); show(results);
             message(() -> localization.text(found.approvable() ? "plan.revision.ready" : "plan.readyBlocked"));
             SessionPane.reveal(this, results);
@@ -133,7 +142,7 @@ final class PlanPane extends VBox {
         if (preview == null || !preview.approvable()) return;
         var reviewed = preview;
         message(() -> localization.text("plan.saving"));
-        run(() -> app.planning().approve(reviewed.sessionId(), reviewed.plan()), saved -> {
+        run(OperationKind.PLAN_APPROVE, () -> app.planning().approve(reviewed.sessionId(), reviewed.plan()), saved -> {
             preview = null; request.clear(); clearPreview(); session.setDisable(false);
             message(() -> localization.text("plan.savedGui", saved.revision()));
             refresh();
@@ -142,7 +151,7 @@ final class PlanPane extends VBox {
     private void reject() {
         if (preview == null) return;
         app.planning().reject(preview.sessionId(), preview.plan());
-        clearPreview(); session.setDisable(false);
+        clearPreview(); session.setDisable(false); tracked.view().clear();
         message(() -> localization.text("plan.rejected"));
         showSession();
     }
@@ -150,6 +159,7 @@ final class PlanPane extends VBox {
 
     /** Rebuilds the localized cards from the last service results (also on language change). */
     private void render() {
+        prerequisite.render();
         if (inputs != null) {
             inputLines.setText(String.join("\n", PlanPresentation.inputs(inputs, localization)));
             historyLines.setText(String.join("\n", PlanPresentation.history(inputs.plans().stream().filter(com.photopilot.command.ShootPlan::approved)
@@ -181,6 +191,17 @@ final class PlanPane extends VBox {
         return box;
     }
 
+    /** A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true); results.setDisable(true);
+        tracked.run(kind, operation, result -> {
+            if (disposed) return;
+            done();
+            if (result.isSuccess()) success.accept(result.value().orElseThrow());
+            else failure.accept(result);
+        }, () -> { if (disposed) return; done(); message(() -> localization.text("progress.cancelled")); });
+    }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;
         busy = true; controls.setDisable(true); results.setDisable(true);

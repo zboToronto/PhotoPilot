@@ -75,7 +75,7 @@ final class NeedsCommands {
         if (state.proposal != null) { output.println(localization.text("needs.cli.open")); return 2; }
         var session = open(words[2]); if (session == null) return 2;
         output.println(localization.text("needs.analyzing"));
-        var proposed = app.proposeNeeds(session.id());
+        var proposed = CliProgress.run(OperationKind.NEEDS_ANALYZE, () -> app.proposeNeeds(session.id()));
         if (!proposed.isSuccess()) {
             output.println(localization.text("needs.aiFailed", String.join(" ", proposed.errors(localization))));
             output.println(localization.text("needs.cli.manualHint", session.id()));
@@ -119,7 +119,7 @@ final class NeedsCommands {
         if (!requireDraft()) return 2;
         String answers = line.strip().split("\\s+").length < 3 ? "" : RequirementCommands.remainder(line, 2);
         output.println(localization.text("needs.clarifying"));
-        var updated = app.planning().clarifyNeeds(state.session.id(), state.proposal, answers);
+        var updated = CliProgress.run(OperationKind.NEEDS_CLARIFY, () -> app.planning().clarifyNeeds(state.session.id(), state.proposal, answers));
         if (!updated.isSuccess()) {
             // The open draft, including manual edits, is kept unchanged.
             output.println(localization.text("needs.aiFailed", String.join(" ", updated.errors(localization))));
@@ -133,7 +133,7 @@ final class NeedsCommands {
         if (words.length > 3 || words.length == 3 && !replace) throw new LocalizedException("error.cli.option", words[words.length - 1]);
         boolean saved = state.session.profile().filter(EquipmentRequirementProfile::reviewed).isPresent();
         if (saved && !replace && !state.editing) { output.println(localization.text("needs.cli.confirmReplace")); return 2; }
-        var stored = app.planning().confirmProfile(state.session, state.proposal.profile(), replace || state.editing);
+        var stored = CliProgress.run(OperationKind.NEEDS_CONFIRM, state.session.id(), () -> app.planning().confirmProfile(state.session, state.proposal.profile(), replace || state.editing));
         if (!report(stored)) return 2;
         String title = state.session.title(); UUID id = state.session.id(); state.clear();
         output.println(localization.text("needs.saved", title));

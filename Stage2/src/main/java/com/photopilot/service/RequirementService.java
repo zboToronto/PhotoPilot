@@ -107,6 +107,7 @@ public class RequirementService {
         var prompt = new AgentContext(context.sessionId(), List.of("Photography request:\n" + request), evidence(null),
             List.of(), Optional.empty()).withResponseSchema(RequirementExtraction.SCHEMA);
         var extracted = agent.run(TASK, prompt, RequirementExtraction.class);
+        if (extracted.isSuccess()) com.photopilot.progress.Progress.validating("requirement.draft");
         return extracted.isSuccess() ? Result.success(toDraft(request, extracted.value().orElseThrow())) : Result.failure(extracted);
     }
 
@@ -123,6 +124,7 @@ public class RequirementService {
         var prompt = new AgentContext(UUID.randomUUID(), messages, evidence(draft), List.of(), Optional.empty())
             .withResponseSchema(RequirementExtraction.SCHEMA);
         var extracted = agent.run(TASK + "\n" + CLARIFY, prompt, RequirementExtraction.class);
+        if (extracted.isSuccess()) com.photopilot.progress.Progress.validating("requirement.draft");
         return extracted.isSuccess() ? Result.success(toDraft(combined, extracted.value().orElseThrow())) : Result.failure(extracted);
     }
 
@@ -147,6 +149,7 @@ public class RequirementService {
         var prompt = new AgentContext(UUID.randomUUID(), List.of("Identify the equipment capabilities this confirmed shoot requires."),
             needsEvidence(req, environment, null), List.of(), Optional.empty()).withResponseSchema(CapabilityExtraction.SCHEMA);
         var extracted = agent.run(NEEDS_TASK, prompt, CapabilityExtraction.class);
+        if (extracted.isSuccess()) com.photopilot.progress.Progress.validating("needs.validate");
         return extracted.isSuccess() ? toProposal(req, extracted.value().orElseThrow(), present(environment)) : Result.failure(extracted);
     }
 
@@ -162,6 +165,7 @@ public class RequirementService {
         var prompt = new AgentContext(UUID.randomUUID(), messages, needsEvidence(req, environment, current.profile()), List.of(), Optional.empty())
             .withResponseSchema(CapabilityExtraction.SCHEMA);
         var extracted = agent.run(NEEDS_TASK + "\n" + NEEDS_CLARIFY, prompt, CapabilityExtraction.class);
+        if (extracted.isSuccess()) com.photopilot.progress.Progress.validating("needs.validate");
         return extracted.isSuccess() ? toProposal(req, extracted.value().orElseThrow(), present(environment)) : Result.failure(extracted);
     }
 

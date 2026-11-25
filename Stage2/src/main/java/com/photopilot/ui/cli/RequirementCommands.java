@@ -70,7 +70,7 @@ final class RequirementCommands {
         String text = remainder(line, 3);
         state.lastRequest = text;
         output.println(localization.text("requirement.analyzing"));
-        var parsed = app.parse(session.id(), text);
+        var parsed = CliProgress.run(OperationKind.REQUIREMENT_PARSE, () -> app.parse(session.id(), text));
         if (!parsed.isSuccess()) {
             // The request is retained so manual entry can start from it without retyping.
             output.println(localization.text("requirement.aiFailed", String.join("; ", parsed.errors(localization))));
@@ -107,7 +107,7 @@ final class RequirementCommands {
         if (!requireDraft()) return 2;
         String answers = line.strip().split("\\s+").length < 3 ? "" : remainder(line, 2);
         output.println(localization.text("requirement.clarifying"));
-        var updated = app.planning().clarify(state.session.id(), state.draft, answers);
+        var updated = CliProgress.run(OperationKind.REQUIREMENT_CLARIFY, () -> app.planning().clarify(state.session.id(), state.draft, answers));
         if (!updated.isSuccess()) {
             output.println(localization.text("requirement.aiFailed", String.join("; ", updated.errors(localization))));
             return 2;
@@ -116,7 +116,7 @@ final class RequirementCommands {
     }
     private int confirm() {
         if (!requireDraft()) return 2;
-        var saved = app.planning().confirm(state.session, state.draft);
+        var saved = CliProgress.run(OperationKind.REQUIREMENT_CONFIRM, state.session.id(), () -> app.planning().confirm(state.session, state.draft));
         if (!report(saved)) return 2;
         UUID id = state.session.id(); String title = state.session.title(); state.clear();
         output.println(localization.text("requirement.saved", title));

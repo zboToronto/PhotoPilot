@@ -4,7 +4,7 @@ Stage 1: F03 / UC03 / SD01 ("parse or clarify a brief; user explicitly confirms 
 
 ## Workflow
 
-1. Select an existing **Draft or Planned** session (Completed/Reviewed sessions keep their historical requirements).
+1. Open **Shooting Requirements** (sidebar Active session, step 01) and select an existing **Draft or Planned** session (Completed/Reviewed sessions keep their historical requirements). The page follows the window's current session ([session workflow](session-workflow.md)); saving a confirmed requirement completes milestone 01.
 2. Describe the shoot in natural language and choose **Analyze with Gemini** (`requirement parse <id> <text>`).
 3. PhotoPilot sends only that text, the current date and the time zone to Gemini with a JSON Schema; the reply is decoded strictly and converted into an **unconfirmed draft**. Nothing is saved.
 4. Review the 14 fields. Blank means *not specified*; nothing is defaulted. Fields Gemini marked ambiguous/contradictory are flagged, unspecified optional details are listed, and live deterministic validation shows what must be fixed.
@@ -85,7 +85,7 @@ Status is also recorded in [FEATURE_STATUS](../../docs/FEATURE_STATUS.md) and [p
 
 ## Demonstration script (Stage 2 video, ~2 min)
 
-1. GUI: Sessions & History → create "Airshow" (Draft). Open **Requirement Parsing**, select it.
+1. GUI: Photography Sessions → create "Airshow" (Draft). Open **Shooting Requirements** (Active session); the new session is the current one and is selected.
 2. Paste: *"I want to photograph aircraft at an airshow around sunset for three hours. I prefer carrying two camera bodies, minimizing weight, and avoiding lens changes."* → **Analyze with Gemini**; point out the progress text.
 3. Show: Camera bodies 2, Lens changes *Avoid*, Duration 3h, Time window *around sunset*, Date/Location blank, "Not specified: Location", Gemini's questions; storage unchanged.
 4. Type camera bodies `0` → Confirm → validation error. Fix to `2`; answer "November 14 at Lakeshore airfield" → **Send answers**; show date/location filled.

@@ -83,7 +83,10 @@ final class SessionJson {
         validateGraph(session);
         var valid = session.validate();
         if (!valid.isSuccess()) throw new IllegalArgumentException(String.join("; ", valid.errors()));
-        return JSON.toJsonTree(session).getAsJsonObject();
+        var tree = JSON.toJsonTree(session).getAsJsonObject();
+        if (tree.has("environmentCheck") && tree.get("environmentCheck").isJsonNull()) tree.remove("environmentCheck");
+        if (tree.get("environmentCheck") instanceof JsonObject check && check.get("lookupSource").isJsonNull()) check.remove("lookupSource");
+        return tree;
     }
     /** The record as decode validates it: documented v1 additions filled in, set arrays sorted (also digested for revisions). */
     static JsonObject normalized(JsonObject object) { return withSortedSets(withRequirementAdditions(object)); }
@@ -101,6 +104,10 @@ final class SessionJson {
     private static JsonObject withRequirementAdditions(JsonObject object) {
         // F07 added an optional v1 selected loadout; older records simply have none.
         if (!object.has("selectedLoadout")) { object = object.deepCopy(); object.add("selectedLoadout", JsonNull.INSTANCE); }
+        // The workflow redesign (2026-11-23) added an optional v1 F09 environment check. It is written only when present
+        // (see encode), so records without one, older ones included, keep their exact bytes, revisions and readability by
+        // earlier builds; an explicit null is read as none.
+        if (object.has("environmentCheck") && object.get("environmentCheck").isJsonNull()) { object = object.deepCopy(); object.remove("environmentCheck"); }
         object = withPlanAdditions(object);
         object = withProfileAdditions(object);
         object = withIdeaAdditions(object);

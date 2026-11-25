@@ -69,6 +69,9 @@ public final class PlanPresentation {
                     if (w.arrival().isBefore(w.start())) lines.add("  " + l.text("plan.arrival", w.arrival().format(TIME)));
                     if (w.estimated()) lines.add("  " + l.text("plan.window.estimated"));
                 }
+                // Stage2OptRe2 Review2 #02: a saved revision's window conditions are the evidence it was approved with (kept
+                // unchanged by later revisions by design), never a current forecast.
+                if (plan.approved() && !plan.windows().isEmpty()) lines.add(l.text("plan.window.asApproved"));
             }
             case "preparation" -> plan.preparation().forEach(item -> lines.add("- " + item));
             case "checklist" -> {
@@ -168,6 +171,8 @@ public final class PlanPresentation {
         lines.add(l.text("plan.compare.changed", changed.isEmpty() ? l.text("match.none") : String.join(", ", changed.stream().map(s -> l.text("plan.section." + s)).toList())));
         var kept = ShootPlan.DECISIONS.stream().filter(s -> !changed.contains(s)).map(s -> l.text("plan.section." + s)).toList();
         lines.add(l.text("plan.compare.kept", String.join(", ", kept)));
+        if (!changed.contains("schedule") && !base.windows().isEmpty() && Objects.equals(next.sections().get("schedule"), base.sections().get("schedule")))
+            lines.add(l.text("plan.compare.scheduleKept", base.revision()));
         lines.add(l.text("plan.compare.fixed", base.fixedConstraints().equals(next.fixedConstraints()) ? l.text("plan.compare.fixedKept") : l.text("plan.compare.fixedChanged")));
         for (String section : changed) {
             String display = displaySection(section);

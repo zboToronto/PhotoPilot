@@ -54,7 +54,9 @@ final class PlanAssembly {
            never universally optimal values.
         6. strategy: approach, technical considerations, autofocus, exposure and composition or subject tracking.
         7. schedule: only when the timing evidence has a zone and an availability. One to four shooting windows with local
-           times YYYY-MM-DDTHH:MM in that zone; every window and arrival inside the availability; no overlaps. The sum of all
+           times YYYY-MM-DDTHH:MM in that zone; every window and arrival inside the availability; no overlaps. When
+           timing.windowsFrom and timing.windowsUntil are given (the confirmed start time and duration), every window must
+           also lie between them; only an arrival may be earlier, still inside the availability. The sum of all
            window durations must not exceed timing.maxTotalWindowMinutes: choose the best part of the availability for the
            subject instead of filling it, and express arrival or setup as a window's arrival time, never as a window. Use
            light "mixed" unless the sun evidence supports the category. When environment evidence is present, cite its
@@ -220,6 +222,11 @@ final class PlanAssembly {
         if (offers.offers().isEmpty()) root.addProperty("candidatesNote", "No verified owned loadout meets the confirmed limits.");
         var timingItem = timingJson(timing);
         req.duration().ifPresent(d -> timingItem.addProperty("maxTotalWindowMinutes", d.toMinutes()));
+        // The confirmed F03 start time and duration inside the availability: the only interval windows may use (D04).
+        PlanValidator.ShootingTime.of(req).flatMap(time -> timing.availability().flatMap(time::within)).ifPresent(allowed -> {
+            timingItem.addProperty("windowsFrom", allowed.start().toLocalDateTime().toString());
+            timingItem.addProperty("windowsUntil", allowed.end().toLocalDateTime().toString());
+        });
         root.add("timing", timingItem);
         timing.environment().ifPresent(e -> root.add("environment", environmentJson(e, timing)));
         current.ifPresent(plan -> root.add("currentPlan", planJson(plan, offers)));
@@ -263,6 +270,10 @@ final class PlanAssembly {
     }
     private static JsonObject environmentJson(EnvironmentAssessment assessment, Timing timing) {
         var context = assessment.context(); var zone = context.zone().orElse(ZoneOffset.UTC); var item = new JsonObject();
+        assessment.request().ifPresent(r -> {
+            item.addProperty("locationSource", r.locationSource().name());
+            r.accepted().ifPresent(c -> item.addProperty("geographicScope", c.scope().name()));
+        });
         item.addProperty("place", context.place().map(GeoLocation::label).orElse("")); item.addProperty("timeZone", zone.getId());
         item.addProperty("retrievedAt", context.retrievedAt().toString());
         boolean forecastStale = timing.stale().contains(EnvironmentContext.DAILY) || timing.stale().contains(EnvironmentContext.HOURLY);

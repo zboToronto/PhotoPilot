@@ -18,7 +18,7 @@ import javafx.scene.layout.*;
  * F03 content in the existing feature surface: request -> Gemini draft -> review/clarify/edit -> explicit
  * confirmation. Reuses SessionPane's controls, feedback cards, discard confirmation and background Task pattern.
  */
-final class RequirementPane extends VBox {
+final class RequirementPane extends VBox implements SessionScoped {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -39,19 +39,23 @@ final class RequirementPane extends VBox {
     private boolean stale;
     private boolean busy, disposed;
     private Runnable pendingSubmit;
+    private final OperationRunner tracked;
+    private final SessionChooser chooser;
 
     RequirementPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
         session.setId("requirement-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "requirement.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
         session.valueProperty().addListener((o, old, value) -> { if (draft == null) showSaved(); });
+        chooser = new SessionChooser(session, texts);
         area(request, "requirement-request", "requirement.request", 4); texts.text(request.promptTextProperty(), "requirement.requestPrompt");
         area(answers, "requirement-answers", "requirement.answers", 2); texts.text(answers.promptTextProperty(), "requirement.answersPrompt");
         Label sessionCaption = texts.label("requirement.session", "section-title"); sessionCaption.setLabelFor(session);
         Label requestCaption = texts.label("requirement.request", "section-title"); requestCaption.setLabelFor(request);
         Button refresh = button("gear.refresh", "requirement-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
-        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), sessionHint),
+        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), chooser.context(), sessionHint),
             new VBox(7, requestCaption, request, texts.label("requirement.privacy", "secondary-text")),
             new FlowPane(12, 10, button("requirement.analyze", "requirement-analyze", this::analyze, true),
                 button("requirement.manual", "requirement-manual", this::manual, false)), saved);
@@ -64,7 +68,7 @@ final class RequirementPane extends VBox {
             new FlowPane(12, 10, button("requirement.confirm", "requirement-confirm", this::confirm, true),
                 button("button.cancel", "requirement-cancel", this::cancel, false)), confirmation);
         for (var box : List.of(saved, review, confirmation, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("requirement.feedback", "section-title"), feedback);
+        feedbackBox.getChildren().addAll(texts.label("requirement.feedback", "section-title"), feedback, tracked.view());
         controls.getChildren().add(review);
         hide(review); hide(confirmation); hide(feedbackBox); hide(saved); hide(sessionHint);
         getChildren().addAll(controls, feedbackBox);
@@ -80,7 +84,10 @@ final class RequirementPane extends VBox {
     }
 
     void activate(boolean active) { if (active && !busy) refresh(); }
-    void dispose() { disposed = true; texts.close(); }
+    void dispose() { disposed = true; texts.close(); tracked.view().dispose(); }
+    OperationRunner tracked() { return tracked; }
+    @Override public javafx.beans.value.ObservableValue<PhotographySession> selectedSession() { return chooser.selected(); }
+    @Override public void useSessions(SessionWorkflowModel sessions) { chooser.use(sessions); }
     boolean dirty() { return draft != null || !request.getText().isBlank(); }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
@@ -88,7 +95,7 @@ final class RequirementPane extends VBox {
 
     /** Editable sessions only: completed/reviewed sessions keep their historical requirements. */
     void refresh() {
-        UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
+        UUID kept = draftSession == null ? null : draftSession.id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
             // An open draft keeps the session version it was opened for (also when the page is shown again), so a change
@@ -99,8 +106,7 @@ final class RequirementPane extends VBox {
                 draftSession = fresh; stale = false; if (fresh.requirements().isPresent()) show(replaceNotice); else hide(replaceNotice);
             });
             session.getItems().setAll(editable);
-            editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
-                () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
+            chooser.select(editable, kept, false);
             texts.text(sessionHint.textProperty(), "requirement.noSessions");
             if (editable.isEmpty()) show(sessionHint); else hide(sessionHint);
             if (draft == null) showSaved();
@@ -148,7 +154,7 @@ final class RequirementPane extends VBox {
         if (text.isBlank()) { message(() -> localization.text("requirement.error.request")); return; }
         message(() -> localization.text("requirement.analyzing"));
         // On failure the request text and any open draft stay exactly as they were.
-        run(() -> app.parse(selected.id(), text), parsed -> open(selected, parsed, "requirement.parsed"),
+        run(OperationKind.REQUIREMENT_PARSE, () -> app.parse(selected.id(), text), parsed -> open(selected, parsed, "requirement.parsed"),
             failure -> message(() -> localization.text("requirement.aiFailed", String.join("; ", failure.errors(localization)))));
     }
     private void manual() {
@@ -161,7 +167,7 @@ final class RequirementPane extends VBox {
         var current = current(); if (current == null) return;
         PhotographySession target = draftSession; String text = answers.getText();
         message(() -> localization.text("requirement.clarifying"));
-        run(() -> app.planning().clarify(target.id(), current, text), updated -> { answers.clear(); open(target, updated, "requirement.parsed"); },
+        run(OperationKind.REQUIREMENT_CLARIFY, () -> app.planning().clarify(target.id(), current, text), updated -> { answers.clear(); open(target, updated, "requirement.parsed"); },
             failure -> message(() -> localization.text("requirement.aiFailed", String.join("; ", failure.errors(localization)))));
     }
     private void confirm() {
@@ -169,7 +175,7 @@ final class RequirementPane extends VBox {
         if (!current.problems().isEmpty()) { validate(); message(() -> validation.getText()); return; }
         PhotographySession expected = draftSession;
         message(() -> localization.text("requirement.saving"));
-        run(() -> app.planning().confirm(expected, current), stored -> {
+        run(OperationKind.REQUIREMENT_CONFIRM, () -> app.planning().confirm(expected, current), stored -> {
             close(); request.clear();
             message(() -> localization.text("requirement.saved", expected.title())); refresh();
         }, failure -> {
@@ -180,7 +186,7 @@ final class RequirementPane extends VBox {
     private void cancel() {
         if (draft == null) return;
         confirmation.getChildren().setAll(texts.label("session.discardPrompt", "feedback-text"), new FlowPane(12, 10,
-            button("session.confirm", "requirement-discard", () -> { hide(confirmation); close(); message(() -> localization.text("requirement.cancelled")); showSaved(); }, true),
+            button("session.confirm", "requirement-discard", () -> { hide(confirmation); close(); tracked.view().clear(); message(() -> localization.text("requirement.cancelled")); showSaved(); }, true),
             button("button.cancel", "requirement-keep", () -> hide(confirmation), false)));
         show(confirmation); SessionPane.reveal(this, confirmation);
     }
@@ -261,6 +267,20 @@ final class RequirementPane extends VBox {
         return String.join(", ", fieldNames.stream().map(name -> localization.text("requirement.field." + name)).toList());
     }
 
+    /** A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true);
+        tracked.run(kind, operation, result -> {
+            if (disposed) return;
+            busy = false; controls.setDisable(false);
+            if (result.isSuccess()) success.accept(result.value().orElseThrow()); else failure.accept(result);
+        }, () -> {
+            if (disposed) return;
+            busy = false; controls.setDisable(false);
+            message(() -> localization.text("progress.cancelled"));
+        });
+    }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;
         busy = true; controls.setDisable(true);

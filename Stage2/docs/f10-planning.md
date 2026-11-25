@@ -53,6 +53,9 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 * Settings: allowlisted names; per-camera keys must name a body in the loadout; numeric settings parsed (single value or range): shutter 1/64000–3600 s, ISO 25–819200, exposure compensation ±10 EV, aperture 0.7–128 and never wider than the recorded maximum aperture of the relevant mounted lens, focal length within the mounted lens range. Descriptive values (e.g. "Auto") are unverified, not guessed.
 * Calculations: each is recomputed by F08 from its stored input and must match.
 * Schedule: structure, no overlap, total ≤ confirmed duration; new windows need a verified zone and availability; with F09 evidence they go through `FeasibilityValidator.checkTiming` (availability, arrival, light vs sun data, evidence ids, unsupported measurements, past); without it, availability/zone checks and the declared light is unverified. Windows carried unchanged from the approved base are not re-checked against today's evidence.
+* Confirmed shooting time (Stage2OptRe2 D04, 2026-11-24): every window, new or carried, must lie inside the confirmed F03 start time for the confirmed duration (`PlanValidator.ShootingTime`, compared as instants), whatever the F09 availability; the model is given the intersection as `timing.windowsFrom/windowsUntil`. An arrival may precede the start but stays inside the availability. Without a start time only the total is limited. [Record](stage2optre2-remediation.md#task-01--f03-start-time-and-duration-bound-every-f10-window).
+* Capability profile: generation, revision and approval use the profile only while it still fits the confirmed requirement (`PlanningService.usableProfile`, the F07 rule); otherwise `needs.error.stale` and nothing is sent or saved.
+* Presentation: a saved revision's schedule is labelled as recorded at approval, not a current forecast; a revision that keeps the schedule says it keeps the earlier evidence.
 * Text bounds; checklist items naming equipment block; equipment categories mentioned elsewhere but not carried are unverified assumptions.
 
 `validateChange(base, next)`: approved base, same id, revision + 1, fixed constraints preserved (except a regeneration), only sections declared by the applied commands changed, UC14 re-run on a changed loadout, calculations recomputed, no-op revisions rejected.
@@ -60,6 +63,8 @@ Implemented; GUI and CLI verified with offline fakes (21 new tests) and one live
 ## Approval and session state
 
 `approve(id, plan)`: the plan must be the exact preview issued for this session and not already approved (foreign/rejected/saved previews fail); its content must be unchanged since it was issued (`plan.error.modified`: PlanCommands can still edit an unapproved draft); the issued preview's own report must be approvable, so assembly problems whose invalid input was removed from the plan still block approval (the GUI/CLI check is early feedback only, since 2026-11-15); the session is reloaded; the remaining checks and the save use the service's private copy; binding: a new plan needs no saved plan, a revision must be latest saved revision + 1 (otherwise `plan.error.stale`); full revalidation against current requirement, profile, inventory and evidence; `validateChange` for revisions; `approvedCopy()` (provisional plans cannot be approved); `appendApprovedPlan`; `apply(PLAN_APPROVED)` only while Draft (Planned has no second transition); one atomic `SessionRepository.save` with the optimistic revision check. Success is returned only after the save; any failure leaves the stored file byte-identical.
+
+**Session progress (milestone 05, 2026-11-23).** Photography Plan is completed while the latest approved revision still records the shoot: its fixed constraints equal `PlanValidator.constraintsOf(requirement, profile)` for the current confirmed requirement and reviewed profile, the shooting date and place are unchanged (`sameShoot`), and its gear is still owned. Otherwise the milestone shows *Needs review* ("revision required"); the approved revisions are kept unchanged. It is blocked without a confirmed requirement or reviewed profile. Older plans without these records are not re-checked. Staleness is judged while the session is editable; once a planned session's date has passed, re-checking stops and the next step is Shooting Completion (a draft is still re-checked). The reason is shown: changed constraints need a new plan (`plan generate`), a changed date, place or gear a revision (`plan revise`). Previews and drafts stay in memory and never change progress. A changed start time or time-window text alone does not mark the plan for review ([session workflow](session-workflow.md#milestone-completion-criteria)).
 
 ## UC11 Command-based revision
 
@@ -71,7 +76,7 @@ The v1 session schema keeps all plan revisions in `plans` (id + revision); earli
 
 ## GUI and CLI
 
-GUI: **Workspace > Shoot Planning** (`PlanPane` inside the existing `FeaturePane`, same `feedback-box` cards, buttons, background Task lifecycle, FxLocalizer, bilingual). CLI: `plan show|generate|preview|compare|approve|reject|revise|list|open`, `F10` → help. Both call the same `PlanningService` through `PhotoPilotFacade` and render with `PlanPresentation`.
+GUI: **Active session > Photography Plan**, step 05 (`PlanPane` inside the existing `FeaturePane`, same `feedback-box` cards, buttons, background Task lifecycle, FxLocalizer, bilingual). Its session chooser follows the window's current session ([session workflow](session-workflow.md)). CLI: `plan show|generate|preview|compare|approve|reject|revise|list|open`, `F10` → help. Both call the same `PlanningService` through `PhotoPilotFacade` and render with `PlanPresentation`.
 
 ## Design changes (Original design → Implemented change → Reason → Impact)
 
@@ -106,12 +111,12 @@ Coverage of the requested scenarios: valid generation (F10Workflow), missing req
 
 Preparation: `.env` with `LLM_API_KEY`; optionally `$env:GEMINI_TIMEOUT_SECONDS='120'`. Use a demo user/profile, not real data.
 
-1. Status: the sidebar lists **Shoot Planning** under Workspace (Home no longer has feature cards since 2026-11-08); `status` in the CLI lists F10 IMPLEMENTED.
+1. Status: the sidebar lists **Photography Plan** under Active session (Home no longer has feature cards since 2026-11-08); `status` in the CLI lists F10 IMPLEMENTED.
 2. F05: add the demo gear (two Sony E bodies, 200-600, 100-400, 70-300 lenses, NP-FZ100 batteries, SD cards).
 3. F01: create "Airshow demo" for a date within the next week. F03: parse "Fast-moving aircraft at an airshow, about three hours, two camera bodies, avoid lens changes, telephoto and portability matter" and confirm.
 4. F07: enter needs (focal length 100–600 mandatory, camera bodies 2, burst ≥ 10, lenses ≤ 2, weight ≤ 6000 optional), confirm, optionally Match My Gear and select a loadout.
 5. F09: look up the airport, set the availability, assess (this is the timing evidence F10 uses).
-6. F10 GUI: open Shoot Planning, show the inputs card, **Generate plan**; point out the progress message, the validation card, equipment (UC14), settings, schedule (F09 evidence ids), packing list, calculations and the tool-call line in **Evidence and tool use**.
+6. F10 GUI: open Photography Plan, show the inputs card, **Generate plan**; point out the progress message, the validation card, equipment (UC14), settings, schedule (F09 evidence ids), packing list, calculations and the tool-call line in **Evidence and tool use**.
 7. **Approve and save**; show the session state Planned (F01) and the saved plan card. Restart the app and reopen to show it is restored.
 8. Enter "Prioritize close-up aircraft shots; keep the same equipment and schedule." → **Preview change**; show the comparison (changed vs unchanged, fixed constraints preserved), then approve; show revision history.
 9. Error handling: request "Use only one camera body and change lenses whenever needed." → conflict explained, nothing saved; optionally stop the network to show the provider error.
@@ -120,7 +125,7 @@ Preparation: `.env` with `LLM_API_KEY`; optionally `$env:GEMINI_TIMEOUT_SECONDS=
 ## Known limitations
 
 * F10 needs a reviewed F06 profile (AI-assisted or manual) that still matches the confirmed requirement.
-* F09 assessments are kept in memory only; F10 uses the latest assessment from the same application run (GUI or CLI process); otherwise timing falls back to the confirmed start time + duration or no schedule, and the plan states that no current F09 assessment exists.
+* F09 assessments are kept in memory only (a recorded `EnvironmentCheck` counts for session progress, not as evidence); F10 uses the latest assessment from the same application run (GUI or CLI process); otherwise timing falls back to the confirmed start time + duration or no schedule, and the plan states that no current F09 assessment exists.
 * Related history includes earlier approved plans and, since 2026-11-04, the latest saved F11 reviews (EXIF facts kept apart from saved advice, bounded, labelled as background data; `HistoryMemoryTest`).
 * Only the F08 calculation tool is permitted; environment and specification tools are not offered to the model.
 * Settings are validated against recorded lens data (aperture, focal range) and physical bounds; camera-specific ISO/shutter limits are not recorded in F05 and are not checked.

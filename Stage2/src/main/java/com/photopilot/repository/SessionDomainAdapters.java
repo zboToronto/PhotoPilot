@@ -33,7 +33,22 @@ final class SessionDomainAdapters {
                 read(o, "profile", c, new TypeToken<Optional<EquipmentRequirementProfile>>() {}),
                 read(o, "statistics", c, new TypeToken<Optional<ExifStatistics>>() {}),
                 read(o, "savedIdeas", c, new TypeToken<List<ActivitySuggestion>>() {}),
-                read(o, "selectedLoadout", c, new TypeToken<Optional<Loadout>>() {}));
+                read(o, "selectedLoadout", c, new TypeToken<Optional<Loadout>>() {}),
+                // Optional field written only when present (SessionJson.encode).
+                o.has("environmentCheck") ? read(o, "environmentCheck", c, new TypeToken<Optional<EnvironmentCheck>>() {}) : Optional.empty());
+        });
+        builder.registerTypeAdapter(EnvironmentCheck.class, (JsonDeserializer<EnvironmentCheck>) (json, type, c) -> {
+            JsonObject o = json.getAsJsonObject();
+            return new EnvironmentCheck(
+                read(o, "assessedAt", c, new TypeToken<Instant>() {}),
+                read(o, "date", c, new TypeToken<LocalDate>() {}),
+                read(o, "place", c, new TypeToken<GeoLocation>() {}),
+                read(o, "availableFrom", c, new TypeToken<ZonedDateTime>() {}),
+                read(o, "availableUntil", c, new TypeToken<ZonedDateTime>() {}),
+                read(o, "windows", c, new TypeToken<Integer>() {}),
+                read(o, "basisLocation", c, new TypeToken<Optional<GeoLocation>>() {}),
+                read(o, "basisTimeWindow", c, new TypeToken<Optional<String>>() {}),
+                o.has("lookupSource") ? read(o, "lookupSource", c, new TypeToken<Optional<PlaceCandidate.Source>>() {}) : Optional.empty());
         });
         builder.registerTypeAdapter(ShootRequirement.class, (JsonDeserializer<ShootRequirement>) (json, type, c) -> {
             JsonObject o = json.getAsJsonObject();

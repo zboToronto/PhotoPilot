@@ -69,7 +69,7 @@ final class PlanCommands {
         if (words.length != 3) throw new LocalizedException("error.session.command");
         var session = session(words[2]); if (session == null) return 2;
         output.println(localization.text("plan.generating"));
-        var preview = app.planning().generatePreview(session.id());
+        var preview = CliProgress.run(OperationKind.PLAN_GENERATE, () -> app.planning().generatePreview(session.id()));
         if (!report(preview)) return 2;
         replacePending(preview.value().orElseThrow());
         print(state.pending);
@@ -81,7 +81,7 @@ final class PlanCommands {
         var session = session(tokens.get(2)); if (session == null) return 2;
         String request = String.join(" ", tokens.subList(3, tokens.size()));
         output.println(localization.text("plan.revising"));
-        var preview = app.planning().revisePreview(session.id(), request);
+        var preview = CliProgress.run(OperationKind.PLAN_REVISE, () -> app.planning().revisePreview(session.id(), request));
         if (!report(preview)) return 2;
         replacePending(preview.value().orElseThrow());
         PlanPresentation.comparison(state.pending, localization).forEach(output::println);
@@ -93,7 +93,7 @@ final class PlanCommands {
         if (!pending()) return 2;
         var preview = state.pending;
         if (!preview.approvable()) { output.println(localization.text("plan.cli.notApprovable")); return 2; }
-        var saved = app.planning().approve(preview.sessionId(), preview.plan());
+        var saved = CliProgress.run(OperationKind.PLAN_APPROVE, preview.sessionId(), () -> app.planning().approve(preview.sessionId(), preview.plan()));
         if (!report(saved)) { output.println(localization.text("plan.saveFailed")); return 2; }
         state.pending = null;
         var session = app.sessions().open(preview.sessionId());
