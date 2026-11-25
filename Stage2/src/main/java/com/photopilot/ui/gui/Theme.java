@@ -43,6 +43,8 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
      * foreground polarity per mode, as {@link Family#custom} does: white text on the light-mode fill, its dark tone on
      * the dark-mode fill. A hand-tuned fill too light (or too dark) for that text is moved towards the family's own
      * accent-text tone just far enough for 4.5:1, so selections and primary actions look alike in every family.
+     * The constants use {@link ColorContrast} and {@link Family} only, never Theme's statics: Theme.DEFAULT needs
+     * Accent.BLUE, so Accent must initialize on its own, whichever of the two a caller touches first.
      */
     enum Accent {
         BLUE("blue", "settings.theme.blue", 224, 212, 0.92, "#7f9ade", "#4a68cc", "#344ea6", "#8ea5ec", "#0f1630", "#a9bcf5"),
@@ -61,9 +63,9 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
             this.id = id; this.key = key; this.hue = hue; this.secondHue = secondHue; this.chroma = chroma;
             this.swatch = Color.web(swatch);
             this.lightOnFill = Color.WHITE; this.lightText = Color.web(lightText);
-            this.lightFill = readable(Color.web(lightFill), this.lightText, lightOnFill, 4.5);
+            this.lightFill = ColorContrast.readable(Color.web(lightFill), this.lightText, lightOnFill, 4.5);
             this.darkOnFill = Color.web(darkOnFill); this.darkText = Color.web(darkText);
-            this.darkFill = readable(Color.web(darkFill), this.darkText, this.darkOnFill, 4.5);
+            this.darkFill = ColorContrast.readable(Color.web(darkFill), this.darkText, this.darkOnFill, 4.5);
             family = new Family(hue, secondHue, chroma, this.swatch, this.lightFill, this.lightOnFill, this.lightText, this.darkFill, this.darkOnFill, this.darkText);
         }
         /** Stored ids; "lavender" was merged into Cool Blue on 2026-11-07, so a saved Lavender choice opens as Cool Blue. */
@@ -105,15 +107,19 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
             }
             return CHROMA[0][1];
         }
-        /** The colour of this hue whose relative luminance is the target; desaturated only if full brightness is too dark. */
+        /**
+         * The colour of this hue whose relative luminance is the target; desaturated only if full brightness is too dark.
+         * Uses {@link ColorContrast}, not Theme's statics: generating a family must not start Theme's initialization,
+         * which itself generates families (the hue spectrum) while this family's cache entry is still being computed.
+         */
         static Color ofLuminance(double hue, double saturation, double target) {
-            if (luminance(Color.hsb(hue, saturation, 1)) < target) {
+            if (ColorContrast.luminance(Color.hsb(hue, saturation, 1)) < target) {
                 double low = 0, high = saturation;
-                for (int i = 0; i < 32; i++) { double mid = (low + high) / 2; if (luminance(Color.hsb(hue, mid, 1)) >= target) low = mid; else high = mid; }
+                for (int i = 0; i < 32; i++) { double mid = (low + high) / 2; if (ColorContrast.luminance(Color.hsb(hue, mid, 1)) >= target) low = mid; else high = mid; }
                 return Color.hsb(hue, low, 1);
             }
             double low = 0, high = 1;
-            for (int i = 0; i < 32; i++) { double mid = (low + high) / 2; if (luminance(Color.hsb(hue, saturation, mid)) < target) low = mid; else high = mid; }
+            for (int i = 0; i < 32; i++) { double mid = (low + high) / 2; if (ColorContrast.luminance(Color.hsb(hue, saturation, mid)) < target) low = mid; else high = mid; }
             return Color.hsb(hue, saturation, high);
         }
     }
@@ -123,20 +129,11 @@ record Theme(Accent accent, Mode mode, boolean dark, int opacity, int customHue)
             stops.add(css(Family.custom(hue).swatch()) + String.format(Locale.ROOT, " %.1f%%", hue / 3.6));
         return stops.toString();
     }
-    /** WCAG relative luminance. */
-    static double luminance(Color c) { return .2126 * linear(c.getRed()) + .7152 * linear(c.getGreen()) + .0722 * linear(c.getBlue()); }
-    static double contrast(Color a, Color b) { double x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
-    /**
-     * The colour unchanged when {@code against} already has the contrast ratio on it; otherwise moved towards
-     * {@code towards} (a deeper or lighter tone of the same family) only as far as that ratio needs.
-     */
-    static Color readable(Color color, Color towards, Color against, double ratio) {
-        if (contrast(color, against) >= ratio) return color;
-        double low = 0, high = 1;
-        for (int i = 0; i < 24; i++) { double mid = (low + high) / 2; if (contrast(color.interpolate(towards, mid), against) >= ratio) high = mid; else low = mid; }
-        return color.interpolate(towards, high);
-    }
-    private static double linear(double v) { return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }
+    /** WCAG relative luminance (see {@link ColorContrast}). */
+    static double luminance(Color c) { return ColorContrast.luminance(c); }
+    static double contrast(Color a, Color b) { return ColorContrast.contrast(a, b); }
+    /** See {@link ColorContrast#readable}. */
+    static Color readable(Color color, Color towards, Color against, double ratio) { return ColorContrast.readable(color, towards, against, ratio); }
 
     /** A diffused radial light field: colour (alpha = strength), centre as window fractions, radius as a fraction of the diagonal. */
     record Light(Color color, double x, double y, double radius) { }

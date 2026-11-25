@@ -40,6 +40,111 @@ class DropdownGuiTest {
         action(() -> { stage = new Stage(); controller = new GuiProfileController(stage, manager, initial, context -> { }); });
         idle();
         action(() -> ((Button) controller.picker().lookup("#profile-enter")).fire()); idle();
+        // Real keyboard focus and real robot clicks need the window under test in front: on a desktop with other windows
+        // a click at these screen coordinates could otherwise reach another application (Stage2OptRe1 line 159/146 failures).
+        action(() -> { stage.setAlwaysOnTop(true); stage.toFront(); stage.requestFocus(); });
+        AppearanceGuiTest.settle();
+        robot = fx(javafx.scene.robot.Robot::new);
+        activate(); parkPointer();
+    }
+
+    // ---- Stage2OptRe1 QA-01: real desktop input ----------------------------------------------------------------------
+    // Reproduced on 2026-11-23 (3 of 6 isolated runs failed). Diagnostics showed no product fault: a list opened in a
+    // window that is not the active window never gets keyboard focus (JavaFX/OS rule), and Windows may refuse to make a
+    // background test JVM the active window; and the real pointer, moved by another input source on a shared desktop,
+    // rested on the open list (a hovered option correctly shows the hover tint) or left an option before the check. In
+    // undisturbed runs a real click opened the list in about 15 ms and hover followed in 1 ms. So the test now makes its
+    // window active, keeps the pointer off the window unless it is the input under test, waits for observable
+    // conditions instead of fixed sleeps, and names the desktop state when a condition is not reached.
+    javafx.scene.robot.Robot robot;
+    javafx.geometry.Point2D placed;
+
+    /** Polls a condition on the FX thread until it holds; fails after 5 s with what the desktop showed. */
+    void until(Callable<Boolean> condition, String what) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!fx(condition)) {
+            if (System.nanoTime() > deadline) fail(what + " (not reached within 5 s; " + fx(this::desktop) + ")");
+            Thread.sleep(15);
+        }
+    }
+    boolean within(Callable<Boolean> condition, long millis) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
+        while (!fx(condition)) { if (System.nanoTime() > deadline) return false; Thread.sleep(15); }
+        return true;
+    }
+    /** FX thread: whether the test window is active and where the pointer is compared with where the test put it. */
+    String desktop() {
+        var at = robot == null ? null : robot.getMousePosition();
+        String moved = placed != null && at != null && at.distance(placed) > 1.5 ? " - moved by another input source since the test placed it at " + placed : "";
+        return "test window active=" + (stage != null && stage.isFocused()) + ", pointer at " + at + moved;
+    }
+    /** Moves the real pointer (FX thread) and remembers where, so a foreign movement can be reported. */
+    void pointer(javafx.geometry.Point2D at) { placed = at; robot.mouseMove(at); }
+    /**
+     * Keyboard focus needs the test window to be the active window. When raising it did not activate it (Windows'
+     * foreground rules for background processes), a real click on a non-interactive spot activates it, as a user would.
+     */
+    void activate() throws Exception {
+        action(() -> { stage.toFront(); stage.requestFocus(); });
+        if (within(stage::isFocused, 1500)) return;
+        var spot = fx(() -> neutralPoint(stage.getScene()));
+        assertNotNull(spot, "a non-interactive spot to activate the window");
+        action(() -> { pointer(spot); robot.mouseClick(MouseButton.PRIMARY); });
+        until(stage::isFocused, "the test window becomes the active window");
+    }
+    /**
+     * Points the real pointer at {@code node} and waits for its hover state. Stage2OptRe2 QA-01: one clean full-suite run
+     * failed here with the window active and the pointer on the option (no foreign movement), i.e. no move event reached
+     * the just-opened list. When none arrives within 1.5 s the pointer moves once more by one pixel, still inside the node;
+     * the assertion is unchanged: real pointer input must hover it.
+     */
+    void hover(Node node, javafx.geometry.Point2D at, String what) throws Exception {
+        action(() -> pointer(at));
+        if (within(node::isHover, 1500)) return;
+        var nudged = at.add(1, 1);
+        action(() -> pointer(nudged));
+        until(node::isHover, what);
+    }
+    /** Rests the real pointer outside the test window, so nothing in it is hovered unless the test points at it. */
+    void parkPointer() throws Exception {
+        var outside = fx(() -> outside(stage));
+        action(() -> pointer(outside));
+        until(() -> robot.getMousePosition().distance(outside) < 1.5, "the pointer rests outside the test window");
+    }
+    /** A screen point next to the window (on some screen), or a non-interactive point inside it when there is none. */
+    static javafx.geometry.Point2D outside(Stage stage) {
+        double x = stage.getX(), y = stage.getY(), w = stage.getWidth(), h = stage.getHeight();
+        for (var p : List.of(new javafx.geometry.Point2D(x - 24, y + 40), new javafx.geometry.Point2D(x + w + 24, y + 40),
+                new javafx.geometry.Point2D(x + 40, y + h + 24), new javafx.geometry.Point2D(x + 40, y - 24)))
+            if (Screen.getScreens().stream().anyMatch(s -> s.getBounds().contains(p))) return p;
+        return neutralPoint(stage.getScene());
+    }
+    /** Screen point of the scene that a click cannot act on (no control, link, list or click handler under it). */
+    static javafx.geometry.Point2D neutralPoint(Scene scene) {
+        for (double y = 40; y < scene.getHeight() - 40; y += 20) for (double x = 40; x < scene.getWidth() - 40; x += 20) {
+            var hit = pick(scene.getRoot(), x, y);   // null: no node there, the click reaches only the window
+            if (hit == null || !interactive(hit)) return scene.getRoot().localToScreen(scene.getRoot().sceneToLocal(x, y));
+        }
+        return null;
+    }
+    static Node pick(Node node, double sceneX, double sceneY) {
+        if (!node.isVisible() || node.isMouseTransparent()) return null;
+        var local = node.sceneToLocal(sceneX, sceneY);
+        if (local == null || !node.getBoundsInLocal().contains(local)) return null;
+        if (node instanceof Parent parent) {
+            var children = parent.getChildrenUnmodifiable();
+            for (int i = children.size() - 1; i >= 0; i--) { var hit = pick(children.get(i), sceneX, sceneY); if (hit != null) return hit; }
+        }
+        return node.contains(local) ? node : null;
+    }
+    static boolean interactive(Node node) {
+        for (Node n = node; n != null; n = n.getParent()) {
+            if (n instanceof ButtonBase || n instanceof ComboBoxBase || n instanceof javafx.scene.control.TextInputControl || n instanceof Slider
+                || n instanceof ScrollBar || n instanceof ListView || n instanceof TableView || n instanceof TreeView || n instanceof Spinner
+                || n instanceof ChoiceBox || n instanceof MenuBar || n instanceof TabPane || n instanceof TitledPane || n.getOnMouseClicked() != null || n.getOnMousePressed() != null
+                || n.getOnMouseReleased() != null || n.getCursor() == javafx.scene.Cursor.HAND) return true;
+        }
+        return false;
     }
     void idle() throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
@@ -49,11 +154,25 @@ class DropdownGuiTest {
     PhotoPilotWorkspace view() throws Exception { return fx(() -> controller.workspace()); }
     void nav(String id) throws Exception { action(() -> ((ToggleButton) controller.workspace().lookup("#nav-" + id)).fire()); idle(); }
     @SuppressWarnings("unchecked") ComboBox<Object> combo(String id) throws Exception { return fx(() -> (ComboBox<Object>) controller.workspace().lookup("#" + id)); }
-    /** Opens the dropdown and returns its list once it is placed and frosted. */
+    /** Opens the dropdown and returns its list once it is laid out (DropdownSkin then places and frosts it). */
     static ListView<?> open(ComboBox<?> box) throws Exception {
         action(box::show); AppearanceGuiTest.settle();
-        return fx(() -> (ListView<?>) ((DropdownSkin<?>) box.getSkin()).getPopupContent());
+        var list = fx(() -> (ListView<?>) ((DropdownSkin<?>) box.getSkin()).getPopupContent());
+        waitFx(() -> list.getScene() != null && list.getWidth() > 0 && list.getHeight() > 0, 5000);
+        AppearanceGuiTest.settle();
+        return list;
     }
+    /** Polls an FX-thread condition for at most {@code millis}; the caller asserts the outcome (QA-01: no fixed pauses). */
+    static boolean waitFx(Callable<Boolean> condition, long millis) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(millis);
+        while (!fx(condition)) { if (System.nanoTime() > deadline) return false; Thread.sleep(15); }
+        return true;
+    }
+    /** The selected option among the rendered cells (VirtualFlow also keeps an invisible cell for measuring). */
+    static ListCell<?> selectedCell(ListView<?> list) {
+        return list.lookupAll(".list-cell").stream().map(n -> (ListCell<?>) n).filter(c -> c.isSelected() && shown(c)).findFirst().orElseThrow();
+    }
+    static Object fill(Region region) { return region.getBackground() == null ? null : region.getBackground().getFills().getFirst().getFill(); }
     static void appearance(Theme.Accent accent, Integer hue, boolean dark, int opacity) throws Exception {
         action(() -> { var theme = ThemeManager.get(); if (hue == null) theme.select(accent); else theme.previewCustomHue(hue);
             theme.select(dark ? Theme.Mode.DARK : Theme.Mode.LIGHT); theme.previewOpacity(opacity); });
@@ -85,7 +204,9 @@ class DropdownGuiTest {
                 double alpha = fx(() -> ((Color) list.getBackground().getFills().getFirst().getFill()).getOpacity());
                 double expected = ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-surface-2")).getOpacity();
                 assertEquals(expected, alpha, .01, where + ": popup background uses the shared surface opacity");
-                assertEquals(opacity < 99, fx(((DropdownSkin<?>) fx(box::getSkin))::frosted), where + ": frosted backdrop");
+                var skin = (DropdownSkin<?>) fx(box::getSkin); boolean translucent = opacity < 99;
+                waitFx(() -> skin.frosted() == translucent, 5000);   // frosted in the pass after the list is laid out
+                assertEquals(translucent, fx(skin::frosted), where + ": frosted backdrop");
                 assertEquals(1.0, fx(list::getOpacity), where + ": opacity is on the background only, never on the list");
                 // Text stays readable on the rendered surface, and the selection is a soft accent tint, not a solid bar.
                 var cells = fx(() -> list.lookupAll(".list-cell").stream().filter(n -> n.isVisible() && !((ListCell<?>) n).isEmpty()).map(n -> (ListCell<?>) n).toList());
@@ -124,9 +245,11 @@ class DropdownGuiTest {
                 appearance(accent, null, dark, 40);
                 var list = open(box);
                 action(() -> list.getSelectionModel().select(2)); AppearanceGuiTest.settle();
-                var selected = fx(() -> list.lookupAll(".list-cell").stream().map(n -> (ListCell<?>) n).filter(ListCell::isSelected).findFirst().orElseThrow());
-                Color fill = fx(() -> (Color) selected.getBackground().getFills().getFirst().getFill());
+                var selected = fx(() -> selectedCell(list));
                 Color soft = ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-selected-soft"));
+                // The theme change restyles the open list in a later CSS pass: wait for it (bounded), then compare exactly.
+                waitFx(() -> soft.equals(fill(selected)), 5000);
+                Color fill = fx(() -> (Color) selected.getBackground().getFills().getFirst().getFill());
                 assertEquals(soft, fill, (dark ? "dark " : "light ") + accent + ": selection uses the theme's soft tint");
                 assertEquals(ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-accent-text")), fx(() -> (Color) selected.getTextFill()));
                 if (accent == Theme.Accent.SAGE || accent == Theme.Accent.ROSE) composite(box, list, "theme-" + accent.id + (dark ? "-dark" : "-light"));
@@ -136,14 +259,16 @@ class DropdownGuiTest {
             var list = open(box);
             Color accentText = ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-accent-text"));
             action(() -> list.getSelectionModel().select(1)); AppearanceGuiTest.settle();
-            assertEquals(accentText, fx(() -> list.lookupAll(".list-cell").stream().map(n -> (ListCell<?>) n).filter(ListCell::isSelected).findFirst().orElseThrow().getTextFill()), "custom colour");
+            waitFx(() -> accentText.equals(selectedCell(list).getTextFill()), 5000);
+            assertEquals(accentText, fx(() -> selectedCell(list).getTextFill()), "custom colour");
             composite(box, list, "theme-custom190" + (dark ? "-dark" : "-light"));
             action(box::hide); action(() -> box.setValue(before)); AppearanceGuiTest.settle();
         }
         // Keyboard: arrows move the choice, Enter confirms and closes, Escape closes; the filter callback still runs.
         appearance(Theme.Accent.BLUE, null, false, 62);
+        activate();   // keyboard focus belongs to the active window only
         var list = open(box);
-        assertTrue(fx(list::isFocused), "the open list has keyboard focus");
+        until(list::isFocused, "the open list has keyboard focus");
         key(list, KeyCode.DOWN); key(list, KeyCode.DOWN);
         Object moved = fx(box::getValue);
         assertNotEquals(before, moved, "arrow keys change the choice");
@@ -153,18 +278,35 @@ class DropdownGuiTest {
         open(box); key(fx(() -> (Node) ((DropdownSkin<?>) box.getSkin()).getPopupContent()), KeyCode.ESCAPE); AppearanceGuiTest.settle();
         assertFalse(fx(box::isShowing), "Escape closes"); assertEquals(moved, fx(box::getValue), "Escape keeps the confirmed choice");
         // Mouse, with real input through the platform robot: clicking the control opens it, clicking an option picks it.
-        var robot = fx(javafx.scene.robot.Robot::new);
-        action(() -> { var at = box.localToScreen(box.getWidth() / 2, box.getHeight() / 2); robot.mouseMove(at); robot.mouseClick(MouseButton.PRIMARY); });
-        AppearanceGuiTest.settle();
-        assertTrue(fx(box::isShowing), "a click opens the list");
+        // Robot input reaches JavaFX asynchronously through the operating system, so each step waits for its observable
+        // result (bounded) instead of a fixed pause.
+        activate(); parkPointer();
+        var onControl = fx(() -> box.localToScreen(box.getWidth() / 2, box.getHeight() / 2));
+        hover(box, onControl, "the pointer is on the control");
+        action(() -> robot.mouseClick(MouseButton.PRIMARY));
+        until(box::isShowing, "a click opens the list");
         var reopened = fx(() -> (ListView<?>) ((DropdownSkin<?>) box.getSkin()).getPopupContent());
+        settledPlacement(reopened);
         var first = fx(() -> reopened.lookupAll(".list-cell").stream().map(n -> (ListCell<?>) n).filter(c -> c.getIndex() == 0).findFirst().orElseThrow());
-        action(() -> { var at = first.localToScreen(first.getWidth() / 2, first.getHeight() / 2); robot.mouseMove(at); });
-        AppearanceGuiTest.settle();
-        assertTrue(fx(first::isHover), "the pointer highlights the option");
-        assertEquals(ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-hover")), fx(() -> (Color) first.getBackground().getFills().getFirst().getFill()), "hover uses the soft hover tint");
-        action(() -> robot.mouseClick(MouseButton.PRIMARY)); AppearanceGuiTest.settle();
-        assertEquals("", fx(box::getValue), "a click picks the option"); assertFalse(fx(box::isShowing), "and closes the list");
+        var onOption = fx(() -> first.localToScreen(first.getWidth() / 2, first.getHeight() / 2));
+        hover(first, onOption, "the pointer highlights the option");
+        Color hover = ThemeTest.color(ThemeManager.get().theme().tokens().get("-pp-hover"));
+        within(() -> hover.equals(first.getBackground().getFills().getFirst().getFill()), 5000);   // the CSS pass after the hover change
+        assertEquals(hover, fx(() -> (Color) first.getBackground().getFills().getFirst().getFill()), "hover uses the soft hover tint");
+        action(() -> robot.mouseClick(MouseButton.PRIMARY));
+        until(() -> !box.isShowing(), "a click on an option closes the list");
+        assertEquals("", fx(box::getValue), "a click picks the option");
+        parkPointer();
+    }
+    /** Waits until the open list has stopped moving (DropdownSkin places it once after it is shown). */
+    void settledPlacement(ListView<?> list) throws Exception {
+        Bounds[] last = { null };
+        until(() -> {
+            var now = list.localToScreen(list.getLayoutBounds());
+            boolean same = now != null && now.equals(last[0]);
+            last[0] = now;
+            return same;
+        }, "the open list keeps its place");
     }
 
     @Test void listsStayInsideTheWindowOpenUpwardNearTheBottomScrollWhenLongAndTranslateTheEmptyState() throws Exception {
@@ -216,7 +358,9 @@ class DropdownGuiTest {
                 var list = open(box); opened++; seen.add(where);
                 Bounds shown = fx(() -> list.localToScreen(list.getLayoutBounds()));
                 assertTrue(fx(() -> inside(shown, box.getScene())), where + ": inside the window");
-                assertTrue(fx(((DropdownSkin<?>) fx(box::getSkin))::frosted), where + ": frosted");
+                var skin = (DropdownSkin<?>) fx(box::getSkin);
+                waitFx(skin::frosted, 5000);   // frosted in the pass after the list is laid out
+                assertTrue(fx(skin::frosted), where + ": frosted");
                 assertTrue(fx(() -> list.lookupAll(".scroll-bar").stream().noneMatch(n -> n.isVisible() && ((ScrollBar) n).getOrientation() == javafx.geometry.Orientation.HORIZONTAL)), where + ": no sideways scrolling");
                 int items = fx(() -> box.getItems().size());
                 if (items == 0) assertTrue(fx(() -> list.lookup(".dropdown-empty").isVisible()), where + ": empty state");
