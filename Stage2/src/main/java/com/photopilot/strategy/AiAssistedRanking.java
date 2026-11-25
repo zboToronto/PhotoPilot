@@ -77,6 +77,8 @@ abstract class AiAssistedRanking implements LoadoutRankingStrategy {
         var accepted = reply.isSuccess() ? accept(reply.value().orElseThrow(), sent) : Result.<List<Candidate>>failure(reply);
         if (!accepted.isSuccess()) {
             var reason = accepted.messages().isEmpty() ? LocalizedMessage.of("match.ai.invalid") : accepted.messages().getFirst();
+            // Visible in the execution feedback: the deterministic order is used, not an AI ranking.
+            com.photopilot.progress.Progress.stage("match.fallback");
             return Result.success(new RankingOutcome(ordered, false, "", Optional.of(LocalizedMessage.of("match.ranking.fallback", reason))));
         }
         var ranked = new ArrayList<Candidate>(accepted.value().orElseThrow());

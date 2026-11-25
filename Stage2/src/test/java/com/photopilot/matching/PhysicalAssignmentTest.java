@@ -240,7 +240,7 @@ class PhysicalAssignmentTest {
         assertTrue(asked.rejections().stream().anyMatch(m -> m.key().equals(CompatibilityValidator.MOUNTING_UNSPECIFIED)), asked.rejections()::toString);
         assertFalse(asked.missingSpecifications(), "an unanswered lens-change question is not a missing gear specification");
         var lines = LoadoutPresentation.rejections(asked, LocalizationService.english());
-        assertTrue(lines.stream().anyMatch(s -> s.contains("Set Lens changes in Requirement Parsing")), lines::toString);
+        assertTrue(lines.stream().anyMatch(s -> s.contains("Set Lens changes in Shooting Requirements")), lines::toString);
     }
 
     // H

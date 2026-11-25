@@ -138,6 +138,7 @@ public class GearMatchingService {
         var strategy = strategies.get(Objects.toString(strategyName, ranking.name()));
         if (strategy == null) return Result.failureKey("match.error.strategy", strategyName);
         var scope = scope(profile, requirement);
+        com.photopilot.progress.Progress.validating("match.compatibility");
         var generated = generate(gear, scope);
         if (!generated.isSuccess()) return Result.failure(generated);
         var found = generated.value().orElseThrow();
@@ -154,9 +155,11 @@ public class GearMatchingService {
             // UC07 A1 asks for missing gear specifications; an unanswered lens-change question is named by its own message.
             unverified |= assessment.unverified().stream().anyMatch(m -> !m.key().equals(CompatibilityValidator.MOUNTING_UNSPECIFIED));
         }
+        com.photopilot.progress.Progress.stage("match.rank", usable.size());
         var ranked = strategy.rankCandidates(usable, profile, Objects.toString(shootContext, ""));
         if (!ranked.isSuccess()) return Result.failure(ranked);
         var outcome = ranked.value().orElseThrow();
+        com.photopilot.progress.Progress.validating("match.verify");
         // Post-validation: a strategy can only return candidates generated and verified here, each exactly once.
         var expected = new HashSet<UUID>(); usable.forEach(c -> expected.add(c.loadout().id()));
         var returned = new HashSet<UUID>();

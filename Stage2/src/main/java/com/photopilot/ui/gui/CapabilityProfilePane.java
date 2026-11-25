@@ -20,7 +20,7 @@ import javafx.scene.layout.*;
  * action). Reuses RequirementPane's controls, feedback cards, discard confirmation and background Task pattern; every
  * rule lives in PlanningService/RequirementService and the domain.
  */
-final class CapabilityProfilePane extends VBox {
+final class CapabilityProfilePane extends VBox implements SessionScoped {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -42,22 +42,28 @@ final class CapabilityProfilePane extends VBox {
     /** Confirm was rejected because the session changed after the draft was opened; the next refresh rebases it. */
     private boolean stale;
     private boolean editing, busy, disposed;
+    private final OperationRunner tracked;
+    private final NextStepHint prerequisite;
+    private final SessionChooser chooser;
 
     CapabilityProfilePane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization);
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
+        prerequisite = new NextStepHint(localization, "needs-next");
         session.setId("needs-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "needs.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
         session.valueProperty().addListener((o, old, value) -> { if (proposal == null) showSession(); });
+        chooser = new SessionChooser(session, texts);
         Label sessionCaption = texts.label("needs.session", "section-title"); sessionCaption.setLabelFor(session);
         Button refresh = button("gear.refresh", "needs-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
         requirementLines.setId("needs-requirement"); savedLines.setId("needs-saved");
-        requirementBox.getChildren().addAll(texts.label("needs.requirementTitle", "section-title"), requirementLines);
+        requirementBox.getChildren().addAll(texts.label("needs.requirementTitle", "section-title"), requirementLines, prerequisite);
         savedBox.getChildren().addAll(texts.label("needs.savedTitle", "section-title"), savedLines);
         analyze = button("needs.analyze", "needs-analyze", this::analyze, true);
         manual = button("needs.enter", "needs-manual", this::manual, false);
         actions = new FlowPane(12, 10, analyze, manual);
-        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), sessionHint),
+        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), chooser.context(), sessionHint),
             requirementBox, savedBox, new VBox(7, actions, texts.label("needs.privacy", "secondary-text")));
 
         answers.setId("needs-answers"); answers.setWrapText(true); answers.setPrefRowCount(2); answers.getStyleClass().add("session-notes");
@@ -73,11 +79,12 @@ final class CapabilityProfilePane extends VBox {
             origin, reviewLines, tradeOffs, editor, questions, replaceNotice,
             new FlowPane(12, 10, confirm, button("button.cancel", "needs-cancel", this::cancel, false)), confirmation);
         for (var box : List.of(requirementBox, savedBox, review, questions, confirmation, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("needs.feedback", "section-title"), feedback);
+        feedbackBox.getChildren().addAll(texts.label("needs.feedback", "section-title"), feedback, tracked.view());
         controls.getChildren().add(review);
         hide(review); hide(confirmation); hide(feedbackBox); hide(sessionHint); hide(requirementBox); hide(savedBox);
         getChildren().addAll(controls, feedbackBox);
         texts.onRefresh(this::render);
+        texts.onRefresh(prerequisite::render);
     }
     private static Region grow(Region region) { HBox.setHgrow(region, Priority.ALWAYS); return region; }
     private Button button(String key, String id, Runnable action, boolean primary) {
@@ -86,7 +93,10 @@ final class CapabilityProfilePane extends VBox {
     }
 
     void activate(boolean active) { if (active && !busy) refresh(); }
-    void dispose() { disposed = true; texts.close(); }
+    void dispose() { disposed = true; texts.close(); tracked.view().dispose(); }
+    OperationRunner tracked() { return tracked; }
+    @Override public javafx.beans.value.ObservableValue<PhotographySession> selectedSession() { return chooser.selected(); }
+    @Override public void useSessions(SessionWorkflowModel sessions) { chooser.use(sessions); }
     boolean dirty() { return proposal != null; }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
@@ -95,7 +105,7 @@ final class CapabilityProfilePane extends VBox {
 
     /** Editable sessions only: completed/reviewed sessions keep their historical capability profile. */
     void refresh() {
-        UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
+        UUID kept = draftSession == null ? null : draftSession.id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
             // An open draft keeps the session version it was opened for (also when the page is shown again), so a profile
@@ -106,8 +116,7 @@ final class CapabilityProfilePane extends VBox {
                 draftSession = fresh; editing = false; stale = false;
             });
             session.getItems().setAll(editable);
-            editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
-                () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
+            chooser.select(editable, kept, false);
             texts.text(sessionHint.textProperty(), "requirement.noSessions");
             if (editable.isEmpty()) show(sessionHint); else hide(sessionHint);
             showSession(); render();
@@ -128,6 +137,8 @@ final class CapabilityProfilePane extends VBox {
             .orElse(localization.text("needs.noneSaved")));
         texts.text(manual.textProperty(), saved.isPresent() ? "needs.edit" : "needs.enter");
         analyze.setDisable(requirement.isEmpty()); manual.setDisable(requirement.isEmpty());
+        prerequisite.show(requirement.isPresent() ? Optional.empty()
+            : NextSteps.before(List.of(com.photopilot.i18n.LocalizedMessage.of("needs.error.requirement"))));
     }
 
     private void analyze() {
@@ -136,7 +147,7 @@ final class CapabilityProfilePane extends VBox {
         if (proposal != null) return;
         message(() -> localization.text("needs.analyzing"));
         // On failure nothing changes: no draft is opened and the saved profile stays as it was.
-        run(() -> app.proposeNeeds(selected.id()), proposed -> open(selected, proposed, false, "needs.proposed"),
+        run(OperationKind.NEEDS_ANALYZE, () -> app.proposeNeeds(selected.id()), proposed -> open(selected, proposed, false, "needs.proposed"),
             failure -> message(() -> localization.text("needs.aiFailed", String.join(" ", failure.errors(localization)))));
     }
     private void manual() {
@@ -151,7 +162,7 @@ final class CapabilityProfilePane extends VBox {
         PhotographySession target = draftSession; var current = proposal.withProfile(editor.draft()); String text = answers.getText();
         message(() -> localization.text("needs.clarifying"));
         // On failure the open draft, including manual edits, stays exactly as it was.
-        run(() -> app.planning().clarifyNeeds(target.id(), current, text), updated -> { answers.clear(); open(target, updated, editing, "needs.proposed"); },
+        run(OperationKind.NEEDS_CLARIFY, () -> app.planning().clarifyNeeds(target.id(), current, text), updated -> { answers.clear(); open(target, updated, editing, "needs.proposed"); },
             failure -> message(() -> localization.text("needs.aiFailed", String.join(" ", failure.errors(localization)))));
     }
     private void confirm() {
@@ -161,7 +172,7 @@ final class CapabilityProfilePane extends VBox {
         PhotographySession expected = draftSession; var edited = editor.draft();
         boolean replace = expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent();
         message(() -> localization.text("needs.saving"));
-        run(() -> app.planning().confirmProfile(expected, edited, replace), stored -> {
+        run(OperationKind.NEEDS_CONFIRM, () -> app.planning().confirmProfile(expected, edited, replace), stored -> {
             close(); message(() -> localization.text("needs.saved", expected.title())); refresh();
         }, failure -> {
             editor.render(); message(() -> String.join(" ", failure.errors(localization)));
@@ -171,7 +182,7 @@ final class CapabilityProfilePane extends VBox {
     private void cancel() {
         if (proposal == null) return;
         confirmation.getChildren().setAll(texts.label("session.discardPrompt", "feedback-text"), new FlowPane(12, 10,
-            button("session.confirm", "needs-discard", () -> { close(); message(() -> localization.text("needs.cancelled")); showSession(); }, true),
+            button("session.confirm", "needs-discard", () -> { close(); tracked.view().clear(); message(() -> localization.text("needs.cancelled")); showSession(); }, true),
             button("button.cancel", "needs-keep", () -> hide(confirmation), false)));
         show(confirmation); SessionPane.reveal(this, confirmation);
     }
@@ -207,6 +218,16 @@ final class CapabilityProfilePane extends VBox {
         editor.render();
     }
 
+    /** A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true);
+        tracked.run(kind, operation, result -> {
+            if (disposed) return;
+            busy = false; controls.setDisable(false);
+            if (result.isSuccess()) success.accept(result.value().orElseThrow()); else failure.accept(result);
+        }, () -> { if (disposed) return; busy = false; controls.setDisable(false); message(() -> localization.text("progress.cancelled")); });
+    }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;
         busy = true; controls.setDisable(true);

@@ -6,7 +6,7 @@ F07 / UC07 with included UC14 / SD03. Question answered: *which combinations of 
 
 F07 needs a reviewed `EquipmentRequirementProfile`, produced by F06/UC06 (Gemini analysis or manual entry, review, explicit confirmation; see [F06](f06-capabilities.md), completed 2026-11-03). The earlier minimal manual path that lived only in F07 has been reconciled with it:
 
-- One editor (`CapabilityNeedEditor`) and one save path (`PlanningService.confirmProfile(expected, edited, replace)`). The F07 page can still adjust the saved profile; editing a saved profile is the explicit replacement. `match profile/need` are CLI aliases of the F06 `needs` commands and share their draft state.
+- One editor (`CapabilityNeedEditor`) and one save path (`PlanningService.confirmProfile(expected, edited, replace)`). The F07 page (**Gear Selection**) can still adjust the saved profile; editing a saved profile is the explicit replacement. `match profile/need` are CLI aliases of the F06 `needs` commands and share their draft state.
 - F07 consumes a profile only through `PlanningService.usableProfile(session)`: reviewed **and** consistent with the current confirmed F03 requirement. A profile contradicted by a re-confirmed requirement yields `needs.error.stale` plus the specific findings instead of silently entering matching or selection.
 - Priority semantics are shared: 1 = most important; unmet needs are weighted `MAX_PRIORITY + 1 - priority`; mandatory needs count in `mandatoryUnmet`.
 
@@ -124,6 +124,8 @@ An existing selection is replaced only with `replace=true`: the GUI *Replace sel
 
 The selection is stored in a new optional v1 session field `selectedLoadout` (immutable `GearSnapshot`s with captured specs). Older files without the field load unchanged, because `SessionJson` fills only that exact absence. `JsonSessionRepository.referencingGear` now also scans it, so F05 warns before removing selected gear and history keeps the snapshot. `PlanningService.selection(id)` returns the saved loadout re-checked against current inventory and profile, for display and for F10.
 
+**Session progress (milestone 03, 2026-11-23).** Before a plan is approved, Gear Selection is completed while the saved selection passes the same recheck (`PlanningService.selectionCheck`: UC14 compatibility and F05 availability). Once a plan is approved, the plan's gear counts, since F10 may plan without the selection or with another offer. The milestone shows *Needs review* when the selected gear changed or left the inventory, and is blocked without a usable profile. Staleness is judged while the session is editable, except for a planned session whose date has passed (a draft is re-checked whatever its date); nothing is deleted or rewritten ([session workflow](session-workflow.md#milestone-completion-criteria)).
+
 ## Design changes (Original design → Implemented change → Reason → Impact)
 
 | Original design | Implemented change | Reason | Impact |
@@ -149,14 +151,14 @@ GUI: no global CSS, theme, font, navigation, Home or other page was changed. `Ge
 
 ## Usage
 
-- **GUI**: Equipment → Compatibility Check. Choose a session (Draft/Planned) with confirmed F03 requirements, then: Enter capability needs → choose a capability, minimum/maximum, priority, mandatory → Add or update need → Confirm and save profile. Then Ranking preference → Match My Gear → review the cards (owned equipment, UC14 verification, matched/unmet needs, trade-offs, any labelled AI note, and rejected items) → Select this loadout → Confirm selection (or Replace selection). The saved selection card re-checks it on every visit.
+- **GUI**: Active session → **Gear Selection** (step 03). Choose a session (Draft/Planned) with confirmed F03 requirements (the chooser follows the window's current session), then: Enter capability needs → choose a capability, minimum/maximum, priority, mandatory → Add or update need → Confirm and save profile. Then Ranking preference → Match My Gear → review the cards (owned equipment, UC14 verification, matched/unmet needs, trade-offs, any labelled AI note, and rejected items) → Select this loadout → Confirm selection (or Replace selection). The saved selection card re-checks it on every visit.
 - **CLI**: `F07` or `match help`. Commands: `match profile <id>`, `match need <capability> minimum=.. maximum=.. priority=1..10 mandatory=yes|no note=".."`, `match need remove <capability>`, `match profile show|confirm|cancel`, `match capabilities`, `match run <id> [portability|coverage]`, `match details <n>`, `match select <n>`, `match confirm [replace]`, `match cancel`, `match show <id>`. Invalid input returns exit status 2.
 
 ## Demonstration script (Stage 2 video, F07)
 
 Use an isolated data root (`PHOTOPILOT_DATA_DIR`, `PHOTOPILOT_CONFIG_DIR`) and the fixture gear below; never show `.env`.
 
-1. Show the feature ID: Equipment → **Compatibility Check (F07)**, then Check status.
+1. Show the feature ID: Active session → **Gear Selection (F07)**, then Check status.
 2. **Inventory input (F05)**: Sony A1 and Sony A7 IV (Sony E, NP-FZ100, SD), FE 200-600mm G (95 mm thread), FE 100-400mm GM (77 mm), FE 24-105mm G, Canon EF 100-400mm L II (incompatible), Vintage 300mm f/4 with mount `unknown` (incomplete), 4× NP-FZ100, 2× LP-E6NH (incompatible), 2× SD 128 GB, B+W 77 mm CPL. CLI seed (fictional demo data, fixed IDs):
 
    ```text

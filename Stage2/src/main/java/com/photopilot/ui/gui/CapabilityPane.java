@@ -5,17 +5,22 @@ import com.photopilot.common.Result;
 import com.photopilot.i18n.LocalizationService;
 import com.photopilot.model.EquipmentType;
 import com.photopilot.model.GearCapabilityAnalysis;
+import com.photopilot.repository.StoreChanges;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
 /**
  * F06 page in the existing feature surface: the UC06 shoot capability-requirement workflow
- * ({@link CapabilityProfilePane}) followed by the read-only inventory capability report, with the existing controls
- * and worker lifecycle.
+ * ({@link CapabilityProfilePane}) followed by the read-only inventory capability report ({@link CapabilityDashboard}),
+ * which the Gear Capability Report entry shows on its own. The report is analyzed on the worker lane whenever the page
+ * is shown or refreshed; an inventory save of this process marks the shown snapshot outdated. Nothing here writes.
  */
 final class CapabilityPane extends VBox {
     /** Gear Overview omits battery and storage-media records and the camera fields that describe them. */
@@ -25,60 +30,71 @@ final class CapabilityPane extends VBox {
     private final LocalizationService localization;
     private final FxLocalizer texts;
     private final CapabilityProfilePane profile;
-    private final Button refresh;
-    private final Label feedback = FeaturePane.label("", "feedback-text");
-    private final VBox results = new VBox(18);
-    private GearCapabilityAnalysis report;
-    private boolean active;
+    private final CapabilityDashboard dashboard;
+    private final AutoCloseable changes;
+    private boolean active, reportOnly;
     private long generation;
+    /** Inventory saves announced in this process; an analysis started before the latest one is outdated. */
+    private volatile long inventoryVersion;
+    private final Separator divider = new Separator();
+    private final Label reportTitle, notice;
     CapabilityPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
         profile = new CapabilityProfilePane(app, operations, localization);
-        refresh = texts.button("capability.refresh"); refresh.setId("capability-refresh"); refresh.getStyleClass().add("primary-button");
-        refresh.setOnAction(event -> analyze());
-        var notice = texts.label("capability.scope", "secondary-text");
-        var box = new VBox(8, feedback); box.getStyleClass().add("feedback-box");
-        getChildren().addAll(profile, new Separator(), texts.label("capability.inventoryTitle", "empty-title"), notice, refresh, box, results);
-        texts.onRefresh(this::render);
+        dashboard = new CapabilityDashboard(localization, SHOWN_TYPES);
+        dashboard.onRefresh(this::analyze);
+        notice = texts.label("capability.scope", "secondary-text");
+        reportTitle = texts.label("capability.inventoryTitle", "empty-title");
+        getChildren().addAll(profile, divider, reportTitle, notice, dashboard);
+        texts.onRefresh(dashboard::relabel);
+        changes = app.changes().listen(change -> {
+            if (change.kind() != StoreChanges.Kind.INVENTORY_SAVED) return;
+            inventoryVersion++;
+            Platform.runLater(() -> { if (active) dashboard.stale(); });
+        });
     }
     void activate(boolean value) {
-        active = value; generation++; refresh.setDisable(false);
-        profile.activate(value);
+        active = value; generation++;
+        profile.activate(value && !reportOnly);
         if (active) analyze();
     }
-    void dispose() { active = false; generation++; profile.dispose(); texts.close(); }
+    /**
+     * The Gear Capability Report entry shows the inventory report on its own (the page heading names it); the F06 page
+     * keeps the session's capability requirements above the same report. Call before {@link #activate}.
+     */
+    void reportOnly(boolean value) {
+        reportOnly = value;
+        for (var node : new javafx.scene.Node[] { profile, divider, reportTitle, notice }) { node.setVisible(!value); node.setManaged(!value); }
+    }
+    /** "Edit equipment details" opens this item in the existing Gear Inventory editor. */
+    void onEditEquipment(Consumer<UUID> action) { dashboard.onEdit(action); }
+    void dispose() {
+        active = false; generation++; profile.dispose(); texts.close();
+        try { changes.close(); } catch (Exception ignored) { /* the subscription only removes a listener */ }
+    }
     boolean dirty() { return profile.dirty(); }
     boolean busy() { return profile.busy(); }
     CapabilityProfilePane profile() { return profile; }
+    CapabilityDashboard dashboard() { return dashboard; }
     private void analyze() {
-        long request = ++generation; report = null; results.getChildren().clear(); refresh.setDisable(true);
-        texts.text(feedback.textProperty(), "capability.loading");
+        long request = ++generation, version = inventoryVersion;
+        dashboard.loading();
         Task<Result<GearCapabilityAnalysis>> task = new Task<>() {
             protected Result<GearCapabilityAnalysis> call() { return app.capabilities().analyze(); }
         };
         task.setOnSucceeded(event -> {
             if (!active || request != generation) return;
-            refresh.setDisable(false);
             var result = task.getValue();
-            if (result.isSuccess()) { report = result.value().orElseThrow(); texts.text(feedback.textProperty(), "capability.loaded"); render(); }
-            else texts.bind(feedback.textProperty(), () -> String.join("; ", result.errors(localization)));
+            if (result.isSuccess()) {
+                dashboard.show(result.value().orElseThrow());
+                if (version != inventoryVersion) dashboard.stale();
+            } else dashboard.failed(() -> String.join("; ", result.errors(localization)));
         });
         task.setOnFailed(event -> {
-            if (active && request == generation) { refresh.setDisable(false); texts.text(feedback.textProperty(), "capability.failed"); }
+            if (active && request == generation) dashboard.failed(() -> localization.text("capability.failed"));
         });
         operations.execute(task);
     }
-    private void render() {
-        results.getChildren().clear();
-        if (report == null) return;
-        for (var section : CapabilityPresentation.Section.values()) {
-            var title = FeaturePane.label(localization.text("capability.section." + section.name()), "section-title");
-            var body = FeaturePane.label(CapabilityPresentation.format(report, section, localization, SHOWN_TYPES), "secondary-text");
-            body.setId("capability-" + section.name().toLowerCase(java.util.Locale.ROOT));
-            var card = new VBox(10, title, body); card.getStyleClass().add("feedback-box");
-            results.getChildren().add(card);
-        }
-    }
-    String feedbackText() { return feedback.getText(); }
+    String feedbackText() { return dashboard.statusText(); }
 }

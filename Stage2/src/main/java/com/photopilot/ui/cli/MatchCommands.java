@@ -103,7 +103,7 @@ final class MatchCommands {
         String strategy = words.length == 4 ? words[3].toLowerCase(Locale.ROOT) : strategies.getFirst();
         if (!strategies.contains(strategy)) { report(Result.failureKey("match.error.strategy", strategy)); return 2; }
         output.println(localization.text("match.running", LoadoutPresentation.strategyName(strategy, localization)));
-        var result = app.planning().matchGear(session.id(), strategy);
+        var result = CliProgress.run(OperationKind.MATCH, () -> app.planning().matchGear(session.id(), strategy));
         if (!report(result)) return 2;
         state.report = result.value().orElseThrow(); state.reportSession = session; state.pending = null;
         LoadoutPresentation.summary(state.report, localization).forEach(output::println);
@@ -140,7 +140,7 @@ final class MatchCommands {
         boolean replace = words.length == 3 && words[2].equalsIgnoreCase("replace");
         if (words.length > 3 || words.length == 3 && !replace) throw new LocalizedException("error.cli.option", words[words.length - 1]);
         if (state.reportSession.selectedLoadout().isPresent() && !replace) { output.println(localization.text("match.cli.confirmReplace")); return 2; }
-        var saved = app.planning().selectLoadout(state.reportSession, state.pending.loadout(), replace);
+        var saved = CliProgress.run(OperationKind.MATCH_SELECT, state.reportSession.id(), () -> app.planning().selectLoadout(state.reportSession, state.pending.loadout(), replace));
         if (!report(saved)) return 2;
         String title = state.reportSession.title(); UUID id = state.reportSession.id();
         state.pending = null; state.report = null; state.reportSession = null;
@@ -152,6 +152,8 @@ final class MatchCommands {
     private Candidate candidate(String[] words) {
         if (state.report == null) { output.println(localization.text("match.cli.noReport")); return null; }
         int index = index(words);
+        // Stage2OptRe2 D01: with no compatible candidate there is no valid number ("from 1 to 0"); say why and what to do.
+        if (state.report.recommendations().isEmpty()) { report(Result.failureKey("match.error.noCompatible")); return null; }
         if (index < 0 || index >= state.report.recommendations().size()) { report(Result.failureKey("match.error.candidateNumber", state.report.recommendations().size())); return null; }
         return state.report.recommendations().get(index);
     }

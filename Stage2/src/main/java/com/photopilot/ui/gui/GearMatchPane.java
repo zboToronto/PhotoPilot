@@ -19,7 +19,7 @@ import javafx.scene.layout.*;
  * RequirementPane's controls, feedback cards, confirmation pattern and background Task lifecycle; all rules live in
  * the services.
  */
-final class GearMatchPane extends VBox {
+final class GearMatchPane extends VBox implements SessionScoped {
     private final PhotoPilotFacade app;
     private final ExecutorService operations;
     private final LocalizationService localization;
@@ -40,20 +40,26 @@ final class GearMatchPane extends VBox {
     private GearMatchReport report;
     private GearMatchReport.SelectionStatus savedStatus;
     private boolean busy, disposed;
+    private final OperationRunner tracked;
+    private final NextStepHint prerequisite;
+    private final SessionChooser chooser;
 
     GearMatchPane(PhotoPilotFacade app, ExecutorService operations, LocalizationService localization) {
         super(20); this.app = app; this.operations = operations; this.localization = localization;
         texts = new FxLocalizer(this, localization); getStyleClass().add("inventory-content");
+        tracked = new OperationRunner(operations, new OperationProgressView(localization));
+        prerequisite = new NextStepHint(localization, "match-next");
         session.setId("match-session"); session.setMaxWidth(Double.MAX_VALUE); texts.text(session.accessibleTextProperty(), "match.session");
         texts.choices(session, s -> localization.text("requirement.sessionOption", s.title(), s.date(), localization.text("session.state." + s.status())));
         session.valueProperty().addListener((o, old, value) -> { if (!draft) { clearResults(); showSession(); } });
+        chooser = new SessionChooser(session, texts);
         Label sessionCaption = texts.label("match.session", "section-title"); sessionCaption.setLabelFor(session);
         Button refresh = button("gear.refresh", "match-refresh", this::refresh, false); refresh.setMinWidth(Region.USE_PREF_SIZE);
 
         profileLines.setId("match-profile");
         editProfile = button("needs.edit", "match-profile-edit", this::openEditor, false);
         profileBox.getChildren().addAll(texts.label("needs.title", "section-title"), requirementLine, profileLines,
-            texts.label("needs.manualNotice", "secondary-text"), new FlowPane(12, 10, editProfile));
+            texts.label("needs.manualNotice", "secondary-text"), new FlowPane(12, 10, editProfile), prerequisite);
 
         needs = new CapabilityNeedEditor("match", texts, localization, this::message);
         editor.getChildren().addAll(texts.label("needs.editorTitle", "empty-title"), texts.label("needs.manualNotice", "secondary-text"), needs,
@@ -67,8 +73,8 @@ final class GearMatchPane extends VBox {
             texts.label("match.aiNotice", "secondary-text"), new FlowPane(12, 10, button("match.run", "match-run", this::match, true)));
         saved.getChildren().addAll(texts.label("match.saved.title", "section-title"), savedLines); savedLines.setId("match-saved");
         for (var box : List.of(profileBox, editor, matchBox, confirmation, saved, feedbackBox)) box.getStyleClass().add("feedback-box");
-        feedbackBox.getChildren().addAll(texts.label("match.feedback", "section-title"), feedback);
-        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), sessionHint), profileBox, editor, saved, matchBox);
+        feedbackBox.getChildren().addAll(texts.label("match.feedback", "section-title"), feedback, tracked.view());
+        controls.getChildren().addAll(new VBox(7, sessionCaption, new HBox(12, grow(session), refresh), chooser.context(), sessionHint), profileBox, editor, saved, matchBox);
         hide(editor); hide(feedbackBox); hide(sessionHint); hide(confirmation); hide(saved); hide(results);
         getChildren().addAll(controls, results, confirmation, feedbackBox);
         texts.onRefresh(this::render);
@@ -80,7 +86,10 @@ final class GearMatchPane extends VBox {
     }
 
     void activate(boolean active) { if (active && !busy) refresh(); }
-    void dispose() { disposed = true; texts.close(); }
+    void dispose() { disposed = true; texts.close(); tracked.view().dispose(); }
+    OperationRunner tracked() { return tracked; }
+    @Override public javafx.beans.value.ObservableValue<PhotographySession> selectedSession() { return chooser.selected(); }
+    @Override public void useSessions(SessionWorkflowModel sessions) { chooser.use(sessions); }
     boolean dirty() { return draft || !confirmation.getChildren().isEmpty() && confirmation.isVisible(); }
     boolean busy() { return busy; }
     String feedbackText() { return feedback.getText(); }
@@ -88,7 +97,7 @@ final class GearMatchPane extends VBox {
 
     /** Editable sessions only: completed/reviewed sessions keep their historical selection. */
     void refresh() {
-        UUID selected = draftSession != null ? draftSession.id() : session.getValue() == null ? null : session.getValue().id();
+        UUID kept = draftSession == null ? null : draftSession.id();
         run(() -> app.sessions().search(""), found -> {
             var editable = found.stream().filter(s -> s.state().canEditPlan()).toList();
             // An open profile edit keeps the session version it was opened for (also when the page is shown again), so a
@@ -98,8 +107,7 @@ final class GearMatchPane extends VBox {
                 draftSession = fresh; stale = false;
             });
             session.getItems().setAll(editable);
-            editable.stream().filter(s -> s.id().equals(selected)).findFirst().ifPresentOrElse(session::setValue,
-                () -> { if (!editable.isEmpty()) session.setValue(editable.getFirst()); });
+            chooser.select(editable, kept, false);
             texts.text(sessionHint.textProperty(), "requirement.noSessions");
             if (editable.isEmpty()) show(sessionHint); else hide(sessionHint);
             showSession();
@@ -120,6 +128,9 @@ final class GearMatchPane extends VBox {
             .orElse(localization.text("needs.noneSaved")));
         texts.text(editProfile.textProperty(), profile.isPresent() ? "needs.edit" : "needs.enter");
         editProfile.setDisable(requirement.isEmpty());
+        // Before matching: a confirmed requirement, then a usable capability profile (same rule the service applies).
+        prerequisite.show(requirement.isEmpty() ? NextSteps.before(List.of(com.photopilot.i18n.LocalizedMessage.of("needs.error.requirement")))
+            : usable.isSuccess() ? Optional.empty() : NextSteps.before(usable.messages()));
         savedStatus = null; hide(saved);
         if (selected.selectedLoadout().isPresent() && !busy) {
             UUID id = selected.id();
@@ -150,7 +161,7 @@ final class GearMatchPane extends VBox {
         PhotographySession expected = draftSession; var edited = needs.draft();
         boolean replace = expected.profile().filter(EquipmentRequirementProfile::reviewed).isPresent();
         message(() -> localization.text("needs.saving"));
-        run(() -> app.planning().confirmProfile(expected, edited, replace), stored -> {
+        run(OperationKind.NEEDS_CONFIRM, () -> app.planning().confirmProfile(expected, edited, replace), stored -> {
             draft = false; draftSession = null; needs.close(); session.setDisable(false); hide(editor); show(matchBox);
             message(() -> localization.text("needs.saved", expected.title())); refresh();
         }, failure -> {
@@ -164,7 +175,7 @@ final class GearMatchPane extends VBox {
         if (selected == null) { message(() -> localization.text("requirement.noSessions")); return; }
         String chosen = strategy.getValue();
         clearResults(); message(() -> localization.text("match.running", LoadoutPresentation.strategyName(chosen, localization)));
-        run(() -> app.planning().matchGear(selected.id(), chosen), found -> {
+        run(OperationKind.MATCH, () -> app.planning().matchGear(selected.id(), chosen), found -> {
             report = found; matchedSession = selected; render(); show(results);
             message(() -> localization.text(found.recommendations().isEmpty() ? "match.summary.noneUsable" : "match.done", found.recommendations().size()));
             SessionPane.reveal(this, results);
@@ -174,6 +185,7 @@ final class GearMatchPane extends VBox {
 
     /** Rebuilds the localized cards from the last service results (also on language change). */
     private void render() {
+        prerequisite.render();
         if (savedStatus != null) savedLines.setText(String.join("\n", LoadoutPresentation.selection(savedStatus, localization)));
         if (draft) needs.render();
         results.getChildren().clear();
@@ -218,12 +230,22 @@ final class GearMatchPane extends VBox {
     private void save(Candidate candidate, boolean replace) {
         PhotographySession expected = matchedSession;
         message(() -> localization.text("match.saving"));
-        run(() -> app.planning().selectLoadout(expected, candidate.loadout(), replace), stored -> {
+        run(OperationKind.MATCH_SELECT, () -> app.planning().selectLoadout(expected, candidate.loadout(), replace), stored -> {
             confirmation.getChildren().clear(); hide(confirmation); clearResults();
             message(() -> localization.text("match.saved", expected.title())); refresh();
         }, failure -> message(() -> localization.text("match.saveFailed", String.join(" ", failure.errors(localization)))));
     }
 
+    /** A tracked operation: progress, cancellation and next step in the feedback card; same locking as {@link #run}. */
+    private <T> void run(OperationKind kind, Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
+        if (busy) return;
+        busy = true; controls.setDisable(true); results.setDisable(true); confirmation.setDisable(true);
+        tracked.run(kind, operation, result -> {
+            if (disposed) return;
+            done();
+            if (result.isSuccess()) success.accept(result.value().orElseThrow()); else failure.accept(result);
+        }, () -> { if (disposed) return; done(); message(() -> localization.text("progress.cancelled")); });
+    }
     private <T> void run(Supplier<Result<T>> operation, Consumer<T> success, Consumer<Result<T>> failure) {
         if (busy) return;
         busy = true; controls.setDisable(true); results.setDisable(true); confirmation.setDisable(true);

@@ -1,6 +1,6 @@
 # F06 AI photography equipment capability requirement analysis
 
-F06 / UC06 / SD02 answers: *what equipment capabilities does this photography session require?* It derives capability needs (never products) from a session's confirmed F03 requirement with Gemini, validates them deterministically, lets the user review/edit/clarify them, requires explicit confirmation, saves the confirmed `EquipmentRequirementProfile` to the session, and hands it to F07. The F06 page also keeps the separately requested deterministic **inventory capability report** (bottom of this document).
+F06 / UC06 / SD02 answers: *what equipment capabilities does this photography session require?* It derives capability needs (never products) from a session's confirmed F03 requirement with Gemini, validates them deterministically, lets the user review/edit/clarify them, requires explicit confirmation, saves the confirmed `EquipmentRequirementProfile` to the session, and hands it to F07. The F06 page is **Gear Requirements** (sidebar Active session, step 02). It also keeps the separately requested deterministic **inventory capability report** (bottom of this document), which the sidebar entry **Equipment management > Gear Capability Report** shows on its own ([session workflow](session-workflow.md)).
 
 Status (2026-11-03): **implemented and verified** with offline Gemini fakes through GUI and CLI. Live Gemini verification: see [verification](#verification-2026-11-03-windows--jdk-21).
 
@@ -19,7 +19,7 @@ Status (2026-11-03): **implemented and verified** with offline Gemini fakes thro
 
 ## Workflow
 
-1. **Open session** (GUI session selector / `needs show <id>`): editable (Draft/Planned) sessions only; the confirmed F03 requirement and any saved profile are shown. A saved profile that no longer matches the current requirement is flagged "Not usable for matching".
+1. **Open session** (GUI session selector, which follows the window's current session / `needs show <id>`): editable (Draft/Planned) sessions only; the confirmed F03 requirement and any saved profile are shown. A saved profile that no longer matches the current requirement is flagged "Not usable for matching".
 2. **Analyze** (`Facade.proposeNeeds` → `PlanningService.proposeNeeds`; Stage 1 `analyzeNeeds(id)` returns just the draft). Requires a confirmed requirement (`needs.error.requirement`, nothing sent otherwise).
 3. **Evidence sent to Gemini** (`RequirementService.analyzeProfile`): confirmed requirement fields (original request, subject, goals, date, time window, duration, camera count, lens-change flag, weight limit, portability, gear constraints, priorities, fixed constraints), `supportedCapabilities` (name, unit, accepted bounds, limit) and — only if an F09 assessment was made for the session in this run — accepted shooting windows, light phases and fresh weather values. No place label, coordinates, session/inventory identifiers or owned gear. `responseJsonSchema` = `CapabilityExtraction.SCHEMA` (capability enum = the 12 deterministically checkable capabilities).
 4. **Deterministic conversion** (`RequirementService.toProposal`): unsupported or malformed needs, missing priority/mandatory, invalid bounds/values (`CapabilityNeed.problems`) are dropped with their reasons; a capability proposed twice with different values is dropped as contradictory (never guessed); rationale/trade-off/question text naming a brand or product line is removed (`CapabilityExtraction.namesProduct`, token-exact). Confirmed constraints then override the proposal: camera count → `cameraCount` min = max = n; weight limit → `totalWeight` max ≤ limit (mandatory); lens changes avoided + n bodies → `lensCount` max = n. Every change is listed as an adjustment. If no AI need survives, the result is a failure (`needs.ai.noUsable`), never an empty "successful" analysis.
@@ -28,6 +28,7 @@ Status (2026-11-03): **implemented and verified** with offline Gemini fakes thro
 7. **Confirm** (`PlanningService.confirmProfile(expected, edited, replace)`): editable session, confirmed requirement, explicit replacement of an existing confirmed profile (`needs.error.replaceRequired` otherwise), structural rules (`RequirementService.validateProfile`), consistency (`EquipmentRequirementProfile.validate(req)`), `confirm()`, `PhotographySession.attachProfile`, atomic `SessionRepository.save` with the revision check. Success is reported only after the save.
 8. **Retrieve after restart**: `PlanningService.profile(id)` (reviewed only); GUI/CLI show it with provenance and trade-offs.
 9. **F07**: `matchGear` and `selectLoadout` use `PlanningService.usableProfile(session)`: reviewed **and** still consistent with the current confirmed requirement; otherwise `needs.error.stale` plus the specific findings.
+10. **Session progress**: milestone 02 is completed while the saved profile passes `usableProfile`; when a changed requirement no longer fits it, the milestone shows *Needs review*. Without a confirmed requirement it is blocked ([session workflow](session-workflow.md#milestone-completion-criteria)).
 
 Cancel discards the draft and writes nothing. Manual entry (`Enter capability needs` / `needs manual <id>`) never calls Gemini and is labelled "entered manually".
 
@@ -109,12 +110,48 @@ sequenceDiagram
 - `analyzeNeeds(id)` and `deriveProfile(req)` keep their Stage 1 signatures; GUI/CLI use `proposeNeeds` / `analyzeProfile`, which return the same draft plus review context (questions, adjustments, unsupported needs). `clarifyNeeds` and `manualNeeds` are additional operations for UC06's review and Gemini-unavailable alternative flows.
 - `confirmProfile` gained an explicit `replace` flag (two-argument form never replaces); `attachProfile` returns a `Result` copy (as already recorded for F07).
 - `EquipmentRequirementProfile` gained `origin` and `tradeOffs` (optional v1 additions, migrated on read). Capabilities are restricted to the 12 kinds F07 can check deterministically; other relevant needs are shown as "not checked automatically" and not saved.
-- F09 evidence is the process-local assessment (F09 is not persisted).
+- F09 evidence is the process-local assessment (F09 is not persisted). *(2026-11-23: an assessment added to the session is recorded as a minimal `EnvironmentCheck` for session progress only; F06 still uses the in-process assessment.)*
 - F07 now refuses profiles that contradict the current requirement (`usableProfile`).
 
-## Inventory capability report (separate extension, unchanged behavior)
+## Inventory capability report (separate extension)
 
-`GearCapabilityService` reads F05 through the Facade and reports focal coverage (closed-interval union, open gaps, overlap sweep), aperture endpoints (`maxApertureAtMaxFocal`), recorded mount-label comparisons (no adapter or compatibility certification) and conditional 36 × 24 mm diagonal equivalents from recorded sensor sizes. `CapabilityPresentation` formats five sections for `CapabilityPane` (below the UC06 workflow, under "Inventory capability analysis") and `capability all|overview|coverage|aperture|compatibility|summary|help`. It never changes the shoot capability profile. Earlier verification (2026-11-02): focused 23/23 and full suite 190/190 at that time; packaged CLI acceptance.
+Read-only, deterministic, inventory-based; it never changes the shoot capability profile, sessions, selections, milestones or plans and makes no AI or network request. Shown below the UC06 workflow on Gear Requirements and on its own by **Equipment management > Gear Capability Report** (`CapabilityPane.reportOnly`).
+
+### Dashboard redesign (2026-11-23)
+
+Before: five long plain-text sections (one `Label` each) in the 1180 px reading column; the analytical summary came last; every camera field and every camera–lens pair was printed in full; `E` and `Sony E` counted as different mounts; prime-only gaps and incomplete records had to be found by reading.
+
+```mermaid
+flowchart LR
+    Inv[F05 InventoryService] --> Svc[GearCapabilityService.analyze]
+    Svc --> MN[MountNormalization]
+    Svc --> A[GearCapabilityAnalysis<br/>counts, coverage, gaps, overlaps,<br/>cameras, pairs, findings, quality, naming]
+    A --> P[CapabilityPresentation + FocalScale<br/>shared wording, units, log axis, pair rows]
+    P --> GUI[CapabilityPane / CapabilityDashboard<br/>views, chart, matrix]
+    P --> CLI[CapabilityCommands / CapabilityTerminalReport<br/>tables, ASCII chart, matrix]
+```
+
+| Layer | Source | Responsibility |
+| --- | --- | --- |
+| Model | `model/GearCapabilityAnalysis.java`, `model/MountSystem.java` (new) | Structured result: record vs unit counts, continuous / isolated components, `gapsBetween`, `LensCapability` and `CameraCapability` (crop factor, sensor format band, mount-matched physical and equivalent coverage), `CameraLensPair` with `MountComparison` (`Relation` → `PairStatus`), `Finding`s, per-item `ItemQuality` issues, `MountNaming`. `mountStatus()` keeps the earlier three-value status. |
+| Service | `service/GearCapabilityService.java`, `service/MountNormalization.java` (new) | The only analysis: one inventory read, findings, data quality (MISSING / INVALID / INCONSISTENT / OPTIONAL), equivalents via `PhotoFormulas.cropFactor`/`fullFrameEquivalentFocal`. |
+| Shared presentation | `application/CapabilityPresentation.java`, `application/FocalScale.java` (new) | Localized findings, units (33 MP, 10 fps, f/4.5–6.3, 35.9 × 23.9 mm, equivalents to 0.1 mm), Yes/No/Unknown, `pairDetails` rows, assumptions, the complete technical text; the logarithmic axis and its ticks. |
+| GUI | `ui/gui/CapabilityPane.java`, `CapabilityDashboard.java`, `CapabilityGearViews.java`, `CapabilityMatrixView.java`, `FocalCoverageChart.java`, `CardGrid.java` (new except the pane) | Header (refresh, copy, last analysis / stale), six page-level views built on first use, empty / loading / stale / failure states. |
+| CLI | `ui/cli/CapabilityCommands.java`, `CapabilityTerminalReport.java`, `TextTable.java` (new except the commands) | Same analysis in terminal form. |
+
+**GUI views** (tabs belong to the page; no new sidebar entries): **Overview** — six metric cards (units with record counts, focal span, widest aperture, gaps), key findings with level marks, combined coverage strip, mount status counts. **Camera Bodies** — selectable cards (resolution and burst prominent; unknown values in muted text), sortable comparison table (numbers sort numerically, unknown last), full recorded details. **Lenses** — interactive interval chart (zoom bars, prime diamonds, combined row with dashed gaps and overlap band, log-scale grid), Physical / 35 mm equivalent switch with camera choice, type / aperture / camera filters (camera filter dims lenses whose mount is not established, never hides them), sortable table with short / long focal columns, lens details, aperture comparison bars (stops above f/16). **Compatibility** — lens × camera matrix of selectable cells (symbol + words + colour), camera / lens-mount / status / name filters, detail panel of the selected cell only (the shared `pairDetails` rows). **Data Quality** — items needing attention grouped by item with category chips and **Edit equipment details** (opens Gear Inventory's own editor via `InventoryPane.edit`; an open unsaved edit is never replaced), mount-naming card, optional-only items and the completeness definition in closed disclosures. **Technical Details** — assumptions and the complete plain-text report with identifiers, Copy report. The report page alone lifts `FeaturePane`'s reading width (1180 → 1760 px); other pages are unchanged.
+
+**Colours** are local looked-up colours of `.capability-dashboard` derived with `ladder(-pp-text, …)`, so the same rules give dark tones in Light mode and light tones in Dark mode: green = mount labels established (mount only), amber = not established / unknown, red = different known mount systems, grey = outside the status filter. Every status also has a symbol and words.
+
+**Mount normalization** (report only; F07 `CompatibilityValidator` keeps exact labels, verified by `MountNormalizationTest`): placeholders are UNKNOWN; equal text after case/space normalization is SAME_LABEL; differences only in hyphens or a trailing "mount" are EQUIVALENT_LABELS; labels that both establish a `MountSystem` (owner-qualified "Sony E", self-describing "Micro Four Thirds", or a bare designation on equipment of the owning brand) are EQUIVALENT_LABELS or DIFFERENT_SYSTEMS; a known system against its bare designation without context (Tamron lens "E" vs "Sony E") is POSSIBLE_ALIAS (not established); everything else DIFFERENT_LABELS. EF-S / RF-S / Sony A are deliberately absent. Stored labels are never rewritten; the Data Quality view flags inconsistent naming because Gear Selection compares labels exactly.
+
+**CLI** (`capability` subcommands; earlier names kept): no option or `summary` → summary table, `[INFO]`/`[WARN]` findings, section commands; `overview` (all equipment tables), `cameras`, `lenses` (+ aperture analysis), `coverage [camera #]` (ASCII chart on the shared `FocalScale`, interval lists, conditional equivalents on that body), `aperture`, `compatibility` = `matrix [camera #]` (C1…Cn columns, column blocks for narrow terminals), `pair <lens #> <camera #>` (the GUI detail rows), `quality` (with `gear edit <id> field=...` review commands), `all` = `technical` (complete report with identifiers), `help`. `F06` prints the needs help and the summary. Plain ASCII marks, widths from `COLUMNS` (default 80), CJK counted as two columns, long names wrapped never truncated, a stacked layout when columns cannot fit, the chart replaced by interval lists below 30 plot columns.
+
+### Verification (2026-11-23)
+
+Isolated scratch copy, JDK 21, offline: full `mvnw.cmd -B -o package` **772 run, 0 failures, 0 errors, 6 skipped**, JAR built; `javafx:run -Djavafx.args=--smoke-test` → `GUI_SMOKE_OK` ([feature status](../../docs/FEATURE_STATUS.md)). Focused: `CapabilityAnalysisTest` 9, `MountNormalizationTest` 4, `CapabilityReadOnlyTest` 1, `CapabilityCliTest` 2, `CapabilityTerminalReportTest` 4, `CapabilityGuiTest` 2 (real JavaFX: states, metrics, findings parity, all views, chart geometry and filters, matrix cells and detail rows, edit navigation, copy, wide / Chinese 880 × 600 / dark mode), plus the unchanged `GearCapabilityTest` 13 and `UnknownSpecificationTest` 7. Snapshots inspected: `target/capability-*.png`.
+
+Not verified: macOS/Linux rendering, other display scales, screen readers, a hands-on session with the user's own inventory.
 
 ## Verification (2026-11-03, Windows / JDK 21)
 
