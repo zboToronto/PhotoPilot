@@ -30,3 +30,21 @@ Each diagram has a PNG preview and an editable UMLet UXF source. All 18 files ar
 ## Demonstration index status
 
 The report ends with a [Google Drive demonstration folder](https://drive.google.com/drive/folders/1k5OguYP9zQdfcHkPynt7o1nLkzSzXYSJ?usp=drive_link). It does not yet provide the course-required feature-by-feature video links or timestamps. That index and anonymous access to the videos still need verification; publishing these report/UML files does not establish that the complete Stage 2 submission requirements have been met.
+
+Local recordings (checked 2026-11-23, Stage2OptRe1 DOC-01): the author's workspace holds one recording per feature, named by feature id. They were recorded on 2026-11-16 before the Stage2OptRe1 patch, so PP-01/PP-02/PP-03 behaviour shown in them is the earlier one. Whether the Drive folder contains these exact files, their per-file share links, timestamps inside them and anonymous access were **not** verified; no link below is invented.
+
+| Feature | Local recording | Size | Per-file link / timestamps |
+| --- | --- | --- | --- |
+| F01 Photography sessions and history | `DemoVideos/F01.mp4` | 50 MB | not yet provided |
+| F02 Inspiration and activity recommendation | `DemoVideos/F02.mp4` | 293 MB | not yet provided |
+| F03 Natural-language requirements | `DemoVideos/F03.mp4` | 100 MB | not yet provided |
+| F04 Gear recognition and import | `DemoVideos/F04.mp4` | 35 MB | not yet provided |
+| F05 Gear inventory | `DemoVideos/F05.mp4` | 171 MB | not yet provided |
+| F06 Capability requirement analysis | `DemoVideos/F06.mp4` | 65 MB | not yet provided |
+| F07 Gear matching and compatibility | `DemoVideos/F07.mp4` | 49 MB | not yet provided |
+| F08 Technical calculators | `DemoVideos/F08.mp4` | 284 MB | not yet provided |
+| F09 Location, time and environment | `DemoVideos/F09.mp4` | 110 MB | not yet provided |
+| F10 Plan generation and revision | `DemoVideos/F10.mp4` | 60 MB | not yet provided |
+| F11 Post-shoot analysis and review | `DemoVideos/F11.mp4` | 165 MB | not yet provided |
+
+To close DOC-01: upload or confirm each file in the Drive folder, add its share link (and timestamps where one file covers several flows) to this table and the report, and open each link once without signing in.
