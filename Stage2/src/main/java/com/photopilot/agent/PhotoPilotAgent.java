@@ -13,6 +13,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.photopilot.common.Result;
 import com.photopilot.integration.LLMClient;
+import com.photopilot.progress.Progress;
 
 /**
  * Stage 1 UML element 13 (zero-based): {AI; generic method &lt;T&gt; run}
@@ -64,6 +65,7 @@ public class PhotoPilotAgent {
         if (!reply.isSuccess()) return Result.failure(reply);
         var value = reply.value().orElseThrow();
         if (value.requiresTool()) return Result.failureKey("ai.error.unexpectedTool");
+        Progress.validating("ai.check");
         return validateOutput(value.structuredOutput().orElse(""), type);
     }
 
@@ -80,6 +82,7 @@ public class PhotoPilotAgent {
         var permitted = new LinkedHashSet<>(Objects.requireNonNull(permittedTools));
         var schemas = tools.schemas();
         for (String name : permitted) if (!schemas.containsKey(name)) return Result.failureKey("ai.error.unknownTool", name);
+        Progress.stage("agent.history");
         var retrieved = history.contextFor(context.sessionId());
         int related = retrieved.isSuccess() ? retrieved.value().orElseThrow().history().size() : 0;
         AgentContext request = context;
@@ -101,6 +104,7 @@ public class PhotoPilotAgent {
             var value = envelope.value().orElseThrow();
             if (value.step().equals("final")) {
                 if (value.result() == null || !value.result().isJsonObject()) return Result.failureKey("ai.error.malformedOutput");
+                Progress.validating("ai.check");
                 var output = validateOutput(value.result().toString(), type);
                 return output.isSuccess() ? Result.success(new Run<>(output.value().orElseThrow(), exchanges, related, sentHistory)) : Result.failure(output);
             }
@@ -111,7 +115,7 @@ public class PhotoPilotAgent {
             if (!permitted.contains(call.toolName())) return Result.failureKey("ai.error.unauthorizedTool", call.toolName());
             Result<String> outcome;
             if (!seen.add(call.fingerprint())) outcome = Result.failureKey("ai.error.repeatedTool", call.toolName());
-            else outcome = tools.execute(call, permitted);
+            else { Progress.stage("agent.tool", call.toolName()); outcome = tools.execute(call, permitted); }
             boolean ok = outcome.isSuccess();
             String text = ok ? outcome.value().orElseThrow() : String.join("; ", outcome.errors());
             request = request.withToolResult(call, ok, text); // appendToolResult on a fresh copy; earlier requests stay unchanged

@@ -33,10 +33,13 @@ public final class FakeGemini implements AutoCloseable {
         server.start();
     }
     public String endpoint() { return "http://127.0.0.1:" + server.getAddress().getPort() + "/v1beta"; }
-    /** Environment for a bootstrap that talks only to this server with a fake key. */
+    /**
+     * Environment for a bootstrap that talks only to this server with a fake key. Each queued reply answers exactly one
+     * request, so the bounded transient-error retry is off here (GEMINI_RETRIES=0); retry tests enable it explicitly.
+     */
     public Map<String, String> environment(java.nio.file.Path root) {
         return Map.of("PHOTOPILOT_DATA_DIR", root.toString(), "PHOTOPILOT_CONFIG_DIR", root.resolve("config").toString(),
-            "LLM_API_KEY", KEY, "GEMINI_ENDPOINT", endpoint(), "GEMINI_MODEL", "test-model");
+            "LLM_API_KEY", KEY, "GEMINI_ENDPOINT", endpoint(), "GEMINI_MODEL", "test-model", "GEMINI_RETRIES", "0");
     }
     /** Queues a successful generateContent reply whose generated text is {@code text}. */
     public synchronized FakeGemini reply(String text) {
