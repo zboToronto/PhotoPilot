@@ -26,6 +26,7 @@ final class FeaturePane extends VBox {
         if (gearImport != null) gearImport.dispose();
         if (calculator != null) calculator.dispose();
     }
+    private static final double MAX_WIDTH = 1180, REPORT_MAX_WIDTH = 1760;
     private final FxLocalizer texts;
     private final LocalizationService localization;
     private final Label detailsTitle = label("", "section-title");
@@ -38,6 +39,8 @@ final class FeaturePane extends VBox {
     private final Label emptyDescription = label("", "secondary-text");
     private final Label feedback = label("", "feedback-text");
     private final VBox feedbackBox = new VBox(8, detailsTitle, feedback);
+    /** Eyebrow, title, description and availability; hidden for pages that supply their own header (Guided Discovery). */
+    private final VBox heading = new VBox(12, eyebrow, title, description, metadata);
     private final Button checkStatus = new Button();
     private final Button workflow = new Button();
     private final VBox body = new VBox();
@@ -65,10 +68,9 @@ final class FeaturePane extends VBox {
         texts.text(checkStatus.textProperty(), "feature.checkStatus");
         texts.text(workflow.textProperty(), "feature.workflowUnavailable");
         getStyleClass().add("feature-content");
-        setMaxWidth(1180);
+        setMaxWidth(MAX_WIDTH);
         setMinWidth(0);
         setFillWidth(true);
-        VBox heading = new VBox(12, eyebrow, title, description, metadata);
         heading.getStyleClass().add("feature-heading");
         Label placeholder = texts.label("feature.empty", "empty-title");
         emptyDescription.setMaxWidth(460);
@@ -109,11 +111,27 @@ final class FeaturePane extends VBox {
         if (calculator != null) calculator.activate(false);
     }
 
-    void show(FeaturePresentation selected) {
+    /** Dedicated tools reached from the sidebar. The capability report also appears in Gear Requirements. */
+    enum Tool {
+        SHUTTER_COUNT("F05", "nav.shutterCount", "shutter.description"),
+        CAPABILITY_REPORT("F06", "nav.capabilityReport", "nav.capabilityReport.description");
+        final String feature, titleKey, descriptionKey;
+        Tool(String feature, String titleKey, String descriptionKey) { this.feature = feature; this.titleKey = titleKey; this.descriptionKey = descriptionKey; }
+    }
+
+    void show(FeaturePresentation selected) { show(selected, null, null); }
+
+    /** {@code tool} (or null) narrows the page to one card; {@code titleKey} (or null) renames the heading (Shooting Completion). */
+    void show(FeaturePresentation selected, Tool tool, String titleKey) {
         feature = selected;
+        // The capability report and environment assessment dashboards use wide windows; every other page keeps the bounded reading width.
+        setMaxWidth(tool == Tool.CAPABILITY_REPORT || tool == null && selected.id().equals("F09") ? REPORT_MAX_WIDTH : MAX_WIDTH);
         boolean analysis = selected.id().equals("F06") && capability != null;
-        if (capability != null) { capability.setVisible(analysis); capability.setManaged(analysis); capability.activate(analysis); }
-        boolean gear = selected.id().equals("F05") && inventory != null;
+        if (capability != null) {
+            capability.reportOnly(tool == Tool.CAPABILITY_REPORT);
+            capability.setVisible(analysis); capability.setManaged(analysis); capability.activate(analysis);
+        }
+        boolean gear = selected.id().equals("F05") && tool == null && inventory != null;
         boolean calc = selected.id().equals("F08") && calculator != null;
         boolean session = selected.id().equals("F01") && sessions != null;
         boolean requirement = selected.id().equals("F03") && requirements != null;
@@ -123,6 +141,8 @@ final class FeaturePane extends VBox {
         boolean reviewing = selected.id().equals("F11") && review != null;
         boolean ideas = selected.id().equals("F02") && discovery != null;
         boolean importing = selected.id().equals("F04") && gearImport != null;
+        // Guided Discovery shows its own page header (like the shutter tool); the title text stays bound for navigation.
+        heading.setVisible(!ideas); heading.setManaged(!ideas);
         if (gearImport != null) { gearImport.setVisible(importing); gearImport.setManaged(importing); gearImport.activate(importing); }
         if (matching != null) { matching.setVisible(match); matching.setManaged(match); matching.activate(match); }
         if (environment != null) { environment.setVisible(env); environment.setManaged(env); environment.activate(env); }
@@ -137,11 +157,18 @@ final class FeaturePane extends VBox {
         actions.setVisible(placeholder); actions.setManaged(placeholder);
         body.getChildren().stream().filter(Separator.class::isInstance).forEach(line -> { line.setVisible(placeholder); line.setManaged(placeholder); });
         if (inventory != null) { inventory.setVisible(gear); inventory.setManaged(gear); inventory.activate(gear); }
-        boolean shutter = selected.id().equals("F05") && shutterCount != null;
-        if (shutterCount != null) { shutterCount.setVisible(shutter); shutterCount.setManaged(shutter); }
-        texts.bind(eyebrow.textProperty(), () -> selected.group(localization));
-        texts.bind(title.textProperty(), () -> selected.title(localization));
-        texts.bind(description.textProperty(), () -> selected.description(localization));
+        // The shutter tool supplies its own heading and occupies the same content slot as a feature page.
+        VBox page = tool == Tool.SHUTTER_COUNT && shutterCount != null ? shutterCount : body;
+        if (getChildren().getFirst() != page) getChildren().set(0, page);
+        // Session pages name their workflow step above the title ("Session step 05 of 07"); others their sidebar section.
+        var step = java.util.Arrays.stream(com.photopilot.workflow.Milestone.values())
+            .filter(m -> m.target().equals(titleKey == null ? selected.id() : com.photopilot.workflow.Milestone.SHOOT_TARGET)).findFirst();
+        texts.bind(eyebrow.textProperty(), () -> step.filter(m -> tool == null)
+            .map(m -> localization.text("workflow.eyebrow", String.format("%02d", m.number()), String.format("%02d", com.photopilot.workflow.Milestone.values().length)))
+            .orElseGet(() -> tool == null ? selected.group(localization) : localization.text(tool == Tool.CAPABILITY_REPORT ? "nav.group.equipment" : "nav.group.tools")));
+        texts.bind(title.textProperty(), () -> tool != null ? localization.text(tool.titleKey) : titleKey != null ? localization.text(titleKey) : selected.title(localization));
+        texts.bind(description.textProperty(), () -> tool != null ? localization.text(tool.descriptionKey)
+            : titleKey != null ? localization.text("workflow.milestone.SHOOT.description") : selected.description(localization));
         refreshStatus();
         texts.bind(feedback.textProperty(), () -> "");
         feedbackBox.setVisible(false);
@@ -170,12 +197,8 @@ final class FeaturePane extends VBox {
         body.getChildren().add(1, inventory);
     }
 
-    /** The shutter count checker is a second card on the Gear Inventory page, directly below the inventory card. */
     void connectShutterCount(ShutterCountPane shutterCount) {
         this.shutterCount = shutterCount;
-        shutterCount.setVisible(false); shutterCount.setManaged(false);
-        getChildren().add(getChildren().indexOf(body) + 1, shutterCount);
-        if (feature != null) show(feature);
     }
 
     void connectCalculator(CalculatorPane calculator) {

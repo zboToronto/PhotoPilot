@@ -117,7 +117,9 @@ class BootstrapTest {
                 "LLM_API_KEY", "offline-bootstrap-key"))) {
             Object agent = field(bootstrap.facade().planning(), "agent");
             LLMClient model = (LLMClient) field(agent, "model");
+            // Decorators (language policy, bounded transient retry) each hold the next client as "delegate".
             Object adapter = field(model, "delegate");
+            while (!(adapter instanceof com.photopilot.integration.GeminiAdapter)) adapter = field(adapter, "delegate");
             var configuration = (LLMConfiguration) field(adapter, "configuration");
             assertEquals("offline-bootstrap-key", configuration.requireApiKey());
             var result = model.complete(new AgentContext(UUID.randomUUID(), java.util.List.of(), "{}",

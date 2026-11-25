@@ -81,6 +81,8 @@ public class GeminiAdapter implements LLMClient {
                 .header("x-goog-api-key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody(context), StandardCharsets.UTF_8))
                 .build();
+            // Execution feedback: the request is on its way and nothing local remains to do until Gemini answers.
+            com.photopilot.progress.Progress.waiting("ai.wait");
             response = BoundedHttp.send(http, request, MAX_BODY);
         } catch (HttpTimeoutException timedOut) {
             return Result.failureKey("ai.error.timeout", String.valueOf(timeout.toSeconds()));

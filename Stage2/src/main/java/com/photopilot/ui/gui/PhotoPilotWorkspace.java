@@ -1,13 +1,22 @@
 package com.photopilot.ui.gui;
 
 import com.photopilot.i18n.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import com.photopilot.workflow.Milestone;
+import java.util.*;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
-/** Lightweight application shell. No services, persistence, or feature execution. */
+/**
+ * Lightweight application shell. No services, persistence, or feature execution.
+ *
+ * <p>The sidebar is organised around the photography session: General (Home, Photography Sessions, Discover
+ * Inspiration), Active Session (the current session's progress summary and its seven milestone pages in workflow
+ * order), Equipment Management, Photography Tools and Settings. Every feature keeps its page and its stable entry id
+ * ({@code nav-F01} ... {@code nav-F11}). Camera Shutter Count has a dedicated page. Equipment, Tools and Settings
+ * can be collapsed (expanded by default; a collapsed section opens again when one of its entries is selected).
+ */
 final class PhotoPilotWorkspace extends BorderPane {
     private static final double SIDEBAR_WIDTH = 240, COMPACT_SIDEBAR_WIDTH = 212, COMPACT_BELOW = 1000;
     private static final String HOME = "HOME", USER_SETTINGS = "USER_SETTINGS", APP_SETTINGS = "APP_SETTINGS";
@@ -20,17 +29,63 @@ final class PhotoPilotWorkspace extends BorderPane {
     private final ToggleButton homeButton;
     private final ToggleButton userSettingsButton;
     private final ToggleButton applicationSettingsButton;
+    private final ToggleButton shootButton, reportButton, shutterButton;
     private final StackPane avatar = new StackPane();
     private final LocalizationService localization;
     private final FxLocalizer texts;
+    /** The eleven feature entries (the smoke check walks exactly these); the other entries are kept apart. */
     private final Map<String, ToggleButton> navigation = new LinkedHashMap<>();
+    /** Pages in display order for Up/Down/Home/End. */
+    private final List<ToggleButton> order = new ArrayList<>();
+    private final List<Section> sections = new ArrayList<>();
+    private final SessionSidebar sessionSidebar;
     private final Label storageNotice = FeaturePane.label("", "feedback-text");
     private final Label profileName = FeaturePane.label("", "profile-current");
     /** Read-only current-user indicator (avatar and name); switching users lives in User Settings. */
     private final HBox identity = new HBox(8);
     private final ScrollPane contentScroll;
+    private final VBox sidebar = new VBox(1);
+    private final ScrollPane navigationScroll;
+    private SessionWorkflowModel workflow;
+    private Runnable sessionOverview = () -> { }, shootCompletion = () -> { };
+    /** Makes a continuation's session the chosen one before its page opens (set with the workflow model). */
+    private java.util.function.BiConsumer<String, java.util.UUID> continuation = (target, id) -> { };
     private String selectedId;
     private long selectionVersion;
+
+    /** One sidebar section: a heading (a toggle when collapsible) and its entries. */
+    private final class Section {
+        final Labeled header; final List<Node> items; final boolean collapsible; final String key; boolean expanded = true;
+        final Set<Node> withheld = new HashSet<>();
+        Section(String id, String key, boolean collapsible, Node... items) {
+            this.collapsible = collapsible; this.items = List.of(items); this.key = key;
+            if (collapsible) {
+                var toggle = new Button(); toggle.setId(id); toggle.getStyleClass().addAll("navigation-group", "navigation-group-toggle");
+                toggle.setMaxWidth(Double.MAX_VALUE); toggle.setAlignment(Pos.CENTER_LEFT); toggle.setContentDisplay(ContentDisplay.RIGHT);
+                toggle.setGraphic(AppIcons.slot(AppIcons.CHEVRON_DOWN, "navigation-chevron", 14)); toggle.setOnAction(event -> toggle());
+                header = toggle;
+            } else { header = FeaturePane.label("", "navigation-group"); if (id != null) header.setId(id); }
+            texts.text(header.textProperty(), key);
+            texts.bind(header.accessibleTextProperty(), () -> collapsible
+                ? localization.text(expanded ? "nav.section.expanded" : "nav.section.collapsed", localization.text(key)) : localization.text(key));
+            FxLocalizer.tooltipWhenClipped(header);
+            sidebar.getChildren().add(header); sidebar.getChildren().addAll(items);
+        }
+        boolean holds(Node node) { return items.contains(node); }
+        void toggle() { expanded = !expanded; apply(); }
+        void expand() { if (!expanded) { expanded = true; apply(); } }
+        void withhold(Node node, boolean value) { if (value) withheld.add(node); else withheld.remove(node); apply(); }
+        void apply() {
+            for (Node item : items) {
+                // The entry of the page on screen stays visible in a collapsed section.
+                boolean shown = !withheld.contains(item) && (expanded || item instanceof ToggleButton button && button.isSelected());
+                item.setVisible(shown); item.setManaged(shown);
+            }
+            header.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("collapsed"), !expanded);
+            texts.bind(header.accessibleTextProperty(), () -> collapsible
+                ? localization.text(expanded ? "nav.section.expanded" : "nav.section.collapsed", localization.text(key)) : localization.text(key));
+        }
+    }
 
     PhotoPilotWorkspace() { this(LocalizationService.english()); }
     PhotoPilotWorkspace(LocalizationService localization) {
@@ -53,40 +108,49 @@ final class PhotoPilotWorkspace extends BorderPane {
         content.getStyleClass().add("content-surface");
         contentScroll = scroll(content, "content-scroll");
         setCenter(contentScroll);
-        VBox sidebar = new VBox(1);
         sidebar.getStyleClass().add("sidebar");
-        homeButton = item("nav-home", AppIcons.HOUSE, "home.title", this::showHome); sidebar.getChildren().add(homeButton);
-        String previousGroup = "";
-        for (FeaturePresentation feature : FeaturePresentation.all()) {
-            if (!feature.group().equals(previousGroup)) {
-                Label group = FeaturePane.label("", "navigation-group");
-                texts.bind(group.textProperty(), () -> feature.group(localization));
-                sidebar.getChildren().add(group);
-                previousGroup = feature.group();
-            }
+        var features = new LinkedHashMap<String, FeaturePresentation>();
+        FeaturePresentation.all().forEach(feature -> features.put(feature.id(), feature));
+        homeButton = item("nav-home", AppIcons.HOUSE, "home.title", this::showHome);
+        for (var feature : features.values()) {
             ToggleButton button = item("nav-" + feature.id(), AppIcons.feature(feature.id()), null, () -> showFeature(feature));
             texts.bind(button.textProperty(), () -> feature.title(localization));
             texts.bind(button.accessibleTextProperty(), () -> feature.title(localization));
             if (feature.status() != FeaturePresentation.Status.IMPLEMENTED) button.getStyleClass().add("navigation-item-planned");
             navigation.put(feature.id(), button);
-            sidebar.getChildren().add(button);
         }
-        sidebar.getChildren().add(texts.label("group.preferences", "navigation-group"));
+        shootButton = item("nav-shoot", AppIcons.CHECK, "workflow.milestone.SHOOT", this::showShootCompletion);
+        reportButton = item("nav-capability-report", AppIcons.CHART, "nav.capabilityReport", () -> showTool(FeaturePane.Tool.CAPABILITY_REPORT, features.get("F06")));
+        shutterButton = item("nav-shutter", AppIcons.IMAGE, "nav.shutterCount", () -> showTool(FeaturePane.Tool.SHUTTER_COUNT, features.get("F05")));
         userSettingsButton = item("nav-user-settings", AppIcons.PERSON, "menu.userSettings", this::showUserSettings);
-        userSettingsButton.setVisible(false); userSettingsButton.setManaged(false);
         applicationSettingsButton = item("nav-app-settings", AppIcons.GEAR, "menu.appSettings", this::showApplicationSettings);
-        sidebar.getChildren().addAll(userSettingsButton, applicationSettingsButton);
-        ScrollPane navigationScroll = scroll(sidebar, "navigation-scroll");
+
+        sessionSidebar = new SessionSidebar(texts, () -> navigation.get("F01").fire());
+        var milestones = new LinkedHashMap<Milestone, ToggleButton>();
+        for (var milestone : Milestone.values()) milestones.put(milestone, milestone == Milestone.SHOOT ? shootButton : navigation.get(milestone.target()));
+        milestones.forEach(sessionSidebar::row);
+
+        sections.add(new Section("nav-group-general", "nav.group.general", false, homeButton, navigation.get("F01"), navigation.get("F02")));
+        var session = new ArrayList<Node>(); session.add(sessionSidebar.block()); session.addAll(milestones.values());
+        sections.add(new Section("nav-group-session", "nav.group.session", false, session.toArray(Node[]::new)));
+        sections.add(new Section("nav-group-equipment", "nav.group.equipment", true, navigation.get("F05"), navigation.get("F04"), reportButton));
+        sections.add(new Section("nav-group-tools", "nav.group.tools", true, navigation.get("F08"), shutterButton));
+        sections.add(new Section("nav-group-settings", "nav.group.settings", true, userSettingsButton, applicationSettingsButton));
+        sections.getLast().withhold(userSettingsButton, true);
+        for (var child : sidebar.getChildren())
+            if (child instanceof ToggleButton button && button.getStyleClass().contains("navigation-item")) order.add(button);
+
+        navigationScroll = scroll(sidebar, "navigation-scroll");
         navigationScroll.setId("navigation-scroll");
         stableGutter(navigationScroll, sidebar);
         widthProperty().addListener((o, old, value) -> sidebarWidth(navigationScroll, value.doubleValue()));
         sidebarWidth(navigationScroll, SIDEBAR_WIDTH * 2);
-        // Arrow keys follow display order across groups; Tab reaches content actions.
-        var buttons = new java.util.ArrayList<ToggleButton>(); buttons.add(homeButton); buttons.addAll(navigation.values());
-        buttons.add(userSettingsButton); buttons.add(applicationSettingsButton);
-        for (ToggleButton button : buttons) button.setOnKeyPressed(event -> {
-            var shown = buttons.stream().filter(ToggleButton::isManaged).toList();
+        // Arrow keys follow the sidebar's display order across sections (shown entries only); Tab reaches content actions.
+        // Handle keys before ToggleGroup traversal, which follows creation order.
+        for (ToggleButton button : order) button.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            var shown = order.stream().filter(Node::isManaged).toList();
             int index = shown.indexOf(button);
+            if (index < 0) return;
             int next = switch (event.getCode()) {
                 case DOWN -> Math.min(index + 1, shown.size() - 1);
                 case UP -> Math.max(index - 1, 0);
@@ -98,14 +162,43 @@ final class PhotoPilotWorkspace extends BorderPane {
                 ToggleButton target = shown.get(next);
                 target.fire();
                 target.requestFocus();
-                double overflow = sidebar.getBoundsInLocal().getHeight() - navigationScroll.getViewportBounds().getHeight();
-                if (overflow > 0) navigationScroll.setVvalue(Math.max(0, Math.min(1,
-                    (target.getBoundsInParent().getMinY() - 40) / overflow)));
+                reveal(target);
                 event.consume();
             }
         });
         setLeft(navigationScroll);
+        // Next-step "Open ..." actions inside pages bubble up here and use the normal sidebar navigation.
+        // A continuation computed for a given session opens its page with that session, not with whichever is current.
+        addEventHandler(NavigationRequest.NAVIGATE, request -> {
+            if (!isDisabled()) request.session().ifPresent(id -> continuation.accept(request.target(), id));
+            select(request.target()); request.consume();
+        });
         showHome();
+    }
+
+    /** Scrolls the sidebar so {@code target} is in view (it may sit below a section heading). */
+    private void reveal(Region target) {
+        double overflow = sidebar.getBoundsInLocal().getHeight() - navigationScroll.getViewportBounds().getHeight();
+        if (overflow <= 0) return;
+        double top = sidebar.sceneToLocal(target.localToScene(target.getBoundsInLocal())).getMinY();
+        navigationScroll.setVvalue(Math.max(0, Math.min(1, (top - 40) / overflow)));
+    }
+
+    /**
+     * Shows the page of a stable identifier exactly as its sidebar entry would: F01-F11, HOME, or a session/tool entry
+     * ({@link NavigationRequest#SHOOT}, {@link NavigationRequest#SESSION}, {@link NavigationRequest#REPORT},
+     * {@link NavigationRequest#SHUTTER}).
+     */
+    void select(String target) {
+        if (isDisabled() || target == null) return;
+        switch (target) {
+            case HOME -> homeButton.fire();
+            case NavigationRequest.SHOOT -> shootButton.fire();
+            case NavigationRequest.REPORT -> reportButton.fire();
+            case NavigationRequest.SHUTTER -> shutterButton.fire();
+            case NavigationRequest.SESSION -> { navigation.get("F01").fire(); sessionOverview.run(); }
+            default -> { var button = navigation.get(target); if (button != null) button.fire(); }
+        }
     }
     private static void sidebarWidth(ScrollPane sidebar, double windowWidth) {
         double width = windowWidth < COMPACT_BELOW ? COMPACT_SIDEBAR_WIDTH : SIDEBAR_WIDTH;
@@ -133,20 +226,32 @@ final class PhotoPilotWorkspace extends BorderPane {
         button.setId(id); button.setToggleGroup(selection); button.getStyleClass().add("navigation-item");
         button.setGraphic(AppIcons.slot(icon, "navigation-icon", 20)); button.setMaxWidth(Double.MAX_VALUE); button.setMinHeight(36);
         FxLocalizer.tooltipWhenClipped(button);
-        // Repeated clicks must not clear the current workspace selection.
-        button.setOnAction(event -> { button.setSelected(true); action.run(); });
+        // Repeated clicks must not clear the current workspace selection; a collapsed section opens for its selected entry.
+        button.setOnAction(event -> {
+            button.setSelected(true);
+            for (var section : sections) { if (section.holds(button)) section.expand(); section.apply(); }
+            action.run();
+        });
         return button;
     }
-    private void showFeature(FeaturePresentation feature) {
-        selectedId = feature.id();
+    private void showFeature(FeaturePresentation feature) { showFeature(feature, null, null, feature.id()); }
+    private void showFeature(FeaturePresentation feature, FeaturePane.Tool tool, String titleKey, String id) {
+        selectedId = id;
         selectionVersion++;
         content.getChildren().setAll(detail);
-        detail.show(feature);
+        detail.show(feature, tool, titleKey);
         contentScroll.setVvalue(0);
+    }
+    private void showTool(FeaturePane.Tool tool, FeaturePresentation feature) { showFeature(feature, tool, null, tool.name()); }
+    /** Milestone 06: the sessions page titled Shooting Completion, at the current session's lifecycle action. */
+    private void showShootCompletion() {
+        showFeature(FeaturePresentation.all().getFirst(), null, "workflow.milestone.SHOOT", NavigationRequest.SHOOT);
+        shootCompletion.run();
     }
     private void showPage(String id, ToggleButton button, Region page) {
         detail.suspendModules();
         selectedId = id; selectionVersion++; button.setSelected(true);
+        for (var section : sections) section.apply();
         content.getChildren().setAll(page); contentScroll.setVvalue(0);
     }
     /** Home re-reads the active user's sessions each time it is shown (the same activate-on-show refresh as the feature pages). */
@@ -161,6 +266,20 @@ final class PhotoPilotWorkspace extends BorderPane {
     void showAvatar(String name, java.util.Optional<byte[]> bytes) {
         avatar.getChildren().setAll(UserAvatar.portrait(name, bytes, 28)); home.avatar(name, bytes);
     }
+
+    /**
+     * Joins the window's session workflow model: the Active Session section follows its current session. {@code overview}
+     * opens the current session in Photography Sessions; {@code shoot} does so at its lifecycle action. Nothing is read
+     * here; the model loads when Home or Photography Sessions is shown.
+     */
+    void connectWorkflow(SessionWorkflowModel model, Runnable overview, Runnable shoot, java.util.function.BiConsumer<String, java.util.UUID> forSession) {
+        workflow = model; sessionOverview = overview; shootCompletion = shoot; continuation = forSession;
+        model.listen(this::renderWorkflow);
+        renderWorkflow();
+    }
+    private void renderWorkflow() { sessionSidebar.render(workflow == null ? Optional.empty() : workflow.current()); }
+    /** The current session as the sidebar shows it (empty without a model or a session). */
+    Optional<com.photopilot.workflow.SessionWorkflow> currentSession() { return workflow == null ? Optional.empty() : workflow.current(); }
 
     private HBox header() {
         Label brand = texts.label("app.title", "brand");
@@ -224,7 +343,7 @@ final class PhotoPilotWorkspace extends BorderPane {
     }
     long selectionVersion() { return selectionVersion; }
     void connectUserSettings(UserSettingsPane pane) {
-        userSettings = pane; userSettingsButton.setVisible(true); userSettingsButton.setManaged(true);
+        userSettings = pane; sections.getLast().withhold(userSettingsButton, false);
     }
     UserSettingsPane userSettings() { return userSettings; }
     /** Shows the current-user indicator once a profile session is connected. */
@@ -270,6 +389,11 @@ final class PhotoPilotWorkspace extends BorderPane {
             if (!detail.feedbackText().equals(expected)) {
                 throw new IllegalStateException("Missing status feedback: " + entry.getKey());
             }
+        }
+        // The session and tool entries open their pages (the session ones only when a session is current).
+        for (var entry : List.of(shootButton, reportButton, shutterButton)) {
+            entry.fire();
+            if (!entry.isSelected()) throw new IllegalStateException("Entry not selected: " + entry.getId());
         }
         navigation.get("F01").fire();
         navigation.get("F01").fire();

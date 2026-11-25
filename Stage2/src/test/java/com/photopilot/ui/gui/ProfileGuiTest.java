@@ -37,7 +37,10 @@ class ProfileGuiTest {
     void ready() throws Exception {
         long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(15);
         while(fx(() -> controller.busy())) { if(System.nanoTime()>deadline)fail("Profile GUI timed out"); Thread.sleep(20); }
-        action(() -> { controller.workspace().applyCss(); controller.workspace().layout(); });
+        // Stage2OptRe2 TASK 12: every JavaFX CSS lookup warning of the suite came from this pass on the main window while it
+        // was hidden behind the user chooser (its styles are not available then); JavaFX itself styles a hidden window only
+        // when it is shown again. Only a showing window gets the explicit pass.
+        action(() -> { var w = controller.workspace(); if (w.getScene() != null && w.getScene().getWindow() != null && w.getScene().getWindow().isShowing()) { w.applyCss(); w.layout(); } });
     }
     Stage dialog() { return controller.pickerWindow(); }
     UserSelectionPane panel() { return controller.picker(); }

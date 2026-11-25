@@ -51,6 +51,32 @@ final class AppIcons {
     // Gear Inventory: shutter count checker card (photo import area and information hints).
     static final String IMAGE = "M5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4z M4 16.5l4.5-4.5 4 4 2.5-2.5 5 5 M15 7.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3";
     static final String INFO = "M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M12 11v5.5 M12 7.6v.4";
+    // Guided Discovery: photography categories, search, status marks, equipment types and actions.
+    static final String LANDSCAPE = "M2.5 19.5l6-9.5 4 6 2.5-3.5 6.5 7z M16.5 4.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4";
+    static final String STREET = "M8.5 21L11 3 M15.5 21L13 3 M12 18.5v2 M12 12.5v2.2 M12 7v2";
+    static final String ARCHITECTURE = "M3 9.5L12 4l9 5.5z M5.5 9.5v8.5 M9.8 9.5v8.5 M14.2 9.5v8.5 M18.5 9.5v8.5 M3.5 18h17 M2.5 21h19";
+    static final String AVIATION = "M12 2.5c.9 0 1.4 1 1.4 2.2v4.4l7.1 4.2v2.1l-7.1-2.2v4.3l2.1 1.6v1.7L12 20l-3.5.8v-1.7l2.1-1.6v-4.3l-7.1 2.2v-2.1l7.1-4.2V4.7c0-1.2.5-2.2 1.4-2.2z";
+    static final String WILDLIFE = "M8.2 5a1.8 2.3 0 1 0 0 4.6a1.8 2.3 0 1 0 0-4.6 M15.8 5a1.8 2.3 0 1 0 0 4.6a1.8 2.3 0 1 0 0-4.6 M4.6 10a1.6 2 0 1 0 0 4a1.6 2 0 1 0 0-4 M19.4 10a1.6 2 0 1 0 0 4a1.6 2 0 1 0 0-4 M12 11.5c-2.8 0-5 3.2-5 5.3 0 1.6 1.3 2.5 2.8 2.5 1 0 1.5-.5 2.2-.5s1.2.5 2.2.5c1.5 0 2.8-.9 2.8-2.5 0-2.1-2.2-5.3-5-5.3z";
+    static final String SPORTS = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M3.6 9.2c3.2 1.4 5.8 5.4 6.3 11.5 M20.4 14.8c-3.2-1.4-5.8-5.4-6.3-11.5";
+    static final String TICKET = "M3.5 7h17v3.2a1.8 1.8 0 0 0 0 3.6V17h-17v-3.2a1.8 1.8 0 0 0 0-3.6z M14.5 7v2 M14.5 11v2 M14.5 15v2";
+    static final String SEARCH = "M10.5 4a6.5 6.5 0 1 0 0 13a6.5 6.5 0 1 0 0-13 M15.3 15.3L20 20";
+    static final String WARNING = "M12 3.5L21.5 20h-19z M12 9.5v5 M12 17.2v.3";
+    static final String ROUTE = "M6 15a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M18 4a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M8.5 17.5H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5";
+    static final String SUN = "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5.3 5.3l1.4 1.4 M17.3 17.3l1.4 1.4 M5.3 18.7l1.4-1.4 M17.3 6.7l1.4-1.4";
+    static final String LOCK = "M6 11h12v9.5H6z M8.5 11V8a3.5 3.5 0 0 1 7 0v3";
+    static final String SHIELD = "M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z M8.5 12l2.5 2.5 4.5-5";
+    static final String CHECK_CIRCLE = "M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M7.8 12.3l2.8 2.8 5.6-5.8";
+    static final String QUESTION = "M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7v.5 M12 17v.3";
+    static final String CROSS_CIRCLE = "M12 2.5a9.5 9.5 0 1 0 0 19a9.5 9.5 0 1 0 0-19 M8.5 8.5l7 7 M15.5 8.5l-7 7";
+    static final String ARROW_LEFT = "M19 12H5 M11 6l-6 6 6 6";
+    static final String REFRESH = "M19.5 11a7.5 7.5 0 0 0-13.6-4.2L4.5 8.5 M4.5 4v4.5H9 M4.5 13a7.5 7.5 0 0 0 13.6 4.2l1.4-1.7 M19.5 20v-4.5H15";
+    static final String RESET = "M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9 M4.5 4.5V9H9";
+    static final String BOOKMARK = "M6.5 3.5h11v17l-5.5-4-5.5 4z";
+    static final String DISMISS = "M6.5 6.5l11 11 M17.5 6.5l-11 11";
+    static final String LENS = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 7.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9";
+    static final String BATTERY = "M3.5 8h15v8h-15z M18.5 10.5h2v3h-2 M6.5 10.5v3 M9.5 10.5v3";
+    static final String MEMORY_CARD = "M7 3h8.5L19 6.5V21H7z M10 3v4 M12.5 3v4 M15 3v4";
+    static final String FILTER = "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M8 16l8-8 M5.8 12.6l6.8-6.8 M11.4 18.2l6.8-6.8";
     private static final int[] LOGO_SIZES = { 16, 32, 48, 64, 128, 256, 512 };
 
     private AppIcons() { }

@@ -50,6 +50,7 @@ public final class ApplicationBootstrap implements AutoCloseable {
             throw new IllegalArgumentException("PHOTOPILOT_RANKING must be portability or coverage");
         URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
         timeoutSeconds(environment);
+        RetryingLLMClient.retries(environment);
         exifToolTimeoutSeconds(environment);
         try {
             if (defaultProfile || requested.profileId().isPresent()) {
@@ -93,13 +94,20 @@ public final class ApplicationBootstrap implements AutoCloseable {
         URI geminiEndpoint = URI.create(environment.getOrDefault("GEMINI_ENDPOINT", GeminiAdapter.DEFAULT_ENDPOINT));
         String geminiModel = environment.getOrDefault("GEMINI_MODEL", GeminiAdapter.DEFAULT_MODEL);
         this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        SessionRepository sessions = profileAccess == null ? new JsonSessionRepository(storageScope.sessionsDirectory()) : profileAccess.sessions();
-        InventoryRepository inventory = profileAccess == null ? new JsonInventoryRepository(storageScope.inventoryFile()) : profileAccess.inventory();
+        // Every business write of this profile goes through these two stores; each successful write is announced (after
+        // it returned) so open views can follow persisted workflow progress. Storage behaviour is unchanged.
+        StoreChanges changes = new StoreChanges();
+        SessionRepository sessions = changes.observe(profileAccess == null ? new JsonSessionRepository(storageScope.sessionsDirectory()) : profileAccess.sessions());
+        InventoryRepository inventory = changes.observe(profileAccess == null ? new JsonInventoryRepository(storageScope.inventoryFile()) : profileAccess.inventory());
         ToolRegistry tools = new ToolRegistry(Map.of());
         LLMConfiguration llmConfiguration = LLMConfiguration.load(environment);
         // Constructing the client sends nothing; only user-started AI operations (and CLI ai-test) reach the provider.
-        LLMClient model = new LanguageAwareLLMClient(new GeminiAdapter(geminiEndpoint,
-            geminiModel, http, Duration.ofSeconds(timeoutSeconds(environment)), llmConfiguration), localization);
+        LLMClient gemini = new GeminiAdapter(geminiEndpoint, geminiModel, http, Duration.ofSeconds(timeoutSeconds(environment)), llmConfiguration);
+        // Feature requests retry transient provider answers (5xx, 429) a bounded number of times; the connection
+        // diagnostic sends exactly one request so it reports the first answer as it is.
+        LLMClient model = new LanguageAwareLLMClient(new RetryingLLMClient(gemini, RetryingLLMClient.retries(environment),
+            RetryingLLMClient.DEFAULT_DELAY), localization);
+        LLMClient singleRequest = new LanguageAwareLLMClient(gemini, localization);
         PhotoPilotAgent agent = new PhotoPilotAgent(model, tools, new HistoryRetriever(sessions), 8);
         TechnicalCalculator calculator = new TechnicalCalculator();
         CompatibilityValidator compatibility = new CompatibilityValidator();
@@ -115,7 +123,8 @@ public final class ApplicationBootstrap implements AutoCloseable {
             new EnvironmentApiAdapter(endpoint(environment, "PHOTOPILOT_WEATHER_ENDPOINT", EnvironmentApiAdapter.DEFAULT_WEATHER_ENDPOINT),
                 endpoint(environment, "PHOTOPILOT_SUN_ENDPOINT", EnvironmentApiAdapter.DEFAULT_SUN_ENDPOINT), http, providerTimeout, java.time.Clock.systemUTC()),
             new LocationService(Optional.empty(), Optional.of(new GeocodingAdapter(
-                endpoint(environment, "PHOTOPILOT_GEOCODING_ENDPOINT", GeocodingAdapter.DEFAULT_ENDPOINT), http, providerTimeout)), java.time.Clock.systemUTC()),
+                endpoint(environment, "PHOTOPILOT_GEOCODING_ENDPOINT", GeocodingAdapter.DEFAULT_ENDPOINT), http, providerTimeout)), java.time.Clock.systemUTC(),
+                Optional.of(new GeminiPlaceLookup(singleRequest))),
             agent, feasibility);
         // F04 specification evidence: Wikipedia API + Lensfun open database, free and key-less; overridable for tests.
         EquipmentSpecificationProvider specifications = new EquipmentCatalogAdapter(
@@ -143,11 +152,11 @@ public final class ApplicationBootstrap implements AutoCloseable {
             // F11: local JPEG EXIF + ExifTool JSON reading + RAW metadata through the bundled ExifTool; statistics never
             // involve the agent, which only interprets them.
             new ReviewService(new ExifLibraryAdapter(ExifLibraryAdapter.ALL_FORMATS, exifToolReader::reviewJson), new StatisticsCalculator(), agent, sessions),
-            calculator, new LLMDiagnosticService(model, llmConfiguration, geminiModel),
+            calculator, new LLMDiagnosticService(singleRequest, llmConfiguration, geminiModel),
             // Home Mini AI: the same model port (key, model, timeout, language policy); sends only when the user asks.
             new MiniAiService(model, inventoryService, java.time.Clock.systemDefaultZone()),
             // Gear Inventory shutter count checker: local, read-only ExifTool metadata; never involves the agent.
-            new ShutterCountService(exifToolReader, CameraModelCatalog.bundled()));
+            new ShutterCountService(exifToolReader, CameraModelCatalog.bundled()), changes);
     }
 
     /** Per-request ExifTool timeout; 30 s unless PHOTOPILOT_EXIFTOOL_TIMEOUT_SECONDS (5-300) is set (slow network drives). */

@@ -2,13 +2,16 @@
 
 Redesigned 2026-11-08 (America/Toronto) from user-supplied reference screenshots, then refined three times the same day (below). Presentation and Home-only view logic: no service, repository, schema, CLI command, navigation route, theme system, sidebar, header or Stage1 change, and no new dependency.
 
+*Updated 2026-11-23 ([session workflow](session-workflow.md)):* the session cards now read the window's shared `SessionWorkflowModel`, the same source as the sidebar's progress. **Continue** resumes the session at its recommended page, both cards have a progress row, an *Other sessions* line was added and `HomeDashboard.Step` was removed. Structure, Session cards and Limits describe this state; Files and Verification record the 2026-11-08 passes.
+
 ## Structure
 
 Home (`HomeDashboard`, `#home-dashboard`) contains, top to bottom, and nothing else:
 
-1. **Welcome card** (always shown): the active user's avatar, "Welcome, {name}" / "欢迎，{name}" and "Local workspace" / "本地工作区". It has no action; sessions are created from Sessions & History as before.
+1. **Welcome card** (always shown): the active user's avatar, "Welcome, {name}" / "欢迎，{name}" and "Local workspace" / "本地工作区". It has no action; sessions are created from Photography Sessions as before.
 2. **Mini AI inspiration card** (always shown): "今天想拍点什么？" is its first and most prominent element; then the description, a multiline input (64 px when short, growing with its text to 120 px, then scrolling; since the 2026-11-09 [Mini AI final refinement](home-mini-ai.md#final-ui-refinement-2026-11-09-user-requested), previously a fixed 176 px) with the placeholder "例如：今晚想出去拍点城市夜景，但还没想好拍什么……", four suggestion chips on the left (今晚拍什么 / moon, 附近随拍 / location, 根据器材 / camera, 随机灵感 / shuffle) and **生成灵感** (with its sparkles icon) on the right; below them, only when needed, the status line and the answer area of [Mini AI](home-mini-ai.md).
-3. **Session row**: zero, one or two cards built from the active user's stored sessions (below).
+3. **Session row**: zero, one or two cards built from the active user's stored sessions and their workflow progress (below).
+4. **Other sessions line**, only when sessions the cards do not show need attention, are ready to shoot or await their review: their counts ("Other sessions: 1 need attention · 2 ready to shoot") and a **View all sessions** link to Photography Sessions.
 
 ### Refinement (2026-11-08, second pass, user-requested)
 
@@ -27,7 +30,7 @@ Home (`HomeDashboard`, `#home-dashboard`) contains, top to bottom, and nothing e
 - The input is now exactly twice as tall: 88 px → **176 px**. Its minimum height is the same 176 px (it was 80), so the page layout cannot squeeze it back at small windows; `prefRowCount` 3 → 8 matches the new height. Width, radius 12, `-pp-input` background, hairline border, internal padding (6 8 outside, 4 6 inside), 14 px font, top-left placeholder and wrapping are unchanged. Longer text scrolls inside the box with the standard vertical scroll bar instead of growing it.
 - The card grows by the same 88 px. The question and description stay where they were; the chips and **生成灵感** move down and keep their 16 px gap below the input. Nothing else on Home changed.
 
-The former "Essentials" / "常用功能" and "Planning and discovery" / "规划与发现" feature grids were removed together with their 16 message keys per language; every feature stays reachable from the unchanged sidebar.
+The former "Essentials" / "常用功能" and "Planning and discovery" / "规划与发现" feature grids were removed together with their 16 message keys per language; every feature stays reachable from the unchanged sidebar. (2026-11-23: the sidebar is now session-centric; see [session workflow](session-workflow.md).)
 
 ### Mini AI
 
@@ -35,23 +38,37 @@ Since 2026-11-09 Mini AI is functional: **Generate** (or Enter) sends the questi
 
 ## Session cards
 
-`HomeDashboard.refresh()` runs `SessionService.search("")` of the active user's facade on the window's existing `UiOperations` queue each time Home is shown (the same activate-on-show refresh the feature pages use). A newer request supersedes an older one; a storage failure shows no card rather than an invented one. A user switch rebuilds the workspace for that user (existing `GuiProfileController` behaviour), so Home only ever reads the active user's sessions.
+Each time Home is shown, `HomeDashboard.refresh()` asks the window's `SessionWorkflowModel` to re-read the active user's sessions: one `SessionWorkflowService.overview()` on the window's ordered local lane, which also picks up changes made in another window or the CLI. The cards render from that model and again whenever it changes, so a save in this window updates them at once; Home makes no session read of its own. A failed read changes nothing (before the first successful one no card is shown); no card is invented. A user switch rebuilds the workspace for that user (existing `GuiProfileController` behaviour), so Home only ever reads the active user's sessions.
 
-Selection uses only the existing lifecycle states (`PhotographySession.status()`) and `updatedAt` (`HomeDashboard.Highlights`):
+Selection uses the lifecycle states (`PhotographySession.status()`), the window's current session and `updatedAt` (`HomeDashboard.Highlights`):
 
 | Card | Shown when | Session chosen | Status badge | Action |
 | --- | --- | --- | --- | --- |
-| **继续上次 / Continue** | a Draft or Planned session exists | the most recently updated Draft or Planned session | Draft → 准备中 / Preparing; Planned → the existing 已计划 / Planned label | **继续准备 →** opens that session in Sessions & History (existing `GuiProfileController.showSession`) |
-| **拍完之后 / After the shoot** | a Completed or Reviewed session exists | the most recently updated Completed session (shot, waiting for its review); if none, the most recently updated Reviewed one | Completed → 待复盘 / To review; Reviewed → the existing 已复盘 / Reviewed label | **开始复盘 →** (Reviewed: **查看复盘 →**) opens Post-Shoot Analysis with that session selected (`ReviewPane.prefer(id)` + existing navigation; an open review draft keeps its own session) |
+| **继续上次 / Continue** | a Draft or Planned session exists | the current session when it is Draft or Planned, else the most recently updated Draft or Planned session | the workflow phase: 刚开始 / Getting started, 规划中 / Planning in progress, 准备拍摄 / Ready to shoot | **继续准备 →** makes it the current session and opens the page of its recommended next milestone (`GuiProfileController.resume`, the same action as **Resume** in Photography Sessions; navigation only) |
+| **拍完之后 / After the shoot** | a Completed or Reviewed session exists | the current session when it is Completed or Reviewed; else the most recently updated Completed session (shot, waiting for its review); if none, the most recently updated Reviewed one | Completed → 待复盘 / To review; Reviewed → the existing 已复盘 / Reviewed label | **开始复盘 →** (Reviewed: **查看复盘 →**) makes it the current session and opens Post-Shoot Review with it selected (`ReviewPane.prefer(id)` + existing navigation; an open review draft keeps its own session) |
 
 Draft and Planned sessions are never treated as completed shoots.
 
 Card text, all from stored data:
 
 - **Title**: the session title (one line; a tooltip shows it in full when shortened).
-- **Continue description**: the next unfinished step, in the order the existing workflows require it (`HomeDashboard.Step`): no confirmed requirement → "下一步：描述并确认拍摄需求。"; no reviewed capability profile → "下一步：确认这次拍摄所需的器材能力。"; otherwise (Draft, no approved plan) → "下一步：确认器材组合与拍摄计划。"; Planned → "下一步：按计划拍摄，完成后记录拍摄完成。".
+- **Progress row** (both cards): a thin bar and "57% · 4 of 7 milestones" from the session's workflow, below the title.
+- **Continue description**: the guidance of the recommended next milestone from the shared workflow (`SessionWorkflow.guidanceKey`), for example "描述并确认拍摄需求。" / "Describe and confirm the shooting requirements.", or its re-check sentence when a result needs review; "All milestones done" when nothing is left. It replaced `HomeDashboard.Step` (removed 2026-11-23).
 - **After description**: Completed without statistics → import photo metadata; Completed with statistics → "回看拍摄参数，记录这次的经验。"; Reviewed → the review is saved.
-- **Metadata**: the confirmed requirement's subject (there is no separate category field) · the stage, named after the page that holds the next step (需求解析 / 器材能力分析 / 拍摄计划) or 等待拍摄 when Planned; the After card shows subject · 拍摄于 {date}. Without a confirmed requirement the subject is omitted (the Continue card shows the session date instead). Nothing is inferred from titles or notes.
+- **Metadata**: the confirmed requirement's subject (there is no separate category field) · on the Continue card, the recommended milestone's name (拍摄需求 / 器材需求 / 器材选择 / 环境评估 / 拍摄计划 / 拍摄完成); the After card shows subject · the session dates (next section). Without a confirmed requirement the subject is omitted (the Continue card shows the session date instead). Nothing is inferred from titles or notes.
+
+### Session dates (Stage2OptRe1 PP-01)
+
+Until 2026-11-23 the After card printed the session date as "Shot on {date}" / "拍摄于 {date}". The session date is the date the shoot was **scheduled** for; a session marked completed early (allowed) or rescheduled was then shown as shot on a day it was not. The shared `application.SessionDates` now words every session date for Home, the Photography Sessions editor and the CLI (`session open`/`list`):
+
+| Evidence | Home After card | CLI and editor detail line |
+| --- | --- | --- |
+| No saved statistics, or statistics without capture times | Scheduled 2026-12-12 / 计划日期 2026-12-12 | none (the summary line already shows the scheduled date) |
+| EXIF capture span inside the scheduled day | Photos dated 2026-12-12 / 照片日期 2026-12-12 | Dates: scheduled …; photos dated … (EXIF camera clock, n of m photos with a capture time) |
+| Capture span on other days (shot early or late, or a wrong camera clock) | Photos dated 2026-11-23 · scheduled 2026-12-12 | same line |
+| Span over midnight | Photos dated 2026-12-12 to 2026-12-13 | same line |
+
+The photo dates are the saved statistics' first and last camera-clock capture times, so they are dated as the camera recorded them, not proven shooting dates. PhotoPilot records no completion time (`updatedAt` is the last change, not a completion), and a review's own date is its saved time in the review heading. No stored field was added, so existing sessions read and render unchanged. Tests: `SessionDatesTest` (shared wording, CLI, rescheduling, stored bytes, Chinese), `SessionDatesGuiTest` (the audit's 2026-12-12 session completed on 2026-11-23, Home after a photo import, the editor), `HomeDashboardGuiTest` (its fixture without capture times now reads "Scheduled 2026-11-01").
 
 ### Four layouts
 
@@ -99,8 +116,8 @@ All passes: 2026-11-08, Windows / JDK 21.0.13, in an isolated copy outside the r
 
 ## Limits
 
-- No session category or "planning stage" field exists, so the metadata uses the confirmed requirement's free-text subject and the stage is derived from which existing records are present. F07 loadout selection is optional for planning and is not a step.
-- Home reads sessions when it is shown; changes made in another process while Home stays open appear on the next visit, as on the other pages.
+- No session category or "planning stage" field exists, so the metadata uses the confirmed requirement's free-text subject and the stage is the recommended milestone of the shared session workflow. F07 Gear Selection is milestone 03 (until 2026-11-23 Home did not count it as a step); it stays optional for planning, because F10 does not require it.
+- Home re-reads sessions when it is shown and updates at once after a save in this window; changes made in another window or the CLI while Home stays open appear on the next visit.
 - At the minimum window width, session card headings and metadata can shorten with an ellipsis (the full text is in a tooltip and the accessible name), and a longer translation of the Mini AI question would wrap (the current English one fits on one line at 880 px). When the card is narrower than the four chips plus Generate (English at 1194 px, both languages at 880 px), the chips wrap to a second row and Generate stays centred on them.
 - At 880 × 600 the doubled input makes Home taller than the window, so the session cards are reached by scrolling the page (the page already scrolled at that size before). Chinese titles in the English interface use the platform fallback font, as elsewhere in the app.
 - Mini AI limits are listed in [Home Mini AI](home-mini-ai.md#limits).

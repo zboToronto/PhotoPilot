@@ -110,8 +110,10 @@ public final class MiniAiService {
         if (!valid.isSuccess()) return valid;
         String text = valid.value().orElseThrow();
         try {
+            com.photopilot.progress.Progress.stage("mini.context");
             var reply = model.complete(request(conversation, text));
             if (!reply.isSuccess()) return Result.failure(explain(reply));
+            com.photopilot.progress.Progress.validating("mini.check");
             return tidy(reply.value().orElseThrow().structuredOutput().orElse(""), wantsDetail(text))
                 .map(Result::success).orElseGet(() -> Result.failureKey("home.ai.error.emptyAnswer"));
         } catch (RuntimeException unexpected) {

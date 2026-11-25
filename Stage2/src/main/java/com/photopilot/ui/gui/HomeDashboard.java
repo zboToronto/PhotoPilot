@@ -4,6 +4,7 @@ import com.photopilot.application.PhotoPilotFacade;
 import com.photopilot.i18n.*;
 import com.photopilot.model.*;
 import com.photopilot.service.MiniAiService;
+import com.photopilot.workflow.SessionWorkflow;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -26,33 +27,33 @@ import javafx.scene.layout.*;
 final class HomeDashboard extends VBox {
     private static final double GAP = 18;
 
-    /** The active user's services and the existing workflows that Home opens. */
-    record Links(PhotoPilotFacade app, UiOperations operations, Consumer<UUID> continueSession, Consumer<UUID> reviewSession, Runnable openInspiration) { }
+    /**
+     * The active user's services, the window's session workflow model (the one source of session progress) and the
+     * existing workflows Home opens: resume a session at its recommended page, review a shot session, open Inspiration,
+     * open Photography Sessions.
+     */
+    record Links(PhotoPilotFacade app, UiOperations operations, SessionWorkflowModel workflow, Consumer<UUID> resume,
+            Consumer<UUID> reviewSession, Runnable openInspiration, Runnable openSessions) { }
 
     /**
-     * The sessions behind the two optional cards, chosen from the existing lifecycle states only: the most recently
-     * updated Draft or Planned session (unfinished), and the most recently updated Completed session (shot, waiting for
-     * its review), else the most recently updated Reviewed one. A planning session is never treated as a completed shoot.
+     * The sessions behind the two optional cards, chosen from the existing lifecycle states only: the unfinished
+     * (Draft or Planned) session the window is working on, else the most recently updated one; and the shot session
+     * waiting for its review (the chosen one when it is Completed or Reviewed, else the most recently updated Completed
+     * session, else the most recently updated Reviewed one). A planning session is never treated as a completed shoot.
      */
     record Highlights(Optional<PhotographySession> unfinished, Optional<PhotographySession> afterShoot) {
         static final Highlights NONE = new Highlights(Optional.empty(), Optional.empty());
-        static Highlights of(List<PhotographySession> sessions) {
-            return new Highlights(latest(sessions, "DRAFT", "PLANNED"), latest(sessions, "COMPLETED").or(() -> latest(sessions, "REVIEWED")));
+        static Highlights of(List<PhotographySession> sessions) { return of(sessions, Optional.empty()); }
+        static Highlights of(List<PhotographySession> sessions, Optional<UUID> chosen) {
+            var picked = chosen.flatMap(id -> sessions.stream().filter(session -> session.id().equals(id)).findFirst());
+            var unfinished = picked.filter(session -> Set.of("DRAFT", "PLANNED").contains(session.status())).or(() -> latest(sessions, "DRAFT", "PLANNED"));
+            var after = picked.filter(session -> Set.of("COMPLETED", "REVIEWED").contains(session.status()))
+                .or(() -> latest(sessions, "COMPLETED")).or(() -> latest(sessions, "REVIEWED"));
+            return new Highlights(unfinished, after);
         }
         private static Optional<PhotographySession> latest(List<PhotographySession> sessions, String... states) {
             var wanted = Set.of(states);
             return sessions.stream().filter(session -> wanted.contains(session.status())).max(Comparator.comparing(PhotographySession::updatedAt));
-        }
-    }
-
-    /** The next unfinished preparation step, in the order the existing workflows require it (F03, F06, then F10). */
-    enum Step {
-        REQUIREMENT, PROFILE, PLAN, SHOOT;
-        static Step of(PhotographySession session) {
-            if (session.status().equals("PLANNED")) return SHOOT;
-            if (session.requirements().filter(ShootRequirement::confirmed).isEmpty()) return REQUIREMENT;
-            if (session.profile().filter(EquipmentRequirementProfile::reviewed).isEmpty()) return PROFILE;
-            return PLAN;
         }
     }
 
@@ -68,7 +69,9 @@ final class HomeDashboard extends VBox {
     /** Loading state, validation messages and errors, below the chips; hidden until needed. */
     private final ProgressIndicator progress = new ProgressIndicator();
     private final Label statusText = FeaturePane.label("", "home-ai-status");
-    private final HBox status = new HBox(8, progress, statusText);
+    /** The request's actual stage while it runs (e.g. waiting for Gemini, a retry), and the next step after a failure. */
+    private final Label stageText = FeaturePane.label("", "home-ai-stage");
+    private final HBox status = new HBox(8, progress, new VBox(2, statusText, stageText));
     /** The latest answer with its question, and the earlier exchanges behind a toggle; hidden until the first answer. */
     private final VBox response = new VBox();
     private final Label asked = single(FeaturePane.label("", "home-ai-asked")), answer = FeaturePane.label("", "home-ai-answer");
@@ -76,8 +79,13 @@ final class HomeDashboard extends VBox {
     private final Random random = new Random();
     /** Zero, one or two session cards; collapsed when there are none, one card spans the row, two share it equally. */
     private final HBox sessions = new HBox(GAP);
+    /** The sessions the cards show, so the line below counts only the others. */
+    private Set<UUID> shownCards = Set.of();
+    /** One line about the other sessions (attention, ready to shoot, awaiting review); collapsed when there are none. */
+    private final Label othersText = FeaturePane.label("", "home-others-text");
+    private final HBox othersRow = new HBox(8);
     private Links links;
-    private long generation, asks;
+    private long asks;
     private boolean disposed, asking, composing, historyOpen;
     private MiniAiService.Conversation conversation = MiniAiService.Conversation.EMPTY;
     private String lastTheme = "";
@@ -88,7 +96,11 @@ final class HomeDashboard extends VBox {
         texts = new FxLocalizer(this, localization);
         sessions.setId("home-sessions"); sessions.setMinWidth(0);
         sessions.setVisible(false); sessions.setManaged(false);
-        getChildren().addAll(welcome(), inspiration(), sessions);
+        othersText.setId("home-others-text"); othersText.setMinWidth(0); HBox.setHgrow(othersText, Priority.ALWAYS);
+        var all = link("home.others.open", "home-others-open"); all.setOnAction(event -> { if (links != null) links.openSessions().run(); });
+        othersRow.getChildren().setAll(othersText, all); othersRow.setId("home-others"); othersRow.setAlignment(Pos.CENTER_LEFT);
+        othersRow.getStyleClass().add("home-others"); others(false);
+        getChildren().addAll(welcome(), inspiration(), sessions, othersRow);
     }
 
     private HBox welcome() {
@@ -139,6 +151,8 @@ final class HomeDashboard extends VBox {
         progress.setId("home-ai-progress"); progress.getStyleClass().add("home-ai-progress"); progress.setProgress(0);
         progress.setMinSize(16, 16); progress.setPrefSize(16, 16); progress.setMaxSize(16, 16);
         statusText.setId("home-ai-status-text"); statusText.setMinWidth(0); HBox.setHgrow(statusText, Priority.ALWAYS);
+        stageText.setId("home-ai-stage"); stageText.setMinWidth(0); hide(stageText);
+        HBox.setHgrow(status.getChildren().get(1), Priority.ALWAYS);
         status.setId("home-ai-status"); status.setAlignment(Pos.CENTER_LEFT); hide(status);
         VBox.setMargin(description, new Insets(6, 0, 0, 0));
         VBox.setMargin(prompt, new Insets(18, 0, 0, 0)); VBox.setMargin(actions, new Insets(16, 0, 0, 0));
@@ -245,10 +259,20 @@ final class HomeDashboard extends VBox {
         statusText.getStyleClass().remove("home-ai-error"); progress.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS); show(progress);
         texts.text(statusText.textProperty(), "home.ai.generating"); show(status);
         long ticket = ++asks; var app = links.app(); var context = conversation;
-        links.operations().run(() -> app.miniAi().ask(context, text), result -> {
+        // Execution feedback in the existing status line: the stage the request is actually in (waiting for Gemini, a
+        // retry after HTTP 503, checking the answer). It runs on the background lane, so Home stays usable meanwhile.
+        var operation = com.photopilot.application.OperationKind.MINI_AI.start();
+        texts.bind(stageText.textProperty(), () -> ""); hide(stageText);
+        operation.listen(event -> javafx.application.Platform.runLater(() -> {
+            if (disposed || ticket != asks || !asking || event.status().finished()) return;
+            event.current().ifPresent(stage -> { stageText.setText(stage.label().render(localization)); show(stageText); });
+        }));
+        operation.acknowledge();
+        links.operations().runBackground(() -> operation.run(() -> app.miniAi().ask(context, text)), result -> {
+            operation.finish(result, com.photopilot.application.NextSteps.after(com.photopilot.application.OperationKind.MINI_AI, result));
             if (disposed || ticket != asks) return;
             asking = false; generate.setDisable(false); clear.setDisable(false); progress.setProgress(0);
-            if (!result.isSuccess()) { failure(result); return; }
+            if (!result.isSuccess()) { failure(result, operation.snapshot().next()); return; }
             conversation = conversation.with(new MiniAiService.Exchange(text, result.value().orElseThrow()));
             // The new answer is what the user reads next; earlier exchanges fold away again (they stay in the context).
             historyOpen = false; hide(status);
@@ -258,10 +282,14 @@ final class HomeDashboard extends VBox {
         });
     }
 
-    private void failure(com.photopilot.common.Result<?> result) {
+    private void failure(com.photopilot.common.Result<?> result) { failure(result, Optional.empty()); }
+    /** The failure, then the deterministic next step (e.g. retry later or open Inspiration) when there is one. */
+    private void failure(com.photopilot.common.Result<?> result, Optional<com.photopilot.progress.NextStep> next) {
         hide(progress);
         if (!statusText.getStyleClass().contains("home-ai-error")) statusText.getStyleClass().add("home-ai-error");
         texts.bind(statusText.textProperty(), () -> String.join(" ", result.errors(localization)));
+        texts.bind(stageText.textProperty(), () -> next.map(step -> localization.text("progress.next", step.message().render(localization))).orElse(""));
+        if (next.isPresent()) show(stageText); else hide(stageText);
         show(status);
     }
 
@@ -333,53 +361,91 @@ final class HomeDashboard extends VBox {
     }
 
     /** Called with the active user's workspace; until then (or without a user) Home shows no session cards. */
-    void connect(Links links) { this.links = links; }
+    void connect(Links links) {
+        this.links = links;
+        links.workflow().listen(this::render);
+    }
 
-    /** Re-reads the active user's sessions whenever Home is shown, so the cards follow changes made on other pages. */
+    /**
+     * Whenever Home is shown the window's workflow model re-reads the active user's sessions (one overview, which also
+     * picks up changes made in another window or the CLI); the cards render from it, never from a read of their own.
+     */
     void refresh() {
         if (links == null || disposed) return;
-        long ticket = ++generation;
-        var app = links.app();
-        links.operations().run(() -> app.sessions().search(""), result -> {
-            if (disposed || ticket != generation) return;
-            // A storage failure shows no session card rather than an invented one; the pages themselves report errors.
-            show(result.isSuccess() ? Highlights.of(result.value().orElseThrow()) : Highlights.NONE);
-        });
+        links.workflow().refresh();
+    }
+
+    private void render() {
+        if (links == null || disposed || !links.workflow().loaded()) return;
+        var model = links.workflow();
+        var all = model.all();
+        show(Highlights.of(all.stream().map(SessionWorkflow::session).toList(), model.chosen() ? model.currentId() : Optional.empty()), model::workflow);
+        renderOthers(all);
     }
 
     /** Builds only the cards that have a session; each card grows to share the row equally. */
-    void show(Highlights highlights) {
+    void show(Highlights highlights, java.util.function.Function<UUID, Optional<SessionWorkflow>> progress) {
         var cards = new ArrayList<Region>();
-        highlights.unfinished().ifPresent(session -> cards.add(continueCard(session)));
-        highlights.afterShoot().ifPresent(session -> cards.add(afterCard(session)));
+        highlights.unfinished().ifPresent(session -> cards.add(continueCard(session, progress.apply(session.id()))));
+        highlights.afterShoot().ifPresent(session -> cards.add(afterCard(session, progress.apply(session.id()))));
         sessions.getChildren().setAll(cards);
         boolean any = !cards.isEmpty();
         sessions.setVisible(any); sessions.setManaged(any);
+        shownCards = new HashSet<>();
+        highlights.unfinished().ifPresent(session -> shownCards.add(session.id()));
+        highlights.afterShoot().ifPresent(session -> shownCards.add(session.id()));
     }
 
-    private VBox continueCard(PhotographySession session) {
-        var step = Step.of(session); UUID id = session.id();
+    /**
+     * One line about the sessions the cards do not show: how many need attention, are ready to shoot or wait for their
+     * review, with a link to Photography Sessions. Nothing when there are none.
+     */
+    private void renderOthers(List<SessionWorkflow> all) {
+        var others = all.stream().filter(workflow -> !shownCards.contains(workflow.sessionId())).toList();
+        long attention = others.stream().filter(SessionWorkflow::attention).count();
+        long ready = others.stream().filter(w -> !w.attention() && w.lifecycle().equals("PLANNED")).count();
+        long awaiting = others.stream().filter(w -> w.lifecycle().equals("COMPLETED")).count();
+        boolean any = attention + ready + awaiting > 0;
+        texts.bind(othersText.textProperty(), () -> {
+            var parts = new ArrayList<String>();
+            if (attention > 0) parts.add(localization.text("home.others.attention", attention));
+            if (ready > 0) parts.add(localization.text("home.others.ready", ready));
+            if (awaiting > 0) parts.add(localization.text("home.others.awaiting", awaiting));
+            return localization.text("home.others", String.join(" · ", parts));
+        });
+        others(any);
+    }
+    private void others(boolean visible) { othersRow.setVisible(visible); othersRow.setManaged(visible); }
+
+    /** The unfinished session: its workflow phase, milestone progress, recommended next step and the page it is on. */
+    private VBox continueCard(PhotographySession session, Optional<SessionWorkflow> workflow) {
+        UUID id = session.id();
+        var next = workflow.flatMap(SessionWorkflow::next);
         var open = action("home.continue.action", "home-continue-action", AppIcons.ARROW_RIGHT, true, true);
-        open.setOnAction(event -> { if (links != null) links.continueSession().accept(id); });
+        // Resumes at the recommended page with this session (nothing is generated, approved or saved).
+        open.setOnAction(event -> { if (links != null) links.resume().accept(id); });
         return sessionCard("home-continue", "home.continue.heading", AppIcons.HISTORY, true,
-            () -> session.status().equals("PLANNED") ? localization.text("session.state.PLANNED") : localization.text("home.status.preparing"),
-            session.title(), () -> next(step), () -> metadata(subject(session).orElse(session.date().toString()), stage(step)), open);
+            () -> workflow.map(w -> WorkflowTexts.phase(w, localization)).orElseGet(() -> localization.text("session.state." + session.status())),
+            session.title(), workflow,
+            () -> next.map(state -> localization.text(SessionWorkflow.guidanceKey(state))).orElseGet(() -> localization.text("workflow.complete")),
+            () -> metadata(subject(session).orElse(session.date().toString()), next.map(state -> localization.text(state.milestone().titleKey())).orElse("")), open);
     }
 
-    private VBox afterCard(PhotographySession session) {
+    private VBox afterCard(PhotographySession session, Optional<SessionWorkflow> workflow) {
         boolean reviewed = session.status().equals("REVIEWED"); UUID id = session.id();
         var open = action(reviewed ? "home.after.view" : "home.after.start", "home-review-action", AppIcons.ARROW_RIGHT, false, true);
         open.setOnAction(event -> { if (links != null) links.reviewSession().accept(id); });
         return sessionCard("home-after", "home.after.heading", AppIcons.TREND, false,
             () -> reviewed ? localization.text("session.state.REVIEWED") : localization.text("home.status.toReview"),
-            session.title(),
+            session.title(), workflow,
             () -> reviewed ? localization.text("home.after.saved")
                 : session.statistics().isPresent() ? localization.text("home.after.review") : localization.text("home.after.import"),
-            () -> metadata(subject(session).orElse(""), localization.text("home.after.date", session.date().toString())), open);
+            // PP-01: the session date is the scheduled date, never claimed as the shooting date; photo dates come from EXIF.
+            () -> metadata(subject(session).orElse(""), com.photopilot.application.SessionDates.label(session, localization)), open);
     }
 
     private VBox sessionCard(String id, String heading, String icon, boolean accentBadge, Supplier<String> status, String title,
-            Supplier<String> description, Supplier<String> metadata, Button action) {
+            Optional<SessionWorkflow> workflow, Supplier<String> description, Supplier<String> metadata, Button action) {
         var name = single(texts.label(heading, "home-card-heading")); name.setId(id + "-heading");
         name.setMaxWidth(Double.MAX_VALUE); HBox.setHgrow(name, Priority.ALWAYS);
         var badge = FeaturePane.label("", "home-pill"); badge.setId(id + "-status"); badge.setWrapText(false); badge.setMinWidth(Region.USE_PREF_SIZE);
@@ -387,14 +453,22 @@ final class HomeDashboard extends VBox {
         texts.bind(badge.textProperty(), status);
         var header = new HBox(12, iconBox(icon, 34), name, badge); header.setAlignment(Pos.CENTER_LEFT);
         var shoot = single(FeaturePane.label(title, "home-session-title")); shoot.setId(id + "-title");
+        // Session progress: a thin bar and "57% · 4 of 7 milestones", from the shared workflow model.
+        var bar = WorkflowGlyphs.bar(id + "-bar"); bar.setPrefWidth(120); bar.setMinWidth(60); bar.setMaxWidth(160);
+        var count = single(FeaturePane.label("", "home-session-progress")); count.setId(id + "-progress-text");
+        workflow.ifPresentOrElse(w -> { bar.setProgress(w.percent() / 100.0); texts.bind(count.textProperty(), () -> w.progress().render(localization)); },
+            () -> texts.bind(count.textProperty(), () -> ""));
+        texts.bind(bar.accessibleTextProperty(), count::getText);
+        var progress = new HBox(10, bar, count); progress.setId(id + "-progress"); progress.setAlignment(Pos.CENTER_LEFT);
+        progress.setVisible(workflow.isPresent()); progress.setManaged(workflow.isPresent());
         var next = FeaturePane.label("", "home-session-description"); next.setId(id + "-description"); texts.bind(next.textProperty(), description);
         var details = single(FeaturePane.label("", "home-session-meta")); details.setId(id + "-meta"); texts.bind(details.textProperty(), metadata);
         details.setMaxWidth(Double.MAX_VALUE); HBox.setHgrow(details, Priority.ALWAYS);
         var footer = new HBox(12, details, action); footer.setAlignment(Pos.CENTER_LEFT);
         // Keeps the footer on the bottom edge when the neighbouring card is taller.
         var fill = new Region(); fill.setMinHeight(14); VBox.setVgrow(fill, Priority.ALWAYS);
-        VBox.setMargin(shoot, new Insets(14, 0, 0, 0)); VBox.setMargin(next, new Insets(6, 0, 0, 0));
-        var card = new VBox(0, header, shoot, next, fill, footer);
+        VBox.setMargin(shoot, new Insets(14, 0, 0, 0)); VBox.setMargin(progress, new Insets(8, 0, 0, 0)); VBox.setMargin(next, new Insets(8, 0, 0, 0));
+        var card = new VBox(0, header, shoot, progress, next, fill, footer);
         card.setId(id); card.getStyleClass().addAll("surface-panel", "home-card", "home-session");
         card.setPrefWidth(0); card.setMinWidth(0); card.setMaxWidth(Double.MAX_VALUE); HBox.setHgrow(card, Priority.ALWAYS);
         return card;
@@ -407,23 +481,6 @@ final class HomeDashboard extends VBox {
         return label;
     }
 
-    private String next(Step step) {
-        return switch (step) {
-            case REQUIREMENT -> localization.text("home.next.requirement");
-            case PROFILE -> localization.text("home.next.profile");
-            case PLAN -> localization.text("home.next.plan");
-            case SHOOT -> localization.text("home.next.shoot");
-        };
-    }
-    /** The page that holds the next step, by its navigation name. */
-    private String stage(Step step) {
-        return switch (step) {
-            case REQUIREMENT -> localization.text("feature.F03.title");
-            case PROFILE -> localization.text("feature.F06.title");
-            case PLAN -> localization.text("feature.F10.title");
-            case SHOOT -> localization.text("home.stage.shoot");
-        };
-    }
     /** The confirmed requirement's subject, when there is one; nothing is inferred from the title or notes. */
     private static Optional<String> subject(PhotographySession session) {
         return session.requirements().filter(ShootRequirement::confirmed).map(ShootRequirement::subject).map(String::strip).filter(text -> !text.isEmpty());

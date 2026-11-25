@@ -53,6 +53,10 @@ public class PhotoPilotFacade {
     private final MiniAiService miniAi;
     // Gear Inventory shutter count checker: local, read-only metadata through the bundled ExifTool.
     private final ShutterCountService shutterCount;
+    // Session workflow progress (milestones 01-07) from persisted records; read-only, shared by GUI and CLI.
+    private final com.photopilot.service.SessionWorkflowService workflow;
+    // Announcements of this profile's successful session and inventory writes (Observer subject).
+    private final com.photopilot.repository.StoreChanges changes;
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations) {
         this(sessions, inventory, discovery, planning, review, calculations, new LLMDiagnosticService(
@@ -71,6 +75,14 @@ public class PhotoPilotFacade {
     }
 
     public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics, MiniAiService miniAi, ShutterCountService shutterCount) {
+        // Without observed stores nothing is announced; workflow progress is still read on demand.
+        this(sessions, inventory, discovery, planning, review, calculations, aiDiagnostics, miniAi, shutterCount, new com.photopilot.repository.StoreChanges());
+    }
+
+    public PhotoPilotFacade(SessionService sessions, InventoryService inventory, DiscoveryService discovery, PlanningService planning, ReviewService review, TechnicalCalculator calculations, LLMDiagnosticService aiDiagnostics, MiniAiService miniAi, ShutterCountService shutterCount, com.photopilot.repository.StoreChanges changes) {
+        this.changes = Objects.requireNonNull(changes, "changes");
+        this.workflow = new com.photopilot.service.SessionWorkflowService(Objects.requireNonNull(sessions, "sessions"),
+            Objects.requireNonNull(inventory, "inventory"), java.time.Clock.systemDefaultZone());
         this.shutterCount = Objects.requireNonNull(shutterCount, "shutterCount");
         this.aiDiagnostics = Objects.requireNonNull(aiDiagnostics, "aiDiagnostics");
         this.miniAi = Objects.requireNonNull(miniAi, "miniAi");
@@ -139,6 +151,22 @@ public class PhotoPilotFacade {
         return planning.assessEnvironment(id, request);
     }
 
+    /** As above; {@code onFacts} receives the factual snapshot on the worker thread while Gemini is still interpreting it. */
+    public Result<EnvironmentAssessment> assessEnvironment(UUID id, com.photopilot.model.EnvironmentRequest request,
+            java.util.function.Consumer<EnvironmentAssessment> onFacts) {
+        return planning.assessEnvironment(id, request, onFacts);
+    }
+
+    /** F09 AI-only retry of the session's current assessment: Gemini again, no location, weather or sun request. */
+    public Result<EnvironmentAssessment> retryEnvironmentInterpretation(UUID id, EnvironmentAssessment shown) {
+        return planning.retryEnvironmentInterpretation(id, shown);
+    }
+
+    /** The shared, deterministic dashboard analysis that the GUI and CLI both display for one assessment snapshot. */
+    public com.photopilot.model.EnvironmentAnalysis analyzeEnvironment(EnvironmentAssessment assessment) {
+        return planning.analyzeEnvironment(assessment, false);
+    }
+
     public Result<ShootPlan> generatePlan(UUID id) {
         return planning.generate(id);
     }
@@ -165,6 +193,12 @@ public class PhotoPilotFacade {
 
     /** Gear Inventory shutter count checker and its Sony/Nikon model catalog. */
     public ShutterCountService shutterCount() { return shutterCount; }
+
+    /** Session workflow progress and its recommended next milestone, from persisted records only. */
+    public com.photopilot.service.SessionWorkflowService workflow() { return workflow; }
+
+    /** Successful writes of this profile's stores, for views that follow persisted state. */
+    public com.photopilot.repository.StoreChanges changes() { return changes; }
 
     public SessionService sessions() {
         return sessions;

@@ -31,6 +31,8 @@ final class GuiProfileController implements AutoCloseable {
     private InventoryPane inventory;
     private GearImportPane gearImport;
     private CalculatorPane calculator;
+    /** The active user's session workflow progress in this window (sidebar, Home, session list and pages). */
+    private SessionWorkflowModel workflow;
     private FxLocalizer texts;
     private UserSelectionPane picker;
     private UserSelectionWindow pickerWindow;
@@ -50,6 +52,7 @@ final class GuiProfileController implements AutoCloseable {
     private void install(LocalProfile selected) {
         if (picker != null) { picker.dispose(); picker = null; }
         if (workspace != null) workspace.dispose();
+        if (workflow != null) workflow.close();
         if (texts != null) texts.close();
         context = profiles.activeContext(); changed.accept(context);
         // The active user's appearance replaces the previous user's before any of its views exist (the old workspace,
@@ -73,12 +76,24 @@ final class GuiProfileController implements AutoCloseable {
         inventory.onImport(view::selectImport);
         calculator = new CalculatorPane(context.facade(), operations, language);
         capability = new CapabilityPane(context.facade(), operations, language);
+        // The report's data-quality findings open the item in Gear Inventory's existing editor.
+        // The editor read starts first, so showing the page does not queue a second, unfiltered refresh behind it.
+        capability.onEditEquipment(id -> { inventory.edit(id); view.selectInventory(); });
         workspace.connectCapabilities(capability);
         workspace.connectSessions(sessions); workspace.connectRequirements(requirements); workspace.connectMatching(matching);
         workspace.connectEnvironment(environment); workspace.connectDiscovery(discovery); workspace.connectPlanning(planning); workspace.connectReview(review); workspace.connectInventory(inventory); workspace.connectImport(gearImport); workspace.connectCalculator(calculator);
-        // Gear Inventory's second card: the shutter count checker (bundled ExifTool, started on the first check).
+        // The standalone shutter count checker starts bundled ExifTool on the first check.
         workspace.connectShutterCount(new ShutterCountPane(context.facade(), operations, language));
-        workspace.connectHome(new HomeDashboard.Links(context.facade(), operations, this::showSession, this::reviewSession, view::selectDiscovery));
+        // One session workflow model per user: every view reads session progress from it (nothing is read here; Home
+        // loads it when it is shown, after the user chooser has found the worker lanes idle).
+        workflow = new SessionWorkflowModel(context.facade(), operations);
+        workspace.connectWorkflow(workflow, () -> workflow.currentId().ifPresent(sessions::open),
+            () -> workflow.currentId().ifPresent(sessions::openForCompletion), this::continueFor);
+        sessions.useSessions(workflow, this::resume);
+        for (var page : List.<SessionScoped>of(requirements, capability.profile(), matching, environment, planning, review)) page.useSessions(workflow);
+        guide(requirements, requirements.tracked()); guide(capability.profile(), capability.profile().tracked());
+        guide(matching, matching.tracked()); guide(environment, environment.tracked()); guide(planning, planning.tracked()); guide(review, review.tracked());
+        workspace.connectHome(new HomeDashboard.Links(context.facade(), operations, workflow, this::resume, this::reviewSession, view::selectDiscovery, view::selectSessions));
         workspace.connectUserSettings(new UserSettingsPane(stage, profiles, operations, this::showProfile, this::switchFromSettings, language));
         workspace.connectProfiles(); workspace.showProfile(Optional.of(selected));
         texts = new FxLocalizer(workspace, language); texts.text(stage.titleProperty(), "app.title");
@@ -170,18 +185,50 @@ final class GuiProfileController implements AutoCloseable {
         try { return alert.showAndWait().filter(yes::equals).isPresent(); } finally { localizer.close(); }
     }
     void showSession(UUID id) { if (!switching && !closed) { workspace.selectSessions(); sessions.open(id); } }
-    /** Home "After the shoot": the existing F11 page with that session selected. */
-    void reviewSession(UUID id) { if (!switching && !closed) { review.prefer(id); workspace.selectReview(); } }
+    /** Home "After the shoot": the existing F11 page with that session selected (it becomes the chosen session). */
+    void reviewSession(UUID id) {
+        if (switching || closed) return;
+        workflow.activate(id); review.prefer(id); workspace.selectReview();
+    }
+    /**
+     * Resume (Home, Photography Sessions): makes {@code id} the chosen session and opens the page of its recommended
+     * next milestone from the shared workflow (shooting completion: the session editor; a reviewed session: its saved
+     * review). Only navigation: nothing is generated, approved or saved. A session the model has not read yet opens in
+     * Photography Sessions.
+     */
+    void resume(UUID id) {
+        if (switching || closed || id == null) return;
+        workflow.activate(id);
+        var known = workflow.workflow(id);
+        if (known.isEmpty()) { showSession(id); return; }
+        var next = known.get().next();
+        if (next.isEmpty()) { reviewSession(id); return; }
+        String target = next.get().milestone().target();
+        if (target.equals("F11")) review.prefer(id);
+        workspace.select(target);
+    }
+    /** Every session page ends a milestone save with the session's own next milestone, read from the workflow model. */
+    private void guide(SessionScoped page, OperationRunner runner) {
+        runner.guidance(() -> Optional.ofNullable(page.selectedSession().getValue()).map(com.photopilot.model.PhotographySession::id),
+            id -> workflow.workflow(id).flatMap(com.photopilot.workflow.SessionWorkflow::nextStep));
+    }
+    /** A continuation for a given session (progress card, session editor) first makes that session the chosen one. */
+    private void continueFor(String target, UUID id) {
+        if (switching || closed) return;
+        workflow.activate(id);
+        if (target.equals("F11")) review.prefer(id);
+    }
     /** Routes an external brief into the F03 pane, which owns review and explicit confirmation. */
     void submitBrief(UUID id, String text) {
         if (switching || closed) return;
-        workspace.selectRequirements(); requirements.submit(id, text);
+        workflow.activate(id); workspace.selectRequirements(); requirements.submit(id, text);
     }
     /** Routes a selected F02 idea (unconfirmed draft) into the F03 pane, which owns review and explicit confirmation. */
     void reviewIdea(UUID id, com.photopilot.model.ShootRequirement draft) {
         if (switching || closed) return;
-        workspace.selectRequirements(); requirements.review(id, draft);
+        workflow.activate(id); workspace.selectRequirements(); requirements.review(id, draft);
     }
+    SessionWorkflowModel workflow() { return workflow; }
     RequirementPane requirements() { return requirements; }
     DiscoveryPane discovery() { return discovery; }
     GearMatchPane matching() { return matching; }
@@ -200,6 +247,6 @@ final class GuiProfileController implements AutoCloseable {
         if (closed) return; closed = true;
         if (picker != null) picker.dispose();
         if (pickerWindow != null) pickerWindow.dispose();
-        workspace.dispose(); texts.close(); operations.shutdownNow();
+        workspace.dispose(); if (workflow != null) workflow.close(); texts.close(); operations.shutdownNow();
     }
 }

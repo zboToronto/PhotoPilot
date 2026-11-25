@@ -177,6 +177,27 @@
     -fx-padding: 16;
 }
 #storage-notice { -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 8 16; }
+/* Execution feedback inside a page's feedback card: stages actually entered, real elapsed time, next step. */
+.operation-progress { -fx-padding: 10 0 0 0; -fx-border-color: -pp-hairline transparent transparent transparent; -fx-border-width: 1 0 0 0; }
+.progress-title { -fx-font-size: 13px; -fx-font-weight: bold; }
+.progress-title.progress-failed { -fx-text-fill: -pp-danger; }
+.progress-elapsed { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.progress-spinner { -fx-progress-color: -pp-accent; }
+.progress-cancel { -fx-padding: 3 12; -fx-font-size: 12px; }
+.progress-stage { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.progress-stage-active { -fx-text-fill: -pp-text; -fx-font-weight: bold; }
+.progress-stage-pending { -fx-text-fill: -pp-text-subtle; }
+.progress-stage-failed { -fx-text-fill: -pp-danger; }
+.progress-stage-cancelled { -fx-text-fill: -pp-text-subtle; }
+.progress-icon-done { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.progress-icon-failed { -fx-fill: transparent; -fx-stroke: -pp-danger; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.progress-icon-cancelled { -fx-fill: transparent; -fx-stroke: -pp-text-subtle; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.progress-icon-active { -fx-fill: -pp-accent; }
+.progress-icon-pending { -fx-fill: transparent; -fx-stroke: -pp-text-subtle; -fx-stroke-width: 1.2; }
+.progress-detail, .progress-persistence { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.progress-persistence.progress-saved { -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+.progress-count { -fx-accent: -pp-accent; -fx-pref-height: 6; }
+.progress-next { -fx-font-size: 12.5px; -fx-text-fill: -pp-text; }
 
 /* Controls. The primary action is a pill in the theme colour. */
 .button {
@@ -282,6 +303,7 @@
 #home-dashboard .home-ai-status { -fx-font-size: 13.5px; -fx-text-fill: -pp-text-muted; }
 #home-dashboard .home-ai-status.home-ai-error { -fx-text-fill: -pp-danger; }
 #home-dashboard .home-ai-progress { -fx-progress-color: -pp-accent; }
+#home-dashboard .home-ai-stage { -fx-font-size: 12px; -fx-text-fill: -pp-text-subtle; }
 #home-dashboard .home-ai-response-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.8; -fx-scale-y: 0.8; }
 #home-dashboard .home-ai-response-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
 /* The question is secondary; the answer is body text on a subtle inner surface (no border or shadow) that wraps at the surface's width. */
@@ -692,3 +714,560 @@
 .import-content #import-overlay { -fx-cursor: crosshair; }
 .import-content .import-redaction { -fx-fill: black; -fx-stroke: -pp-danger; -fx-stroke-width: 1; }
 .import-content .import-crop { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 2; -fx-stroke-dash-array: 6 4; }
+/* Session workflow (2026-11-23): the sidebar's Active Session summary and milestone step badges, collapsible section
+   headings, thin workflow bars and the one-line session context of session pages. Existing tokens only; every
+   milestone state has its own shape (check, half disc, exclamation, triangle, lock, dash), so none relies on colour,
+   and the selected row redraws every mark in the on-accent colour. These rules follow the button rules on purpose:
+   two-class selectors keep sidebar rows and headings in the navigation style. Every line of the Active Session block
+   has a minimum height above the line height of both UI fonts (the Chinese one is taller), so the milestone rows
+   below it never move on a language switch. */
+.sidebar-session {
+    -fx-background-color: -pp-hover;
+    -fx-background-radius: 10;
+    -fx-padding: 8 10 9;
+}
+.sidebar-session-title { -fx-font-size: 13px; -fx-font-weight: bold; -fx-min-height: 23; }
+.sidebar-session-line { -fx-font-size: 11.5px; -fx-text-fill: -pp-text-muted; -fx-min-height: 21; }
+.sidebar-session-next { -fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; -fx-min-height: 21; }
+.sidebar-link, .sidebar-link:hover, .sidebar-link:armed {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 2 0;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pp-accent-text;
+    -fx-cursor: hand;
+    -fx-min-height: 25;
+}
+.sidebar-link:hover { -fx-underline: true; }
+.sidebar-link:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-radius: 4; }
+.navigation-group.navigation-group-toggle, .navigation-group.navigation-group-toggle:hover, .navigation-group.navigation-group-toggle:armed {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 12 10 4;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -pp-text-muted;
+    -fx-graphic-text-gap: 6;
+    -fx-alignment: center-left;
+    /* A button adds border insets to the label's 31 px; this keeps both UI fonts below the minimum. */
+    -fx-min-height: 34;
+    -fx-cursor: hand;
+}
+.navigation-group.navigation-group-toggle:hover { -fx-text-fill: -pp-text; }
+.navigation-group.navigation-group-toggle:focus-visible { -fx-border-color: -pp-focus-ring; }
+.navigation-chevron { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.navigation-group-toggle:collapsed .navigation-chevron { -fx-rotate: -90; }
+/* Photography Assistant is an action row (a Button) in the navigation style. */
+.button.navigation-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-border-color: transparent;
+    -fx-border-radius: 8;
+    -fx-padding: 6 10;
+    -fx-graphic-text-gap: 10;
+    -fx-text-fill: -pp-text;
+    -fx-alignment: center-left;
+}
+.button.navigation-item:hover { -fx-background-color: -pp-hover; }
+.button.navigation-item:armed { -fx-background-color: -pp-pressed; }
+.button.navigation-item:focus-visible { -fx-border-color: -pp-focus-ring; }
+
+.workflow-bar { -fx-pref-height: 5; -fx-min-height: 5; -fx-max-height: 5; -fx-padding: 0; -fx-indeterminate-bar-length: 0; }
+.workflow-bar > .track { -fx-background-color: -pp-track; -fx-background-insets: 0; -fx-background-radius: 3; -fx-padding: 0; }
+.workflow-bar > .bar { -fx-background-color: -pp-accent; -fx-background-insets: 0; -fx-background-radius: 3; -fx-padding: 0; }
+
+.milestone-number { -fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; -fx-padding: 0; }
+.milestone-ring { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.3; }
+.milestone-ring-accent { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.5; }
+.milestone-ring-dashed { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.2; -fx-stroke-dash-array: 2 2.2; }
+.milestone-disc { -fx-fill: -pp-accent; -fx-stroke: transparent; }
+.milestone-check { -fx-fill: transparent; -fx-stroke: -pp-on-accent; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.milestone-half { -fx-fill: -pp-accent; -fx-stroke: transparent; }
+.milestone-mark-accent { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.milestone-warning { -fx-fill: transparent; -fx-stroke: -pp-danger; -fx-stroke-width: 1.4; -fx-stroke-line-join: round; }
+.milestone-warning-mark { -fx-fill: transparent; -fx-stroke: -pp-danger; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.milestone-lock { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.3; -fx-stroke-line-join: round; }
+.milestone-dash { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.5; -fx-stroke-line-cap: round; }
+/* The recommended next milestone: its outline ring becomes a solid disc with a white number (fill, not only hue). */
+.milestone-item:recommended .milestone-ring { -fx-fill: -pp-accent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.6; }
+.milestone-item:recommended .milestone-number { -fx-text-fill: -pp-on-accent; }
+.milestone-item:muted { -fx-text-fill: -pp-text-muted; }
+.milestone-item:selected { -fx-text-fill: -pp-on-accent; }
+.milestone-item:selected .milestone-ring, .milestone-item:selected .milestone-ring-accent, .milestone-item:selected .milestone-ring-dashed,
+.milestone-item:selected .milestone-lock, .milestone-item:selected .milestone-warning, .milestone-item:selected .milestone-dash,
+.milestone-item:selected .milestone-mark-accent, .milestone-item:selected .milestone-warning-mark { -fx-stroke: -pp-on-accent; }
+.milestone-item:selected .milestone-disc, .milestone-item:selected .milestone-half { -fx-fill: -pp-on-accent; }
+.milestone-item:selected .milestone-check { -fx-stroke: -pp-selected; }
+.milestone-item:selected .milestone-number { -fx-text-fill: -pp-on-accent; }
+.milestone-item:selected:recommended .milestone-ring { -fx-fill: -pp-on-accent; -fx-stroke: -pp-on-accent; -fx-stroke-width: 1.6; }
+.milestone-item:selected:recommended .milestone-number { -fx-text-fill: -pp-selected; }
+
+.session-context { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.session-progress-text { -fx-font-size: 12px; }
+#home-dashboard .home-session-progress { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; }
+#home-dashboard .home-others { -fx-padding: 0 4; }
+#home-dashboard .home-others-text { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; }
+
+/* Gear Capability Report dashboard (CapabilityDashboard), scoped to .capability-dashboard. Cards, segments, tables and
+   inputs reuse the existing surfaces and tokens. The three status colours are local to this page: ladder() picks the
+   dark tone when the theme's text is dark (Light) and the light tone when it is light (Dark), so marks keep their
+   contrast in both modes; text stays -pp-text. Green = established within the stated mount-label scope, amber = unknown
+   or not established, red = an established conflict, grey = not applicable. A status is never shown by colour alone:
+   every cell and chip also carries a symbol and words. */
+.capability-dashboard {
+    -cap-ok: ladder(-pp-text, rgba(30,128,72,1) 49%, rgba(104,201,138,1) 50%);
+    -cap-ok-soft: ladder(-pp-text, rgba(30,128,72,0.13) 49%, rgba(104,201,138,0.20) 50%);
+    -cap-warn: ladder(-pp-text, rgba(166,98,0,1) 49%, rgba(240,178,84,1) 50%);
+    -cap-warn-soft: ladder(-pp-text, rgba(166,98,0,0.13) 49%, rgba(240,178,84,0.20) 50%);
+    -cap-bad-soft: ladder(-pp-text, rgba(163,43,28,0.11) 49%, rgba(240,138,126,0.20) 50%);
+}
+.capability-dashboard .cap-header { -fx-padding: 2 0 0 0; }
+.capability-dashboard .cap-status { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-status:stale { -fx-text-fill: -cap-warn; -fx-font-weight: bold; }
+.capability-dashboard .cap-tabs { -fx-background-color: -pp-segment-track; -fx-background-radius: 10; -fx-padding: 2; }
+.capability-dashboard .cap-card {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-radius: 14;
+    -fx-border-color: -pp-border; -fx-border-radius: 14; -fx-padding: 16 18;
+}
+.capability-dashboard .cap-state { -fx-padding: 24; }
+.capability-dashboard .cap-card-title { -fx-font-size: 15px; -fx-font-weight: bold; }
+.capability-dashboard .cap-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-caution { -fx-font-size: 12px; -fx-text-fill: -pp-text; -fx-font-weight: bold; }
+.capability-dashboard .cap-error { -fx-text-fill: -pp-danger; -fx-font-weight: bold; }
+.capability-dashboard .cap-link { -fx-text-fill: -pp-accent-text; -fx-padding: 0; -fx-border-color: transparent; -fx-font-size: 12.5px; }
+.capability-dashboard .cap-link:focus-visible { -fx-border-color: -pp-focus-ring; }
+/* Metric cards: caption, one large value, a detail line. */
+.capability-dashboard .cap-metric {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-radius: 14;
+    -fx-border-color: -pp-border; -fx-border-radius: 14; -fx-padding: 14 16;
+}
+.capability-dashboard .cap-metric-caption { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; -fx-font-weight: bold; }
+.capability-dashboard .cap-metric-value { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.capability-dashboard .cap-metric-detail { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-stat-value { -fx-font-size: 21px; -fx-font-weight: bold; }
+.capability-dashboard .cap-stat-missing { -fx-font-size: 14px; -fx-text-fill: -pp-text-muted; -fx-padding: 6 0 4 0; }
+/* Findings: a disc (information) or a triangle (attention) before each sentence. */
+.capability-dashboard .cap-finding { -fx-font-size: 13.5px; -fx-line-spacing: 2; }
+.capability-dashboard .cap-level-icon { -fx-scale-shape: true; -fx-translate-y: 2; }
+.capability-dashboard .cap-level-info { -fx-background-color: -pp-accent; -fx-shape: "M7 0 A7 7 0 1 1 6.99 0 Z"; }
+.capability-dashboard .cap-level-warn { -fx-background-color: -cap-warn; -fx-shape: "M7 0 L14 13 L0 13 Z"; }
+/* Status chips (statuses, data-quality categories, aperture behaviour). */
+.capability-dashboard .cap-chip { -fx-font-size: 12px; -fx-background-radius: 10; -fx-padding: 3 9; -fx-text-fill: -pp-text; -fx-background-color: -pp-badge; }
+.capability-dashboard .cap-chip.cap-ok { -fx-background-color: -cap-ok-soft; -fx-border-color: -cap-ok; -fx-border-radius: 10; }
+.capability-dashboard .cap-chip.cap-warn { -fx-background-color: -cap-warn-soft; -fx-border-color: -cap-warn; -fx-border-radius: 10; }
+.capability-dashboard .cap-chip.cap-bad { -fx-background-color: -cap-bad-soft; -fx-border-color: -pp-danger; -fx-border-radius: 10; }
+.capability-dashboard .cap-chip.cap-neutral { -fx-background-color: -pp-badge; -fx-border-color: -pp-hairline; -fx-border-radius: 10; }
+/* Detail rows (label / value). */
+.capability-dashboard .cap-detail-key { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-detail-value { -fx-font-size: 13px; }
+/* Selectable camera cards: a card that shows its selection with the accent border and soft fill. */
+.capability-dashboard .cap-select-card {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-radius: 14; -fx-background-insets: 0;
+    -fx-border-color: -pp-border; -fx-border-radius: 14; -fx-padding: 14 16; -fx-cursor: hand; -fx-alignment: top-left;
+}
+.capability-dashboard .cap-select-card:hover { -fx-background-color: -pp-surface-2-hover, -pp-glass-sheen; -fx-border-color: -pp-border-strong; }
+.capability-dashboard .cap-select-card:selected { -fx-background-color: -pp-surface-2, -pp-accent-soft; -fx-border-color: -pp-accent-border; -fx-border-width: 1.5; }
+.capability-dashboard .cap-select-card:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
+/* Focal coverage chart: theme accent bars, diamond primes, dashed amber gaps, a thin overlap band, hairline grid. */
+.capability-dashboard .cap-chart { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; }
+.capability-dashboard .cap-chart:focused { -fx-border-color: -pp-focus-ring; }
+.capability-dashboard .cap-chart-row { -fx-background-color: transparent; -fx-background-radius: 6; -fx-cursor: hand; }
+.capability-dashboard .cap-chart-row:hover { -fx-background-color: -pp-hover; }
+.capability-dashboard .cap-chart-row:selected { -fx-background-color: -pp-accent-soft; }
+.capability-dashboard .cap-chart-label { -fx-font-size: 12.5px; }
+.capability-dashboard .cap-chart-combined { -fx-font-size: 12.5px; -fx-font-weight: bold; }
+.capability-dashboard .cap-chart-reason { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-chart-divider { -fx-background-color: -pp-hairline; }
+.capability-dashboard .cap-bar, .capability-dashboard .cap-coverage { -fx-background-color: -pp-accent; -fx-background-radius: 6; }
+.capability-dashboard .cap-prime, .capability-dashboard .cap-coverage-point { -fx-background-color: -pp-accent-text; -fx-shape: "M6 0 L12 6 L6 12 L0 6 Z"; -fx-scale-shape: true; }
+.capability-dashboard .cap-gap { -fx-background-color: -cap-warn-soft; -fx-border-color: -cap-warn; -fx-border-style: segments(4, 3); -fx-border-radius: 4; -fx-background-radius: 4; }
+.capability-dashboard .cap-overlap { -fx-background-color: -pp-accent-text; -fx-background-radius: 2; }
+.capability-dashboard .cap-grid-line { -fx-stroke: -pp-hairline; }
+.capability-dashboard .cap-tick-label { -fx-font-size: 11px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-dimmed { -fx-opacity: 0.38; }
+/* Aperture comparison bars. */
+.capability-dashboard .cap-aperture-track { -fx-background-color: -pp-track; -fx-background-radius: 5; }
+.capability-dashboard .cap-aperture-fill { -fx-background-color: -pp-accent; -fx-background-radius: 5; }
+.capability-dashboard .cap-aperture-best { -fx-background-color: -pp-accent-text; -fx-background-radius: 5; }
+.capability-dashboard .cap-aperture-value { -fx-font-weight: bold; }
+/* Compatibility matrix cells: tinted by status, symbol + words, the selected cell in the focus ring. */
+.capability-dashboard .cap-matrix-scroll, .capability-dashboard .cap-matrix-scroll > .viewport { -fx-background-color: transparent; }
+.capability-dashboard .cap-matrix-head { -fx-font-size: 12.5px; -fx-font-weight: bold; }
+.capability-dashboard .cap-cell {
+    -fx-font-size: 12px; -fx-text-fill: -pp-text; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1;
+    -fx-padding: 6 8; -fx-alignment: center-left; -fx-cursor: hand; -fx-background-insets: 0;
+}
+.capability-dashboard .cap-cell.cap-ok { -fx-background-color: -cap-ok-soft; -fx-border-color: -cap-ok; }
+.capability-dashboard .cap-cell.cap-warn { -fx-background-color: -cap-warn-soft; -fx-border-color: -cap-warn; }
+.capability-dashboard .cap-cell.cap-bad { -fx-background-color: -cap-bad-soft; -fx-border-color: -pp-danger; }
+.capability-dashboard .cap-cell.cap-neutral { -fx-background-color: -pp-badge; -fx-border-color: -pp-hairline; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-cell:hover { -fx-opacity: 0.85; }
+.capability-dashboard .cap-cell:selected { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; -fx-font-weight: bold; }
+.capability-dashboard .cap-cell:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
+/* Technical report text: the input surface; the skin's scroll pane and viewport stay transparent. */
+.capability-dashboard .cap-technical { -fx-background-color: -pp-input; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; -fx-font-family: "Consolas", "Menlo", monospace; -fx-font-size: 12px; }
+.capability-dashboard .cap-technical > .scroll-pane, .capability-dashboard .cap-technical > .scroll-pane > .viewport,
+.capability-dashboard .cap-technical > .scroll-pane > .corner, .capability-dashboard .cap-technical .content { -fx-background-color: transparent; }
+/* Disclosure sections (definitions, optional details): the calculators' plain closed row. */
+.capability-dashboard .cap-disclosure { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.capability-dashboard .cap-disclosure > .title { -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: transparent; -fx-border-radius: 8; -fx-padding: 4 8 4 2; }
+.capability-dashboard .cap-disclosure > .title:hover { -fx-background-color: -pp-surface-2-hover; }
+.capability-dashboard .cap-disclosure:focus-visible > .title { -fx-border-color: -pp-focus-ring; }
+.capability-dashboard .cap-disclosure > .title > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 8 0 4; }
+.capability-dashboard .cap-disclosure > .title > .arrow-button > .arrow { -fx-background-color: -pp-text-muted; -fx-background-insets: 0; -fx-effect: null; }
+.capability-dashboard .cap-disclosure > .content { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 4 0 2 22; }
+
+/* Environment Assessment (EnvironmentPane, EnvironmentDashboard), scoped to .env-page. Cards, segments, inputs,
+   disclosures and chips reuse the existing surfaces and tokens (the capability report and the calculators); the status
+   and weather colours are local looked-up colours: ladder() picks the dark tone when the theme's text is dark (Light) and
+   the light tone when it is light (Dark). A state is never shown by colour alone: chips carry a symbol and words, the
+   location card names an estimate, charts have legends with names. */
+.env-page {
+    -env-ok: ladder(-pp-text, rgba(30,128,72,1) 49%, rgba(104,201,138,1) 50%);
+    -env-ok-soft: ladder(-pp-text, rgba(30,128,72,0.13) 49%, rgba(104,201,138,0.20) 50%);
+    -env-warn: ladder(-pp-text, rgba(166,98,0,1) 49%, rgba(240,178,84,1) 50%);
+    -env-warn-soft: ladder(-pp-text, rgba(166,98,0,0.12) 49%, rgba(240,178,84,0.18) 50%);
+    -env-bad-soft: ladder(-pp-text, rgba(163,43,28,0.11) 49%, rgba(240,138,126,0.20) 50%);
+    -env-sun: ladder(-pp-text, rgba(222,150,38,1) 49%, rgba(244,192,92,1) 50%);
+    -env-moon: ladder(-pp-text, rgba(112,120,160,1) 49%, rgba(206,212,236,1) 50%);
+    -env-cloud: ladder(-pp-text, rgba(128,140,164,1) 49%, rgba(178,188,208,1) 50%);
+    -env-night: ladder(-pp-text, rgba(38,46,92,1) 49%, rgba(18,24,52,1) 50%);
+    -env-astronomical: ladder(-pp-text, rgba(58,72,138,1) 49%, rgba(36,48,102,1) 50%);
+    -env-nautical: ladder(-pp-text, rgba(88,110,182,1) 49%, rgba(58,80,150,1) 50%);
+    -env-civil: ladder(-pp-text, rgba(140,162,220,1) 49%, rgba(96,124,196,1) 50%);
+    -env-day: ladder(-pp-text, rgba(247,230,166,1) 49%, rgba(214,196,128,0.85) 50%);
+    -env-golden: ladder(-pp-text, rgba(226,160,64,1) 49%, rgba(232,168,72,1) 50%);
+    -env-blue: ladder(-pp-text, rgba(84,116,214,1) 49%, rgba(112,142,236,1) 50%);
+    -env-recommended: ladder(-pp-text, rgba(46,140,86,1) 49%, rgba(104,201,138,1) 50%);
+}
+.env-page .env-input-card, .env-page .env-card, .env-page .env-summary-bar {
+    -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-radius: 14;
+    -fx-border-color: -pp-border; -fx-border-radius: 14; -fx-padding: 16 18;
+}
+.env-page .env-input-card { -fx-padding: 18 20; }
+.env-page .env-summary-bar { -fx-padding: 10 14; -fx-background-radius: 12; -fx-border-radius: 12; }
+.env-page .env-summary-line { -fx-font-size: 13.5px; -fx-font-weight: bold; }
+.env-page .env-section-title { -fx-font-size: 15px; -fx-font-weight: bold; }
+.env-page .env-card-title { -fx-font-size: 15px; -fx-font-weight: bold; }
+.env-page .env-field-caption { -fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.env-page .env-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 1; }
+.env-page .env-text { -fx-font-size: 13px; -fx-line-spacing: 2; }
+.env-page .env-mono { -fx-font-family: "Consolas", "Menlo", monospace; -fx-font-size: 12px; -fx-line-spacing: 2; }
+.env-page .separator .line { -fx-border-color: -pp-hairline transparent transparent transparent; }
+.env-page .text-field:disabled, .env-page .button:disabled { -fx-opacity: 0.55; }
+/* Location: a compact card (pin, name, source and specificity, zone); an AI estimate keeps an amber edge and says so. */
+.env-page .env-location-card { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 12 14; }
+.env-page .env-location-card:estimated { -fx-background-color: -pp-input, -env-warn-soft; -fx-border-color: -env-warn; }
+.env-page .env-location-name { -fx-font-size: 14.5px; -fx-font-weight: bold; }
+.env-page .env-location-detail { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.env-page .env-pin-box { -fx-background-color: -pp-accent-soft; -fx-background-radius: 18; }
+.env-page .env-pin { -fx-fill: -pp-accent-text; }
+/* Candidate list: name on the first line, region, country, source and specificity below; estimates marked in amber. */
+.combo-box-popup .list-cell.env-candidate-cell { -fx-padding: 7 12; }
+.env-candidate-name { -fx-font-size: 13px; -fx-font-weight: bold; }
+.env-candidate-detail { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.combo-box-popup .list-cell.env-candidate-cell:filled:selected .env-candidate-name { -fx-text-fill: -pp-accent-text; }
+.combo-box-popup .list-cell.env-candidate-cell:estimated .env-candidate-detail { -fx-text-fill: -env-warn; }
+/* Disclosures (advanced location options, data and privacy, twilight and model details): the calculators' plain row. */
+.env-page .env-disclosure { -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.env-page .env-disclosure > .title { -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: transparent; -fx-border-radius: 8; -fx-padding: 4 8 4 2; -fx-cursor: hand; }
+.env-page .env-disclosure > .title:hover { -fx-background-color: -pp-surface-2-hover; }
+.env-page .env-disclosure:focus-visible > .title { -fx-border-color: -pp-focus-ring; }
+.env-page .env-disclosure > .title > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 8 0 4; }
+.env-page .env-disclosure > .title > .arrow-button > .arrow { -fx-background-color: -pp-text-muted; -fx-background-insets: 0; -fx-effect: null; }
+.env-page .env-disclosure > .content { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 8 0 2 22; -fx-font-weight: normal; }
+.env-page .env-disclosure > .content .label { -fx-font-weight: normal; }
+/* Date and time conflicts: next to the fields, amber edge, words first. */
+.env-page .env-conflicts { -fx-background-color: -env-warn-soft; -fx-background-radius: 10; -fx-border-color: -env-warn; -fx-border-width: 0 0 0 3; -fx-border-radius: 10 0 0 10; -fx-padding: 10 14; }
+.env-page .env-conflict-title { -fx-font-size: 13px; -fx-font-weight: bold; }
+/* Dashboard header, stage chips and the internal view selector (the calculators' segments in a wrapping track). */
+.env-page .env-overall { -fx-font-size: 18px; -fx-font-weight: bold; }
+.env-page .env-tabs, .env-page .env-segments { -fx-background-color: -pp-segment-track; -fx-background-radius: 10; -fx-padding: 2; }
+.env-page .env-chip { -fx-font-size: 12px; -fx-background-radius: 10; -fx-border-radius: 10; -fx-padding: 3 9; -fx-text-fill: -pp-text; -fx-background-color: -pp-badge; }
+.env-page .env-chip.env-ok { -fx-background-color: -env-ok-soft; -fx-border-color: -env-ok; }
+.env-page .env-chip.env-warn { -fx-background-color: -env-warn-soft; -fx-border-color: -env-warn; }
+.env-page .env-chip.env-bad { -fx-background-color: -env-bad-soft; -fx-border-color: -pp-danger; }
+.env-page .env-chip.env-neutral { -fx-background-color: -pp-badge; -fx-border-color: -pp-hairline; }
+/* Overview: the weather hero card, metric cards and findings. */
+.env-page .env-hero { -fx-background-color: -pp-surface-2, -pp-glass-sheen, linear-gradient(to right, -pp-accent-soft 0%, transparent 60%); -fx-padding: 20 22; }
+.env-page .env-hero-value { -fx-font-size: 34px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.env-page .env-hero-condition { -fx-font-size: 15px; }
+.env-page .env-metric { -fx-background-color: -pp-surface-2, -pp-glass-sheen; -fx-background-radius: 14; -fx-border-color: -pp-border; -fx-border-radius: 14; -fx-padding: 14 16; }
+.env-page .env-metric-caption { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; -fx-font-weight: bold; }
+.env-page .env-metric-value { -fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.env-page .env-metric-detail { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.env-page .env-finding { -fx-font-size: 13.5px; -fx-line-spacing: 2; }
+.env-page .env-level-icon { -fx-scale-shape: true; -fx-translate-y: 2; }
+.env-page .env-level-info { -fx-background-color: -pp-accent; -fx-shape: "M7 0 A7 7 0 1 1 6.99 0 Z"; }
+.env-page .env-level-warn { -fx-background-color: -env-warn; -fx-shape: "M7 0 L14 13 L0 13 Z"; }
+.env-page .env-detail-key { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.env-page .env-detail-value { -fx-font-size: 13px; }
+.env-page .env-link { -fx-text-fill: -pp-accent-text; -fx-padding: 0; -fx-border-color: transparent; -fx-font-size: 12.5px; }
+.env-page .env-link:focus-visible { -fx-border-color: -pp-focus-ring; }
+.env-page .env-recommendation { -fx-border-color: -env-recommended; -fx-border-width: 0 0 0 3; -fx-padding: 4 0 4 12; }
+/* Hourly forecast cards: in-window hours with an accent edge, context hours dashed; the selected hour filled. */
+.env-page .env-hours-scroll, .env-page .env-hours-scroll > .viewport { -fx-background-color: transparent; }
+.env-page .env-hour { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 10 8; -fx-cursor: hand; }
+.env-page .env-hour.env-hour-window { -fx-border-color: -pp-accent-border; }
+.env-page .env-hour.env-hour-context { -fx-background-color: -pp-surface-2; -fx-border-style: segments(4, 3); }
+.env-page .env-hour:hover { -fx-background-color: -pp-surface-2-hover; }
+.env-page .env-hour:selected, .env-page .env-hour.env-hour-context:selected { -fx-background-color: -pp-input, -pp-accent-soft; -fx-border-color: -pp-focus-ring; -fx-border-width: 1.5; -fx-border-style: solid; }
+.env-page .env-hour:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
+.env-page .env-hour-time { -fx-font-size: 13px; -fx-font-weight: bold; }
+.env-page .env-hour-tag { -fx-font-size: 11px; -fx-text-fill: -pp-text-muted; }
+.env-page .env-hour-window .env-hour-tag { -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+.env-page .env-hour-value { -fx-font-size: 18px; -fx-font-weight: bold; }
+.env-page .env-hour-line { -fx-font-size: 11.5px; -fx-text-fill: -pp-text-muted; }
+/* Charts: the input surface around the canvas, the focus ring when the keyboard moves through it. */
+.env-page .env-chart { -fx-background-color: -pp-input; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; }
+.env-page .env-chart:focused { -fx-border-color: -pp-focus-ring; }
+/* Weather icons (decoration next to the condition in words). */
+.env-page .env-glyph-sun { -fx-fill: -env-sun; }
+.env-page .env-glyph-rays { -fx-fill: transparent; -fx-stroke: -env-sun; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.env-page .env-glyph-moon { -fx-fill: -env-moon; }
+.env-page .env-glyph-cloud { -fx-fill: -env-cloud; }
+.env-page .env-glyph-rain { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.env-page .env-glyph-snow { -fx-fill: transparent; -fx-stroke: -pp-accent; -fx-stroke-width: 2.6; -fx-stroke-line-cap: round; }
+.env-page .env-glyph-fog { -fx-fill: transparent; -fx-stroke: -env-cloud; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; }
+.env-page .env-glyph-bolt { -fx-fill: transparent; -fx-stroke: -env-warn; -fx-stroke-width: 1.9; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+/* Legend swatches: the same tones as the charts. */
+.env-page .env-swatch { -fx-background-radius: 3; }
+.env-page .env-swatch-night { -fx-background-color: -env-night; }
+.env-page .env-swatch-astronomical { -fx-background-color: -env-astronomical; }
+.env-page .env-swatch-nautical { -fx-background-color: -env-nautical; }
+.env-page .env-swatch-civil { -fx-background-color: -env-civil; }
+.env-page .env-swatch-day { -fx-background-color: -env-day; -fx-border-color: -pp-hairline; -fx-border-radius: 3; }
+.env-page .env-swatch-golden { -fx-background-color: -env-golden; }
+.env-page .env-swatch-blue { -fx-background-color: -env-blue; }
+.env-page .env-swatch-available { -fx-background-color: -pp-accent; }
+.env-page .env-swatch-preparation { -fx-background-color: -pp-accent-soft; -fx-border-color: -pp-accent-border; -fx-border-radius: 3; }
+.env-page .env-swatch-recommended { -fx-background-color: -env-recommended; }
+.env-page .env-hour-window-swatch { -fx-background-color: -pp-input; -fx-border-color: -pp-accent-border; -fx-border-radius: 3; }
+.env-page .env-hour-context-swatch { -fx-background-color: -pp-surface-2; -fx-border-color: -pp-hairline; -fx-border-style: segments(3, 2); -fx-border-radius: 3; }
+
+/* Guided Discovery (DiscoveryPane, DiscoveryStepper, DiscoveryIdeaCard, DiscoveryGearSummary), scoped to .discover-page.
+   Type scale: page 30, stage 24, section 18, card titles 19, body 14, captions 13. Inputs 40 high, primary actions 46
+   (pills), secondary 40. Stage card radius 16 and padding 24; inner cards radius 14 and padding 20-22; flat surfaces,
+   no gradients inside cards, no animation. Existing tokens only; the three status tones are local looked-up colours
+   (ladder() picks the dark tone in Light and the light tone in Dark, as on .env-page). A state is never shown by colour
+   alone: every status has a shape (check, question mark, cross) and a word, invalid inputs also get a message, the
+   selected chip a check mark and bold text, the current step its number in a filled circle and its name. */
+.discover-page {
+    -discover-ok: ladder(-pp-text, rgba(30,128,72,1) 49%, rgba(104,201,138,1) 50%);
+    -discover-ok-soft: ladder(-pp-text, rgba(30,128,72,0.11) 49%, rgba(104,201,138,0.17) 50%);
+    -discover-warn: ladder(-pp-text, rgba(166,98,0,1) 49%, rgba(240,178,84,1) 50%);
+    -discover-warn-soft: ladder(-pp-text, rgba(166,98,0,0.10) 49%, rgba(240,178,84,0.16) 50%);
+    -discover-bad-soft: ladder(-pp-text, rgba(163,43,28,0.09) 49%, rgba(240,138,126,0.17) 50%);
+    -fx-padding: 6 6 10 6;
+}
+/* Header and progress indicator. */
+.discover-page .discover-eyebrow { -fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.discover-page .discover-title { -fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: -pp-text; }
+.discover-page .discover-description { -fx-font-size: 15px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.discover-page .discover-stepper { -fx-padding: 2 0; -fx-spacing: 6; }
+.discover-page .discover-step {
+    -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 12;
+    -fx-border-color: transparent; -fx-border-radius: 12; -fx-padding: 6 10 6 6; -fx-cursor: hand;
+}
+.discover-page .discover-step:hover { -fx-background-color: -pp-hover; }
+.discover-page .discover-step:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
+.discover-page .discover-step:disabled { -fx-opacity: 0.8; -fx-cursor: default; }
+.discover-page .discover-step:disabled .label { -fx-opacity: 1; }
+.discover-page .discover-step-circle { -fx-background-color: transparent; -fx-background-radius: 15; -fx-border-color: -pp-border-strong; -fx-border-width: 1.5; -fx-border-radius: 15; }
+.discover-page .discover-step-number { -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-step-check { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.discover-page .discover-step-caption { -fx-font-size: 12px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-step-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-step:current .discover-step-circle { -fx-background-color: -pp-accent; -fx-border-color: -pp-accent; }
+.discover-page .discover-step:current .discover-step-number { -fx-text-fill: -pp-on-accent; }
+.discover-page .discover-step:current .discover-step-caption { -fx-text-fill: -pp-accent-text; -fx-font-weight: bold; }
+.discover-page .discover-step:current .discover-step-title, .discover-page .discover-step:completed .discover-step-title { -fx-text-fill: -pp-text; }
+.discover-page .discover-step:completed .discover-step-circle { -fx-background-color: -pp-accent-soft; -fx-border-color: -pp-accent-border; }
+.discover-page .discover-step-line { -fx-background-color: -pp-border-strong; -fx-background-radius: 1; -fx-opacity: 0.6; }
+.discover-page .discover-step-line:done { -fx-background-color: -pp-accent; -fx-opacity: 1; }
+/* Operation messages: one strip above the stage card. */
+.discover-page .discover-feedback {
+    -fx-background-color: -pp-surface-2, -pp-accent-soft; -fx-background-radius: 12, 12; -fx-border-color: -pp-accent-border;
+    -fx-border-width: 1; -fx-border-radius: 12; -fx-padding: 12 16;
+}
+.discover-page .discover-feedback-text { -fx-font-size: 14px; -fx-text-fill: -pp-text; -fx-line-spacing: 2; }
+.discover-page .discover-feedback-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+/* Stage cards, sections and text. */
+.discover-page .discover-stage {
+    -fx-background-color: -pp-surface-2; -fx-background-radius: 16; -fx-border-color: -pp-border; -fx-border-radius: 16;
+    -fx-padding: 24; -fx-effect: dropshadow(gaussian, -pp-shadow, 18, 0, 0, 4);
+}
+.discover-page .discover-stage-title { -fx-font-size: 24px; -fx-font-weight: bold; }
+.discover-page .discover-stage-subtitle { -fx-font-size: 14.5px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-section-title { -fx-font-size: 18px; -fx-font-weight: bold; }
+.discover-page .discover-field-label { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-text; }
+.discover-page .discover-caption { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.discover-page .discover-text { -fx-font-size: 14px; -fx-text-fill: -pp-text; -fx-line-spacing: 2; }
+.discover-page .discover-subheading { -fx-font-size: 13.5px; -fx-font-weight: bold; }
+.discover-page .discover-separator { -fx-background-color: -pp-hairline; }
+.discover-page .discover-caption-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.66; -fx-scale-y: 0.66; }
+.discover-page .discover-heading-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.6; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.9; -fx-scale-y: 0.9; }
+.discover-page .discover-subcard { -fx-background-color: -pp-input; -fx-background-radius: 14; -fx-border-color: -pp-hairline; -fx-border-radius: 14; -fx-padding: 20; }
+.discover-page .discover-footer { -fx-padding: 18 0 0 0; -fx-border-color: -pp-hairline transparent transparent transparent; -fx-border-width: 1 0 0 0; }
+.discover-page .check-box { -fx-font-size: 14px; -fx-text-fill: -pp-text; }
+/* Inputs: 40 px, the shared input surface; invalid inputs keep a danger border next to their message. */
+.discover-page .text-field, .discover-page .date-picker { -fx-min-height: 40; -fx-pref-height: 40; -fx-font-size: 14px; }
+.discover-page .combo-box { -fx-min-height: 40; -fx-pref-height: 40; -fx-font-size: 14px; }
+.discover-page .date-picker { -fx-background-color: -pp-input; -fx-background-insets: 0; -fx-background-radius: 8; -fx-border-color: -pp-hairline; -fx-border-radius: 8; }
+.discover-page .date-picker:focused { -fx-border-color: -pp-focus-ring; }
+.discover-page .date-picker > .text-field, .discover-page .date-picker > .text-field:focused {
+    -fx-background-color: transparent; -fx-border-color: transparent; -fx-min-height: 0; -fx-pref-height: -1; -fx-padding: 6 10;
+}
+.discover-page .date-picker > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 12 0 8; -fx-cursor: hand; }
+.discover-page .date-picker > .arrow-button > .arrow { -fx-background-color: -pp-text-muted; }
+.discover-page .text-field:invalid, .discover-page .date-picker:invalid { -fx-border-color: -pp-danger; -fx-border-width: 1.5; }
+.discover-page .text-field:invalid:focused, .discover-page .date-picker:invalid:focused { -fx-border-color: -pp-danger; -fx-border-width: 2; }
+.discover-page .discover-field-error { -fx-font-size: 13.5px; -fx-font-weight: bold; -fx-text-fill: -pp-danger; -fx-line-spacing: 1; }
+.discover-page .discover-error-icon { -fx-fill: transparent; -fx-stroke: -pp-danger; -fx-stroke-width: 1.9; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.68; -fx-scale-y: 0.68; }
+.discover-page .discover-location-status { -fx-background-color: -pp-badge; -fx-background-radius: 10; -fx-padding: 9 12; }
+.discover-page .discover-location-status:located { -fx-background-color: -pp-accent-soft; }
+.discover-page .discover-status-line { -fx-font-size: 13.5px; -fx-text-fill: -pp-text; }
+.discover-page .discover-status-icon-pin { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.discover-page .discover-location-status:located .discover-status-icon-pin { -fx-stroke: -pp-accent-text; }
+.discover-page .discover-window-note { -fx-font-size: 13.5px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.discover-page .discover-distance-value { -fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.discover-page .discover-slider { -fx-padding: 6 2 2 2; }
+/* Buttons: one 40 px secondary size, a 46 px primary pill and a quiet text action. */
+.discover-page .discover-action { -fx-font-size: 14px; -fx-min-height: 40; -fx-pref-height: 40; -fx-padding: 0 16; -fx-background-radius: 20; -fx-border-radius: 20; -fx-graphic-text-gap: 8; }
+.discover-page .discover-action.primary-button:focus-visible { -fx-background-radius: 22.5, 20; }
+.discover-page .discover-action.discover-primary { -fx-min-height: 46; -fx-pref-height: 46; -fx-padding: 0 24; -fx-background-radius: 23; -fx-border-radius: 23; -fx-font-size: 15px; }
+.discover-page .discover-action.discover-primary:focus-visible { -fx-background-radius: 25.5, 23; }
+.discover-page .discover-quiet { -fx-background-color: transparent; -fx-border-color: transparent; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-quiet:hover { -fx-background-color: -pp-hover; -fx-text-fill: -pp-text; }
+.discover-page .discover-quiet:focus-visible { -fx-border-color: -pp-focus-ring; }
+.discover-page .discover-button-icon { -fx-fill: transparent; -fx-stroke: -pp-primary-text; -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.7; -fx-scale-y: 0.7; }
+.discover-page .discover-button-icon-secondary { -fx-fill: transparent; -fx-stroke: -pp-text; -fx-stroke-width: 1.9; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.7; -fx-scale-y: 0.7; }
+.discover-page .discover-quiet .discover-button-icon-secondary { -fx-stroke: -pp-text-muted; }
+/* Interest chips (ToggleButtons): icon and name; selected adds the accent rim, bold text and a check mark. */
+.discover-page .discover-chip {
+    -fx-background-color: -pp-control; -fx-background-insets: 0; -fx-background-radius: 20;
+    -fx-border-color: -pp-hairline; -fx-border-radius: 20; -fx-border-width: 1;
+    -fx-padding: 0 16 0 12; -fx-min-height: 40; -fx-pref-height: 40; -fx-cursor: hand;
+}
+.discover-page .discover-chip:hover { -fx-background-color: -pp-surface-2-hover; -fx-border-color: -pp-border-strong; }
+.discover-page .discover-chip:selected, .discover-page .discover-chip:selected:hover {
+    -fx-background-color: -pp-control, -pp-accent-soft; -fx-background-insets: 0, 0; -fx-background-radius: 20, 20;
+    -fx-border-color: -pp-accent-border; -fx-border-width: 1.5;
+}
+.discover-page .discover-chip:focus-visible { -fx-border-color: -pp-focus-ring; -fx-border-width: 2; }
+.discover-page .discover-chip-text { -fx-font-size: 14px; -fx-text-fill: -pp-text; }
+.discover-page .discover-chip:selected .discover-chip-text { -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.discover-page .discover-chip-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.discover-page .discover-chip:selected .discover-chip-icon { -fx-stroke: -pp-accent-text; }
+.discover-page .discover-chip-check { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+/* Disclosures: a plain row with an arrow, closed by default. */
+.discover-page .discover-disclosure { -fx-font-size: 14px; -fx-text-fill: -pp-text; }
+.discover-page .discover-disclosure > .title {
+    -fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 8;
+    -fx-border-color: transparent; -fx-border-radius: 8; -fx-padding: 6 8 6 2; -fx-cursor: hand;
+}
+.discover-page .discover-disclosure > .title > .text { -fx-font-weight: bold; }
+.discover-page .discover-disclosure > .title:hover { -fx-background-color: -pp-hover; }
+.discover-page .discover-disclosure:focus-visible > .title { -fx-border-color: -pp-focus-ring; }
+.discover-page .discover-disclosure > .title > .arrow-button { -fx-background-color: transparent; -fx-padding: 0 8 0 4; }
+.discover-page .discover-disclosure > .title > .arrow-button > .arrow { -fx-background-color: -pp-text-muted; -fx-background-insets: 0; -fx-effect: null; }
+.discover-page .discover-disclosure > .content { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 10 0 4 24; }
+/* Equipment summary: tiles with units (summed quantities) and inventory records in words. */
+.discover-page .discover-gear-tile { -fx-background-color: -pp-surface-2; -fx-background-radius: 12; -fx-border-color: -pp-hairline; -fx-border-radius: 12; -fx-padding: 12 14; }
+.discover-page .discover-gear-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.discover-page .discover-gear-category { -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-gear-value { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: -pp-accent-text; }
+.discover-page .discover-gear-unit { -fx-font-size: 13px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-gear-records { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-gear-group-title { -fx-font-size: 14px; -fx-font-weight: bold; }
+.discover-page .discover-gear-item { -fx-font-size: 13.5px; -fx-text-fill: -pp-text; }
+.discover-page .discover-gear-empty { -fx-font-size: 14px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.discover-page .discover-ai-notice { -fx-background-color: -pp-badge; -fx-background-radius: 10; -fx-padding: 10 14; }
+/* Discover & Review: tabs, request summary, states and the result cards. */
+.discover-page .discover-tabs > .segment { -fx-font-size: 14px; -fx-padding: 7 18; }
+.discover-page .discover-condition-label { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-condition-value { -fx-font-size: 14px; -fx-text-fill: -pp-text; }
+.discover-page .discover-banner {
+    -fx-background-color: -pp-surface-2, -discover-warn-soft; -fx-background-radius: 12, 12; -fx-border-color: -discover-warn;
+    -fx-border-width: 1; -fx-border-radius: 12; -fx-padding: 14 16;
+}
+.discover-page .discover-banner-text { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -pp-text; }
+.discover-page .discover-warn-icon { -fx-fill: transparent; -fx-stroke: -discover-warn; -fx-stroke-width: 1.8; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.discover-page .discover-bad-icon { -fx-fill: transparent; -fx-stroke: -pp-danger; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.9; -fx-scale-y: 0.9; }
+.discover-page .discover-state-card { -fx-padding: 24; }
+.discover-page .discover-error-card { -fx-border-color: -pp-danger-border; }
+.discover-page .discover-limits-card { -fx-border-color: -discover-warn; }
+.discover-page .discover-state-title { -fx-font-size: 18px; -fx-font-weight: bold; }
+.discover-page .discover-state-text { -fx-font-size: 14px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 2; }
+.discover-page .discover-spinner { -fx-progress-color: -pp-accent; }
+.discover-page .discover-group-title { -fx-font-size: 18px; -fx-font-weight: bold; }
+.discover-page .discover-status, .discover-page .discover-count, .discover-page .discover-check-status {
+    -fx-background-color: -pp-badge; -fx-background-radius: 14; -fx-border-color: -pp-hairline; -fx-border-radius: 14; -fx-border-width: 1; -fx-padding: 4 10 4 7;
+}
+.discover-page .discover-check-status { -fx-padding: 2 9 2 6; }
+.discover-page .discover-status-text { -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-text; }
+.discover-page .discover-status.discover-tone-ok, .discover-page .discover-count.discover-tone-ok, .discover-page .discover-check-status.discover-tone-ok { -fx-background-color: -discover-ok-soft; -fx-border-color: -discover-ok; }
+.discover-page .discover-status.discover-tone-warn, .discover-page .discover-count.discover-tone-warn, .discover-page .discover-check-status.discover-tone-warn { -fx-background-color: -discover-warn-soft; -fx-border-color: -discover-warn; }
+.discover-page .discover-status.discover-tone-bad, .discover-page .discover-count.discover-tone-bad, .discover-page .discover-check-status.discover-tone-bad { -fx-background-color: -discover-bad-soft; -fx-border-color: -pp-danger; }
+.discover-page .discover-status-icon, .discover-page .discover-check-icon, .discover-page .discover-group-icon {
+    -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 2; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.66; -fx-scale-y: 0.66;
+}
+.discover-page .discover-tone-ok > .discover-status-icon, .discover-page .discover-tone-ok > .discover-check-icon, .discover-page .discover-tone-ok > .discover-group-icon { -fx-stroke: -discover-ok; }
+.discover-page .discover-tone-warn > .discover-status-icon, .discover-page .discover-tone-warn > .discover-check-icon, .discover-page .discover-tone-warn > .discover-group-icon { -fx-stroke: -discover-warn; }
+.discover-page .discover-tone-bad > .discover-status-icon, .discover-page .discover-tone-bad > .discover-check-icon, .discover-page .discover-tone-bad > .discover-group-icon { -fx-stroke: -pp-danger; }
+.discover-page .discover-idea { -fx-background-color: -pp-input; -fx-background-radius: 14; -fx-border-color: -pp-hairline; -fx-border-radius: 14; -fx-border-width: 1; -fx-padding: 22; }
+.discover-page .discover-idea-ok { -fx-border-color: -pp-hairline -pp-hairline -pp-hairline -discover-ok; -fx-border-width: 1 1 1 4; }
+.discover-page .discover-idea-warn { -fx-border-color: -pp-hairline -pp-hairline -pp-hairline -discover-warn; -fx-border-width: 1 1 1 4; }
+.discover-page .discover-idea-bad { -fx-border-color: -pp-hairline -pp-hairline -pp-hairline -pp-danger; -fx-border-width: 1 1 1 4; }
+.discover-page .discover-idea-title { -fx-font-size: 19px; -fx-font-weight: bold; }
+.discover-page .discover-idea-detail { -fx-font-size: 13.5px; -fx-text-fill: -pp-text-muted; -fx-line-spacing: 1; }
+.discover-page .discover-idea-number { -fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-genre { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; -fx-background-color: -pp-badge; -fx-background-radius: 12; -fx-padding: 4 10; }
+.discover-page .discover-fact { -fx-font-size: 14px; -fx-text-fill: -pp-text; -fx-line-spacing: 1; }
+.discover-page .discover-fact-icon { -fx-fill: transparent; -fx-stroke: -pp-text-muted; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.72; -fx-scale-y: 0.72; }
+.discover-page .discover-section { -fx-background-radius: 12; -fx-border-radius: 12; -fx-padding: 14 16; }
+.discover-page .discover-checked { -fx-background-color: -pp-surface-2; -fx-border-color: -pp-hairline; }
+.discover-page .discover-suggested { -fx-background-color: transparent; -fx-border-color: -pp-border-strong; -fx-border-style: segments(5, 4); }
+.discover-page .discover-section-heading { -fx-font-size: 15px; -fx-font-weight: bold; }
+.discover-page .discover-section-caption { -fx-font-size: 12.5px; -fx-text-fill: -pp-text-muted; }
+.discover-page .discover-section-icon { -fx-fill: transparent; -fx-stroke: -pp-accent-text; -fx-stroke-width: 1.7; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.discover-page .discover-check-name { -fx-font-size: 14px; }
+.discover-page .discover-findings { -fx-padding: 0 0 4 24; }
+.discover-page .discover-finding { -fx-font-size: 13.5px; -fx-text-fill: -pp-text; -fx-line-spacing: 1; }
+.discover-page .discover-bullet { -fx-background-color: -pp-text-muted; -fx-background-radius: 3; }
+.discover-page .discover-findings-warn .discover-bullet { -fx-background-color: -discover-warn; }
+.discover-page .discover-findings-bad .discover-bullet { -fx-background-color: -pp-danger; }
+/* Cautions of a passing check (forecast warnings, travel limitations) and evidence gaps: a warning shape in the warn tone. */
+.discover-page .discover-caution-icon { -fx-fill: transparent; -fx-stroke: -discover-warn; -fx-stroke-width: 1.9; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.66; -fx-scale-y: 0.66; }
+.discover-page .discover-gaps { -fx-padding: 4 0 0 0; }
+.discover-page .discover-abandon-status { -fx-background-color: -pp-badge; -fx-background-radius: 10; -fx-padding: 10 14; }
+.discover-page .discover-abandon-text { -fx-font-size: 13.5px; -fx-text-fill: -pp-text; -fx-line-spacing: 1; }
+.discover-page .discover-note { -fx-font-size: 13.5px; -fx-font-weight: bold; -fx-text-fill: -pp-text; -fx-line-spacing: 1; }
+.discover-page .discover-note-icon { -fx-fill: transparent; -fx-stroke: -discover-warn; -fx-stroke-width: 1.9; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; -fx-scale-x: 0.66; -fx-scale-y: 0.66; }
+/* Date picker list: the dialog surface and text tokens, so Light and Dark both read well. */
+.date-picker-popup {
+    -fx-background-color: -pp-dialog; -fx-background-insets: 0; -fx-background-radius: 12;
+    -fx-border-color: -pp-dialog-border; -fx-border-radius: 12; -fx-padding: 6;
+    -fx-effect: dropshadow(gaussian, -pp-shadow, 18, 0.2, 0, 5);
+}
+.date-picker-popup > .month-year-pane { -fx-background-color: transparent; -fx-padding: 6 6 8 6; }
+.date-picker-popup > * > .spinner > .label { -fx-text-fill: -pp-dialog-text; -fx-font-size: 13.5px; -fx-font-weight: bold; }
+.date-picker-popup > * > .spinner > .button { -fx-background-color: transparent; -fx-background-radius: 8; -fx-padding: 6 9; -fx-cursor: hand; }
+.date-picker-popup > * > .spinner > .button:hover { -fx-background-color: -pp-hover; }
+.date-picker-popup > * > .spinner > .button > .left-arrow, .date-picker-popup > * > .spinner > .button > .right-arrow { -fx-background-color: -pp-dialog-muted; }
+.date-picker-popup > .calendar-grid { -fx-background-color: transparent; -fx-padding: 2; }
+.date-picker-popup > * > .day-name-cell, .date-picker-popup > * > .week-number-cell { -fx-background-color: transparent; -fx-text-fill: -pp-dialog-muted; -fx-font-size: 12px; }
+.date-picker-popup > * > .date-cell { -fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 8; -fx-text-fill: -pp-dialog-text; -fx-padding: 7 9; -fx-font-size: 13px; }
+.date-picker-popup > * > .date-cell:hover { -fx-background-color: -pp-hover; }
+.date-picker-popup > * > .date-cell:focused { -fx-background-color: -pp-accent-soft; }
+.date-picker-popup > * > .today { -fx-border-color: -pp-accent-border; -fx-border-radius: 8; -fx-border-width: 1.5; }
+.date-picker-popup > * > .selected, .date-picker-popup > * > .selected:hover, .date-picker-popup > * > .selected:focused { -fx-background-color: -pp-accent; -fx-text-fill: -pp-on-accent; }
+.date-picker-popup > * > .previous-month, .date-picker-popup > * > .next-month { -fx-text-fill: -pp-text-subtle; }
+/* Guided Discovery: a failure message in the strip also has the warning shape and the danger rim; the loading card keeps
+   one spinner (its own), so the request's progress view hides its small one there. */
+.discover-page .discover-feedback:error { -fx-background-color: -pp-surface-2, -discover-bad-soft; -fx-border-color: -pp-danger-border; }
+.discover-page .discover-feedback:error .discover-feedback-icon { -fx-stroke: -pp-danger; }
+.discover-page #discover-loading .progress-spinner { -fx-opacity: 0; -fx-min-width: 0; -fx-pref-width: 0; -fx-max-width: 0; }

@@ -19,14 +19,21 @@ public class PhotoPilotCLI {
     private final Scanner input;
     private final PrintStream output;
     private PrintStream diagnostics = System.err;
+    /** Execution feedback lines (stages, retries, persistence, next step); standard error in main, off when embedded. */
+    private PrintStream progress;
     private LocalizationService localization;
     private ProfileManager profiles;
     private int exitCode;
     // Embedded callers historically supply an interactive Scanner; main detects redirected stdin explicitly.
     private boolean interactiveInput = true;
+    private boolean readingCommands;
     private boolean failedProfileCommand;
     // True once --lang chose this invocation's language; otherwise each profile shows its own saved language.
     private boolean languageOverride;
+    // Guided Discovery wizard presentation: plain unless main detects a colour terminal; width from COLUMNS unless set.
+    private TerminalStyle terminalStyle = TerminalStyle.plain();
+    private int terminalWidth;
+    private boolean echoInput;
     private final RequirementCommands.State requirementDraft = new RequirementCommands.State();
     private final MatchCommands.State matchState = new MatchCommands.State();
     private final NeedsCommands.State needsState = new NeedsCommands.State();
@@ -66,6 +73,28 @@ public class PhotoPilotCLI {
     public int exitCode() { return exitCode; }
     /** Where unexpected command failures write their stack trace (stderr by default). */
     public void diagnostics(PrintStream stream) { diagnostics = Objects.requireNonNull(stream); }
+    /**
+     * Where execution feedback goes (null: none). Never standard output, so its text and scripts reading it are unchanged.
+     */
+    public void progress(PrintStream stream) { progress = stream; }
+    /** Colour for the interactive wizard only (main: detected from the environment and console; embedded: plain). */
+    void terminalStyle(TerminalStyle style) { terminalStyle = Objects.requireNonNull(style); }
+    /** Columns the wizard wraps to (0: COLUMNS or 80). */
+    void terminalWidth(int columns) { terminalWidth = columns; }
+    /** Repeats wizard answers after their prompts, for recorded transcripts. */
+    void echoInput(boolean on) { echoInput = on; }
+    /**
+     * Whether standard input and output are an interactive terminal (prompts and colour are allowed). JDK 21 returns no
+     * Console when a stream is redirected; JDK 22 and later return one anyway, so there its isTerminal() decides (looked
+     * up reflectively, because the project compiles for release 21).
+     */
+    static boolean interactiveConsole() {
+        var console = System.console();
+        if (console == null) return false;
+        if (Runtime.version().feature() < 22) return true;
+        try { return Boolean.TRUE.equals(java.io.Console.class.getMethod("isTerminal").invoke(console)); }
+        catch (ReflectiveOperationException | RuntimeException unknown) { return false; }
+    }
 
     public static void main(String[] args) {
         int status;
@@ -74,10 +103,15 @@ public class PhotoPilotCLI {
             bootstrap.storageNotice().ifPresent(note -> new PrintStream(System.err, true, StandardCharsets.UTF_8)
                 .println(note.render(bootstrap.localization())));
             var cli = new PhotoPilotCLI(profiles, new Scanner(System.in, StandardCharsets.UTF_8), new PrintStream(System.out, true, StandardCharsets.UTF_8));
-            cli.interactiveInput = System.console() != null;
+            cli.interactiveInput = interactiveConsole();
+            cli.terminalStyle(TerminalStyle.detect(System.getenv(), cli.interactiveInput));
+            // Progress on standard error (flushed per line); PHOTOPILOT_PROGRESS=0 turns it off for scripts that capture stderr.
+            if (!"0".equals(System.getenv("PHOTOPILOT_PROGRESS"))) cli.progress(new PrintStream(System.err, true, StandardCharsets.UTF_8));
             cli.run(args); status = cli.exitCode();
         } catch (IllegalArgumentException error) {
-            new PrintStream(System.err, true, StandardCharsets.UTF_8).println(EnglishMessages.text("cli.configuration", error.getMessage()));
+            // Another window or command writing the profile store is temporary contention, not a configuration problem.
+            String key = com.photopilot.repository.StorageBusy.causedBy(error) ? "cli.storageBusy" : "cli.configuration";
+            new PrintStream(System.err, true, StandardCharsets.UTF_8).println(EnglishMessages.text(key, error.getMessage()));
             System.exit(2);
             return;
         }
@@ -131,6 +165,7 @@ public class PhotoPilotCLI {
             for (String arg : commands) if (dispatch(arg) == 1 || failedProfileCommand) break;
             return;
         }
+        readingCommands = true;
         while (input.hasNextLine()) {
             int result = dispatch(input.nextLine());
             if (result == 1 || (failedProfileCommand && !interactiveInput)) break;
@@ -151,7 +186,8 @@ public class PhotoPilotCLI {
      */
     public int execute(String line) {
         try {
-            return route(line);
+            return CliProgress.within(progress, localization, session -> app.workflow().of(session).value().flatMap(com.photopilot.workflow.SessionWorkflow::nextStep),
+                () -> route(line));
         } catch (LocalizedException expected) {
             output.println(expected.localizedMessage().render(localization));
             return 2;
@@ -164,6 +200,13 @@ public class PhotoPilotCLI {
 
     private int route(String line) {
         String command = Objects.requireNonNull(line).strip().toLowerCase(Locale.ROOT);
+        // F01-F11 run the commands the shared catalog (and the help) lists for them; the first failure decides the result.
+        var alias = CliCommandCatalog.alias(command);
+        if (alias.isPresent()) {
+            int result = 0;
+            for (String expanded : alias.get().commands()) result = Math.max(result, route(expanded));
+            return result;
+        }
         if (command.equals("profile") || command.startsWith("profile ")) {
             if (profiles == null) { output.println(localization.text("error.profile.unavailable")); return 2; }
             return new ProfileCommands(profiles, output, localization, this::refreshContext).execute(line);
@@ -176,63 +219,73 @@ public class PhotoPilotCLI {
             output.println(localization.text(saved ? "settings.saved" : "settings.saveFailed"));
             return saved ? 0 : 2;
         }
-        if (command.equals("f05") || command.equals("gear") || command.startsWith("gear ")) {
-            return new InventoryCommands(app, output, localization).execute(command.equals("f05") ? "gear list" : line.strip());
+        if (command.equals("gear") || command.startsWith("gear ")) {
+            return new InventoryCommands(app, output, localization).execute(line.strip());
         }
         if (command.equals("shutter") || command.startsWith("shutter ")) {
             return new ShutterCommands(app, output, localization).execute(line.strip());
         }
-        if (command.equals("f04") || command.equals("import") || command.startsWith("import ")) {
-            return new ImportCommands(app, privacy, output, localization, importState).execute(command.equals("f04") ? "import help" : line.strip());
+        if (command.equals("import") || command.startsWith("import ")) {
+            return new ImportCommands(app, privacy, output, localization, importState).execute(line.strip());
         }
-        if (command.equals("f01") || command.equals("session") || command.startsWith("session ")) {
-            return new SessionCommands(app, output, localization).execute(command.equals("f01") ? "session list" : line.strip());
+        if (command.equals("session") || command.startsWith("session ")) {
+            return new SessionCommands(app, output, localization).execute(line.strip());
         }
-        if (command.equals("f03") || command.equals("requirement") || command.startsWith("requirement ")) {
-            return new RequirementCommands(app, output, localization, requirementDraft).execute(command.equals("f03") ? "requirement help" : line);
+        if (command.equals("requirement") || command.startsWith("requirement ")) {
+            return new RequirementCommands(app, output, localization, requirementDraft).execute(line);
         }
-        if (command.equals("f02") || command.equals("discover") || command.startsWith("discover ")) {
-            return new DiscoveryCommands(app, output, localization, discoveryState, requirementDraft).execute(command.equals("f02") ? "discover help" : line);
+        if (command.equals("discover") || command.startsWith("discover ")) {
+            // Only the stdin command loop of an interactive terminal may answer the wizard's questions (as for env menu).
+            return new DiscoveryCommands(app, output, localization, discoveryState, requirementDraft, readingCommands && interactiveInput ? input : null,
+                terminalStyle, terminalWidth > 0 ? terminalWidth : CapabilityTerminalReport.width(System.getenv())).echo(echoInput).execute(line);
         }
         if (command.equals("needs") || command.startsWith("needs ")) {
             return new NeedsCommands(app, output, localization, needsState).execute(line);
         }
-        if (command.equals("f06")) {
-            // F06 overview: the shoot capability workflow commands, then the inventory capability report.
-            output.println(localization.text("needs.cli.help"));
-            return new CapabilityCommands(app, output, localization).execute("capability all");
-        }
         if (command.equals("capability") || command.startsWith("capability ")) {
             return new CapabilityCommands(app, output, localization).execute(line);
         }
-        if (command.equals("f07") || command.equals("match") || command.startsWith("match ")) {
-            return new MatchCommands(app, output, localization, matchState, needsState).execute(command.equals("f07") ? "match help" : line);
+        if (command.equals("match") || command.startsWith("match ")) {
+            return new MatchCommands(app, output, localization, matchState, needsState).execute(line);
         }
-        if (command.equals("f09") || command.equals("env") || command.startsWith("env ")) {
-            return new EnvironmentCommands(app, output, localization, environmentState).execute(command.equals("f09") ? "env help" : line);
+        if (command.equals("env") || command.startsWith("env ")) {
+            return new EnvironmentCommands(app, output, localization, environmentState, readingCommands && interactiveInput ? input : null).execute(line);
         }
-        if (command.equals("f10") || command.equals("plan") || command.startsWith("plan ")) {
-            return new PlanCommands(app, output, localization, planState).execute(command.equals("f10") ? "plan help" : line);
+        if (command.equals("plan") || command.startsWith("plan ")) {
+            return new PlanCommands(app, output, localization, planState).execute(line);
         }
-        if (command.equals("f11") || command.equals("review") || command.startsWith("review ")) {
-            return new ReviewCommands(app, output, localization, reviewState).execute(command.equals("f11") ? "review help" : line);
+        if (command.equals("review") || command.startsWith("review ")) {
+            return new ReviewCommands(app, output, localization, reviewState).execute(line);
         }
-        if (command.equals("f08") || command.equals("calc") || command.startsWith("calc ")) {
-            return new CalculationCommands(app, output, localization).execute(command.equals("f08") ? "calc help" : line);
+        if (command.equals("calc") || command.startsWith("calc ")) {
+            return new CalculationCommands(app, output, localization).execute(line);
         }
         switch (command) {
-            case "help" -> { output.println(localization.text("capability.cli.help")); output.println(localization.text("cli.help")); output.println(localization.text("cli.languageHelp")); output.println(localization.text("session.cli.help")); output.println(localization.text("import.cli.summaryHelp")); output.println(localization.text("discover.cli.summaryHelp")); output.println(localization.text("requirement.cli.help")); output.println(localization.text("needs.cli.summaryHelp")); output.println(localization.text("match.cli.summaryHelp")); output.println(localization.text("env.cli.summaryHelp")); output.println(localization.text("plan.cli.summaryHelp")); output.println(localization.text("review.cli.summaryHelp")); output.println(localization.text("shutter.cli.summaryHelp")); if (profiles != null) output.println(localization.text("profile.cli.help")); output.println(localization.text("ai.cli.help")); }
+            case "help" -> help();
             case "ai-test" -> { return new AiTestCommands(app, output, localization).execute(); }
             case "status" -> FeatureCatalog.lines(localization).forEach(output::println);
             case "exit", "quit" -> { importState.clear(privacy); output.println(localization.text("cli.closed")); return 1; }
             case "" -> { return 0; }
-            default -> {
-                output.println(command.matches("f(0[1-9]|1[01])")
-                    ? localization.text("feature.unavailable", command.toUpperCase(Locale.ROOT))
-                    : localization.text("cli.unknown"));
-                return 2;
-            }
+            default -> { output.println(localization.text("cli.unknown")); return 2; }
         }
         return 0;
+    }
+
+    /**
+     * Short help (PP-02): the general commands, what each F01-F11 alias runs (from the same catalog route() expands),
+     * one line per command group in feature order, then the invocation options and exit codes. Details stay behind
+     * "<command> help".
+     */
+    private void help() {
+        output.println(localization.text("cli.help"));
+        CliCommandCatalog.help(localization).forEach(output::println);
+        for (String key : java.util.List.of("session.cli.help", "discover.cli.summaryHelp", "discover.cli.summaryWizard", "requirement.cli.help", "import.cli.summaryHelp",
+                "needs.cli.summaryHelp", "capability.cli.help", "match.cli.summaryHelp", "env.cli.summaryHelp", "plan.cli.summaryHelp",
+                "review.cli.summaryHelp", "shutter.cli.summaryHelp")) output.println(localization.text(key));
+        if (profiles != null) output.println(localization.text("profile.cli.help"));
+        output.println(localization.text("cli.languageHelp"));
+        output.println(localization.text("ai.cli.help"));
+        output.println(localization.text("cli.options"));
+        output.println(localization.text("cli.exitCodes"));
     }
 }

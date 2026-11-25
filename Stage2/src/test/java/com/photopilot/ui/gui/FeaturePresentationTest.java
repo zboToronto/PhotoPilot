@@ -15,8 +15,15 @@ class FeaturePresentationTest {
         assertEquals(11, features.size());
         assertEquals(expected, features.stream().map(FeaturePresentation::id).collect(Collectors.toSet()));
         assertEquals(expected, FeatureCatalog.lines().stream().map(line -> line.substring(0, 3)).collect(Collectors.toSet()));
-        assertEquals(List.of("F01", "F02", "F03", "F10"), features.stream()
-            .filter(feature -> feature.group().equals("Workspace")).map(FeaturePresentation::id).toList());
+        // Sidebar sections (2026-11-23 session-centric navigation): every page belongs to exactly one, in catalog order.
+        assertEquals(List.of("F01", "F02"), features.stream()
+            .filter(feature -> feature.group().equals("General")).map(FeaturePresentation::id).toList());
+        assertEquals(List.of("F03", "F10", "F06", "F07", "F09", "F11"), features.stream()
+            .filter(feature -> feature.group().equals("Active session")).map(FeaturePresentation::id).toList());
+        assertEquals(List.of("F04", "F05"), features.stream()
+            .filter(feature -> feature.group().equals("Equipment management")).map(FeaturePresentation::id).toList());
+        assertEquals(List.of("F08"), features.stream()
+            .filter(feature -> feature.group().equals("Photography tools")).map(FeaturePresentation::id).toList());
         assertEquals("AI Gear Import", features.stream().filter(feature -> feature.id().equals("F04")).findFirst().orElseThrow().title());
         for (var feature : features) assertEquals(FeaturePresentation.Status.IMPLEMENTED, feature.status(), feature.id());
     }

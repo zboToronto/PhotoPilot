@@ -96,7 +96,10 @@ class LocalizationGuiTest {
                 shell[0] = new PhotoPilotWorkspace(app.localization()); pane[0] = new CalculatorPane(app.facade(), executor, app.localization()); shell[0].connectCalculator(pane[0]);
                 stage[0] = show(shell[0], 864, 561); ((ToggleButton)shell[0].lookup("#nav-F08")).fire();
                 var button = (Button)pane[0].lookup("#calc-reset"); button.textProperty().addListener((o, a, b) -> { if (!Platform.isFxApplicationThread()) nonFxMutation.set(true); });
-                // Results follow the inputs without a Calculate button: f/8, 1/128 s, ISO 400 is EV 13 and EV100 11.
+                // Results follow the inputs without a Calculate button: f/8, 1/128 s, ISO 400 is EV 13 and EV100 11
+                // (in Exact steps; 1/3 EV, the default, would apply the 1/125 s stop).
+                assertTrue(((ToggleButton)pane[0].lookup("#calc-step-THIRD")).isSelected());
+                ((ToggleButton)pane[0].lookup("#calc-step-EXACT")).fire();
                 ((TextField)pane[0].lookup("#calc-shutter")).setText("1/128"); ((TextField)pane[0].lookup("#calc-iso")).setText("400");
                 assertEquals("13.00", ((Label)pane[0].lookup("#calc-result-settingsEv")).getText());
                 assertEquals("11.00", ((Label)pane[0].lookup("#calc-result-ev100")).getText());
@@ -110,6 +113,8 @@ class LocalizationGuiTest {
                 // Inputs, results and the selected calculator stay; only their captions change language.
                 assertEquals("1/128", ((TextField)pane[0].lookup("#calc-shutter")).getText());
                 assertEquals("11.00", ((Label)pane[0].lookup("#calc-result-ev100")).getText());
+                assertTrue(((ToggleButton)pane[0].lookup("#calc-step-EXACT")).isSelected(), "the exposure step stays");
+                assertEquals("精确计算", ((ToggleButton)pane[0].lookup("#calc-step-EXACT")).getText());
                 assertEquals("ISO 400", ((Label)pane[0].lookup("#calc-detail-ev100")).getText());
                 assertEquals("计算详情", ((TitledPane)pane[0].lookup("#calc-details")).getText());
                 assertTrue(((ToggleButton)pane[0].lookup("#calc-mode-EXPOSURE")).isSelected());

@@ -78,10 +78,14 @@ class HomeDashboardGuiTest {
         return new ShootRequirement("Brief", subject, List.of("Light"), Optional.empty(), Optional.empty(), Duration.ofHours(1), 1, true,
             Optional.empty(), List.of(), Map.of(), Map.of(), List.of(), true);
     }
-    /** A Draft that has a confirmed requirement and capability profile but no approved plan yet (next step: the plan). */
+    /**
+     * A Draft with a confirmed requirement and a confirmed capability profile (one real need, as confirmation requires)
+     * but no gear selection or plan yet: its next milestone is Gear Selection.
+     */
     static PhotographySession draft(String title, String subject, Instant updated) {
+        var profile = new EquipmentRequirementProfile(List.of(CapabilityNeed.of("focalLength", Optional.of(16.0), Optional.of(35.0), 1, true, "")), true);
         return new PhotographySession(UUID.randomUUID(), title, LocalDate.of(2026, 11, 14), Optional.empty(), "", CREATED, updated, new DraftState(),
-            Optional.of(requirement(subject)), List.of(), List.of(), Optional.of(new EquipmentRequirementProfile(List.of(), true)), Optional.empty(), List.of());
+            Optional.of(requirement(subject)), List.of(), List.of(), Optional.of(profile), Optional.empty(), List.of());
     }
     /** A linked fixture (approved plan, statistics, optional saved review) renamed for this test. */
     static PhotographySession shot(String title, String subject, SessionState state, boolean review, Instant updated) {
@@ -151,9 +155,16 @@ class HomeDashboardGuiTest {
         home();
         assertEquals(List.of("home-continue"), cards());
         assertEquals("湖畔蓝调时刻", text("home-continue-title"));
-        assertEquals(t("home.status.preparing"), text("home-continue-status"));
-        assertEquals(t("home.next.plan"), text("home-continue-description"));
-        assertEquals("风光摄影 · " + t("feature.F10.title"), text("home-continue-meta"));
+        // Phase, progress and next step come from the shared session workflow (the sidebar shows the same).
+        var lakeProgress = manager.activeContext().facade().workflow().of(lake.id()).value().orElseThrow();
+        assertEquals(com.photopilot.workflow.Milestone.GEAR_SELECTION, lakeProgress.next().orElseThrow().milestone(), "requirement and profile confirmed");
+        assertEquals(t("workflow.phase.PLANNING"), text("home-continue-status"));
+        assertEquals(t("workflow.next.GEAR_SELECTION"), text("home-continue-description"));
+        assertEquals("风光摄影 · " + t("feature.F07.title"), text("home-continue-meta"));
+        assertEquals(lakeProgress.progress().render(manager.activeContext().localization()), text("home-continue-progress-text"));
+        assertEquals(t("workflow.progress", lakeProgress.percent(), 2, lakeProgress.applicable()), text("home-continue-progress-text"));
+        assertEquals(lakeProgress.title(), text("sidebar-session-title"), "the sidebar shows the same current session");
+        assertEquals(text("home-continue-progress-text"), text("sidebar-session-count"));
         assertEquals(fx(() -> scene(node("home-sessions")).getWidth()), fx(() -> scene(node("home-continue")).getWidth()), .5, "single card spans the row");
         assertEquals(fx(() -> scene(node("home-inspiration")).getWidth()), fx(() -> scene(node("home-continue")).getWidth()), .5, "same width as Mini AI");
         snapshot("home-state2-continue-only");
@@ -165,7 +176,8 @@ class HomeDashboardGuiTest {
         assertEquals("周末城市街拍", text("home-after-title"));
         assertEquals(t("home.status.toReview"), text("home-after-status"));
         assertEquals(t("home.after.review"), text("home-after-description"), "saved statistics: the next step is the review");
-        assertEquals("纪实摄影 · " + t("home.after.date", "2026-11-01"), text("home-after-meta"));
+        // PP-01: the fixture's statistics have no capture time, so the card names the scheduled date, not a shooting date.
+        assertEquals("纪实摄影 · " + t("session.dates.scheduled", "2026-11-01"), text("home-after-meta"));
         assertEquals(t("home.after.start"), text("home-review-action"));
         Bounds left = fx(() -> scene(node("home-continue"))), right = fx(() -> scene(node("home-after")));
         assertEquals(left.getWidth(), right.getWidth(), 1); assertEquals(left.getHeight(), right.getHeight(), .5);
@@ -201,11 +213,11 @@ class HomeDashboardGuiTest {
         size(1194, 843); snapshot("home-state1-both-dark");
         action(() -> ThemeManager.get().select(Theme.Mode.LIGHT)); idle();
 
-        // The cards open the existing workflows for exactly that session.
+        // The cards open the existing workflows for exactly that session: Continue resumes at its recommended page.
         fire("home-continue-action");
         assertFalse(fx(() -> controller.workspace().atHome()));
-        assertTrue(fx(() -> ((ToggleButton) node("nav-F01")).isSelected()));
-        assertEquals("湖畔蓝调时刻", fx(() -> ((TextField) node("session-field-title")).getText()));
+        assertTrue(fx(() -> ((ToggleButton) node("nav-F07")).isSelected()), "resumed at Gear Selection");
+        assertEquals(lake.id(), fx(() -> ((PhotographySession) ((ComboBox<?>) node("match-session")).getValue()).id()));
         home(); fire("home-review-action");
         assertTrue(fx(() -> ((ToggleButton) node("nav-F11")).isSelected()));
         assertEquals(street.id(), fx(() -> ((PhotographySession) ((ComboBox<?>) node("review-session")).getValue()).id()));
@@ -243,14 +255,23 @@ class HomeDashboardGuiTest {
         var onlyReviewed = HomeDashboard.Highlights.of(List.of(reviewed));
         assertEquals("Reviewed", onlyReviewed.afterShoot().orElseThrow().title()); assertTrue(onlyReviewed.unfinished().isEmpty());
 
+        // The card's next step is the shared workflow's recommendation (Home no longer derives steps of its own).
         var bare = new PhotographySession(UUID.randomUUID(), "Bare", LocalDate.of(2026, 11, 1), Optional.empty(), "", CREATED, CREATED, new DraftState(),
             Optional.empty(), List.of(), List.of(), Optional.empty(), Optional.empty(), List.of());
-        assertEquals(HomeDashboard.Step.REQUIREMENT, HomeDashboard.Step.of(bare));
+        assertEquals(com.photopilot.workflow.Milestone.REQUIREMENTS, next(bare));
         var unreviewed = new PhotographySession(UUID.randomUUID(), "Needs", LocalDate.of(2026, 11, 1), Optional.empty(), "", CREATED, CREATED, new DraftState(),
             Optional.of(requirement("X")), List.of(), List.of(), Optional.empty(), Optional.empty(), List.of());
-        assertEquals(HomeDashboard.Step.PROFILE, HomeDashboard.Step.of(unreviewed));
-        assertEquals(HomeDashboard.Step.PLAN, HomeDashboard.Step.of(newer));
-        assertEquals(HomeDashboard.Step.SHOOT, HomeDashboard.Step.of(planned));
+        assertEquals(com.photopilot.workflow.Milestone.EQUIPMENT_NEEDS, next(unreviewed));
+        assertEquals(com.photopilot.workflow.Milestone.GEAR_SELECTION, next(newer));
+        assertEquals(com.photopilot.workflow.Milestone.SHOOT, next(planned));
+        // A chosen session is preferred by each card that can show it.
+        assertEquals("Older", HomeDashboard.Highlights.of(List.of(older, newer), Optional.of(older.id())).unfinished().orElseThrow().title());
+        assertEquals("Reviewed", HomeDashboard.Highlights.of(List.of(reviewed, completed), Optional.of(reviewed.id())).afterShoot().orElseThrow().title());
+        assertEquals("Newer", HomeDashboard.Highlights.of(List.of(older, newer, completed), Optional.of(completed.id())).unfinished().orElseThrow().title(),
+            "a shot session is never shown as the unfinished one");
+    }
+    private static com.photopilot.workflow.Milestone next(PhotographySession session) {
+        return com.photopilot.service.SessionWorkflowService.evaluateStored(session).next().orElseThrow().milestone();
     }
 
     void snapshot(String name) throws Exception {
