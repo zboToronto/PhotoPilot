@@ -35,16 +35,17 @@ final class SessionCommands {
                 var d = parsed.value().orElseThrow();
                 var saved = app.sessions().create(d.title(), d.date(), d.location(), d.notes());
                 if (!report(saved)) return 2;
-                output.println(localization.text("session.saved")); show(saved.value().orElseThrow()); return 0;
+                output.println(localization.text("session.saved")); show(saved.value().orElseThrow()); workflow(saved.value().orElseThrow(), false); return 0;
             }
-            if (!Set.of("open", "view", "restore", "edit", "transition", "delete").contains(action) || words.size() < 3)
+            if (!Set.of("open", "view", "restore", "edit", "transition", "delete", "progress").contains(action) || words.size() < 3)
                 throw new LocalizedException("error.session.command");
             var loaded = app.sessions().open(SessionForm.id(words.get(2)));
             if (!report(loaded)) return 2;
             var original = loaded.value().orElseThrow();
             if (Set.of("open", "view", "restore").contains(action)) {
-                options(words, 3, Set.of()); show(original); return 0;
+                options(words, 3, Set.of()); show(original); workflow(original, false); return 0;
             }
+            if (action.equals("progress")) { options(words, 3, Set.of()); workflow(original, true); return 0; }
             if (action.equals("delete")) {
                 var options = options(words, 3, Set.of("--confirm"));
                 if (!report(app.sessions().delete(original, options.containsKey("--confirm")))) return 2;
@@ -64,8 +65,37 @@ final class SessionCommands {
                 saved = app.sessions().update(original, d.title(), d.date(), d.location(), d.notes());
             }
             if (!report(saved)) return 2;
-            output.println(localization.text("session.saved")); show(saved.value().orElseThrow()); return 0;
+            output.println(localization.text("session.saved")); show(saved.value().orElseThrow()); workflow(saved.value().orElseThrow(), false); return 0;
         } catch (IllegalArgumentException error) { report(Result.failure(error)); return 2; }
+    }
+
+    /**
+     * The session's workflow progress from the shared SessionWorkflowService (the GUI sidebar's source): a summary
+     * line and the recommended next milestone with its CLI command, plus one line per milestone when {@code detailed}.
+     * Printed after the existing lines, so earlier output is unchanged.
+     */
+    private void workflow(PhotographySession session, boolean detailed) {
+        var progress = app.workflow().evaluate(session);
+        String phase = localization.text(progress.phase().labelKey());
+        output.println(localization.text("session.cli.workflow", progress.percent(), progress.completed(), progress.applicable(),
+            progress.attention() ? localization.text("workflow.phaseAttention", phase) : phase));
+        if (detailed) for (var state : progress.milestones())
+            // Indented in code: properties files drop leading spaces of a value.
+            output.println("  " + localization.text("session.cli.milestone", String.format("%02d", state.milestone().number()),
+                localization.text(state.milestone().titleKey()), localization.text(state.status().labelKey()), state.detail().render(localization)));
+        output.println(progress.next().map(next -> localization.text("session.cli.next", localization.text(next.milestone().titleKey()),
+                localization.text(command(next), session.id())))
+            .orElseGet(() -> localization.text("session.cli.complete")));
+    }
+    /**
+     * The CLI command that acts on the recommended milestone: analysed photos continue with the review draft, and a plan
+     * whose date, place or gear changed is revised (F10 regenerates only when its constraints changed).
+     */
+    private static String command(com.photopilot.workflow.MilestoneState next) {
+        String key = "session.cli.command." + next.milestone().name();
+        if (next.milestone() == com.photopilot.workflow.Milestone.REVIEW && next.status() == com.photopilot.workflow.MilestoneStatus.IN_PROGRESS) return key + ".continue";
+        if (next.milestone() == com.photopilot.workflow.Milestone.PLAN && next.detail().key().equals("workflow.detail.planShootChanged")) return key + ".revise";
+        return key;
     }
     private static Map<String, String> options(List<String> words, int start, Set<String> allowed) {
         Map<String, String> options = new LinkedHashMap<>();
@@ -85,6 +115,8 @@ final class SessionCommands {
     }
     private void show(PhotographySession session) {
         output.println(localization.text("session.summary", session.id(), session.title(), session.date(), localization.text("session.state." + session.status())));
+        // PP-01: with saved photo timestamps, the scheduled date and the photos' camera-clock dates are told apart.
+        SessionDates.detail(session, localization).ifPresent(output::println);
         output.println(localization.text("session.metadata", session.location().map(l -> l.label()).orElse(""), session.notes(), session.createdAt(), session.updatedAt()));
         output.println(localization.text("session.links", session.requirements().isPresent() ? 1 : 0, session.plans().size(),
             session.reviews().size(), session.statistics().isPresent() ? 1 : 0, session.savedIdeas().size()));

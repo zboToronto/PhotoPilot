@@ -6,7 +6,9 @@ Verified on Windows / JDK 21, 2026-10-31 (America/Toronto). F01/UC01/SD01 is imp
 
 Stage1PPP.pdf section 2, UC01, section 4.5 and SD01 require title, date, optional location/notes/goals, unique identity, timestamps, searchable persistence, restored linked records and guarded lifecycle. Category, mandatory coordinates, time-of-day, cancellation and a separate direct equipment picker are not in this F01 design and were not added. Notes hold free-form goals. Existing F07/F10 plan loadouts own gear selections; F01 restores their snapshots without inventing an alternative inventory.
 
-GUI: open **Sessions & History**, choose **Create session**, enter title/date and optional location/goals, then **Save session**. Select a history row and use **Open / Edit** to restore/edit it. Search covers title, notes, place, UUID, ISO date and state identifier; optional exact date/state filters combine with the query. Blank history shows an empty state. Delete requires confirmation. Navigation and language switching retain drafts; replacing an editor or closing the window requires discard confirmation. Failed saves and stale edits retain the form. Reopen explicitly to resolve a conflict; there is no automatic merge.
+GUI: open **Photography Sessions** (sidebar section General), choose **Create session**, enter title/date and optional location/goals, then **Save session**. The history table has **Progress** ("57% · 4/7" with a thin bar) and **Next step** columns. Select a row and use the primary **Resume** (**View review** for a reviewed session) to open the session's recommended page, or **View details** (formerly **Open / Edit**) to restore/edit it; the editor also shows the progress context line, a Continue action and the lifecycle row. Create, Resume and View details make that session the window's current session, which the session pages follow ([session workflow](session-workflow.md)). The sidebar entry **Shooting Completion** (Active session, step 06) opens this page with the current session's editor at its lifecycle action; the action gets keyboard focus only from the shoot day onwards and is never applied by navigation.
+
+Search covers title, notes, place, UUID, ISO date and state identifier; optional exact date/state filters combine with the query. Blank history shows an empty state. Delete requires confirmation. Navigation and language switching retain drafts; replacing an editor or closing the window requires discard confirmation. Failed saves and stale edits retain the form. Reopen explicitly to resolve a conflict; there is no automatic merge.
 
 CLI examples (inside the CLI; replace `<id>` with the generated UUID):
 
@@ -14,13 +16,14 @@ CLI examples (inside the CLI; replace `<id>` with the generated UUID):
 session create title="Evening portrait" date=2026-11-01 location="Park" notes="Soft light"
 session list query=portrait status=DRAFT date=2026-11-01
 session open <id>
+session progress <id>
 session edit <id> notes="Bring a reflector" location="River park"
 session restore <id>
 session transition <id> event=SHOOT_COMPLETED
 session delete <id> --confirm
 ```
 
-`F01` aliases `session list`. `session help` documents commands; `view`, `open` and `restore` read the same record. Quoted values and UTF-8 user text are preserved. Empty `location=`/`notes=` clears optional values. Unknown/repeated options, noncanonical UUIDs and invalid ISO dates return errors. A command does not retain an editable in-memory session between invocations; each edit opens the current record and uses its revision.
+`F01` aliases `session list`. `session help` documents commands; `view`, `open` and `restore` read the same record. Quoted values and UTF-8 user text are preserved. Empty `location=`/`notes=` clears optional values. Unknown/repeated options, noncanonical UUIDs and invalid ISO dates return errors. A command does not retain an editable in-memory session between invocations; each edit opens the current record and uses its revision. Since 2026-11-23 `session open|view|restore|create|edit|transition` end with two lines, `Workflow progress: …` and `Next step: …`, and `session progress <id>` lists each milestone with its status and reason ([session workflow](session-workflow.md#cli)).
 
 ## Lifecycle and boundaries
 
