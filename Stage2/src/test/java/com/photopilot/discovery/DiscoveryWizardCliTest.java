@@ -782,7 +782,7 @@ class DiscoveryWizardCliTest {
                 assertEquals(0, cli.exitCode(), out);
                 fits(wizardLines(out, "What will you photograph today?", "Left Guided Discovery"), width);
                 var gaps = DiscoveryPresentation.gaps(app.facade().discovery().latest().orElseThrow(), app.localization());
-                assertEquals(List.of("Not supplied by the providers: hourly.precipitationProbabilityPct, hourly.visibilityM, hourly.windGustsKmh"), gaps);
+                assertEquals(List.of("Not supplied by the providers: Precipitation chance, Visibility, Wind gusts"), gaps);
                 // In the results header, with the notes and before the first idea, as a [!] line; printed once.
                 String header = between(out, "Conditions for these results", "Checked by PhotoPilot");
                 squeezedContains(between(header, "PhotoPilot notes", "Suggested by AI (Gemini)"), "[!] " + gaps.getFirst());
@@ -969,7 +969,7 @@ class DiscoveryWizardCliTest {
                 String heading = app.localization().text("discover.cli.wizard.heading"), left = app.localization().text("discover.cli.wizard.left");
                 fits(scenario.handOff() ? fromHeading(out, heading) : wizardLines(out, heading, left.substring(0, 6)), scenario.width());
                 if (scenario.forecast() != null)
-                    squeezedContains(out, "[!] Warning: thunderstorms are forecast during this time.", "[!] Not supplied by the providers: hourly.visibilityM",
+                    squeezedContains(out, "[!] Warning: thunderstorms are forecast during this time.", "[!] Not supplied by the providers: Visibility",
                         "unconfirmed F03 draft");
                 transcript(scenario.file(), "# PhotoPilot CLI transcript - " + scenario.title() + System.lineSeparator()
                     + "# Typed at the command loop: discover wizard. Each answer is shown after its \"> \" prompt.", out);
